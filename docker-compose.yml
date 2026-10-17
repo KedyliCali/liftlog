@@ -1,3 +1,6 @@
+# Local development.
+#   docker compose up -d db     -> only PostgreSQL (run the backend from the IDE / ./mvnw)
+#   docker compose up -d        -> PostgreSQL + the backend container on :8080
 services:
   db:
     image: postgres:17-alpine
@@ -17,6 +20,22 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  api:
+    build: ./backend
+    container_name: liftlog-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Inside the compose network the database is reachable by its service name on 5432
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "${API_PORT:-8080}:8080"
 
 volumes:
   liftlog-db-data:

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">LiftLog</string>
+    <string name="app_name" translatable="false">LiftLog</string>
 
     <string name="nav_workouts">Workouts</string>
     <string name="nav_progress">Progress</string>
@@ -36,7 +36,6 @@
     <string name="action_save">Save</string>
     <string name="action_delete">Delete</string>
     <string name="action_retry">Retry</string>
-    <string name="action_edit">Edit</string>
     <string name="action_back">Back</string>
     <string name="action_more">More options</string>
     <string name="action_ok">OK</string>
@@ -46,7 +45,6 @@
     <string name="delete_workout">Delete workout</string>
     <string name="delete_workout_title">Delete this workout?</string>
     <string name="delete_workout_body">The workout and all of its sets will be removed.</string>
-    <string name="delete_set">Delete set</string>
     <string name="add_set">Add set</string>
     <string name="edit_set">Edit set</string>
     <string name="detail_empty_title">No sets yet</string>
@@ -60,7 +58,6 @@
     <string name="error_reps">Enter 1–1000 reps</string>
     <string name="error_weight">Enter a weight between 0 and 9999.99</string>
     <string name="error_rpe">RPE must be between 1 and 10</string>
-    <string name="error_exercise">Choose an exercise</string>
     <string name="error_name_required">Name is required</string>
 
     <string name="exercise_search">Search exercises</string>
@@ -97,7 +94,6 @@
     <string name="profile_logout">Sign out</string>
     <string name="profile_server">Server</string>
     <string name="profile_version">Version</string>
-    <string name="profile_records">Personal records</string>
 
     <string name="progress_title">Progress</string>
     <string name="progress_subtitle">Strength over time</string>

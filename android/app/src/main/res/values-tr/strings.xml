@@ -34,7 +34,6 @@
     <string name="action_save">Kaydet</string>
     <string name="action_delete">Sil</string>
     <string name="action_retry">Tekrar dene</string>
-    <string name="action_edit">Düzenle</string>
     <string name="action_back">Geri</string>
     <string name="action_more">Diğer seçenekler</string>
     <string name="action_ok">Tamam</string>
@@ -44,7 +43,6 @@
     <string name="delete_workout">Antrenmanı sil</string>
     <string name="delete_workout_title">Bu antrenman silinsin mi?</string>
     <string name="delete_workout_body">Antrenman ve tüm setleri silinecek.</string>
-    <string name="delete_set">Seti sil</string>
     <string name="add_set">Set ekle</string>
     <string name="edit_set">Seti düzenle</string>
     <string name="detail_empty_title">Henüz set yok</string>
@@ -58,7 +56,6 @@
     <string name="error_reps">1–1000 arası tekrar gir</string>
     <string name="error_weight">0 ile 9999.99 arası ağırlık gir</string>
     <string name="error_rpe">RPE 1 ile 10 arasında olmalı</string>
-    <string name="error_exercise">Bir hareket seç</string>
     <string name="error_name_required">İsim zorunlu</string>
 
     <string name="exercise_search">Hareket ara</string>
@@ -95,7 +92,6 @@
     <string name="profile_logout">Çıkış yap</string>
     <string name="profile_server">Sunucu</string>
     <string name="profile_version">Sürüm</string>
-    <string name="profile_records">Kişisel rekorlar</string>
 
     <string name="progress_title">İlerleme</string>
     <string name="progress_subtitle">Zaman içinde gücün</string>

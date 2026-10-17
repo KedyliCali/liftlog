@@ -26,3 +26,6 @@ Thumbs.db
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Android release signing (never commit)
+keystore.properties
