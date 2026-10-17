@@ -21,8 +21,10 @@ USER liftlog
 COPY --from=build /workspace/app.jar app.jar
 
 EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-    CMD wget -qO- http://localhost:8080/api/v1/health || exit 1
+# PORT is set by hosting platforms such as Render; locally it falls back to 8080
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+    CMD wget -qO- http://localhost:${PORT:-8080}/api/v1/health || exit 1
 
-# Respect container memory limits instead of the host's RAM
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "app.jar"]
+# Sized for small containers (Render free = 512 MB): heap gets 65% of the container limit and the
+# rest is left for metaspace and threads; SerialGC has the lowest memory overhead on 1 CPU
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=65", "-XX:+UseSerialGC", "-Xss512k", "-jar", "app.jar"]
