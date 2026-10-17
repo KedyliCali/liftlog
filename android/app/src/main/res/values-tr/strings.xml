@@ -1,0 +1,81 @@
+<resources>
+    <string name="nav_workouts">Antrenmanlar</string>
+    <string name="nav_progress">İlerleme</string>
+    <string name="nav_profile">Profil</string>
+
+    <string name="workouts_title">Antrenmanlar</string>
+    <string name="workouts_subtitle">Antrenman günlüğün</string>
+    <string name="workouts_empty_title">Henüz antrenman yok</string>
+    <string name="workouts_empty_body">İlk antrenmanını kaydetmek için + butonuna dokun.</string>
+    <string name="workout_new">Yeni antrenman</string>
+    <string name="workout_untitled">Antrenman</string>
+
+    <plurals name="sets_count">
+        <item quantity="one">%d set</item>
+        <item quantity="other">%d set</item>
+    </plurals>
+    <plurals name="exercises_count">
+        <item quantity="one">%d hareket</item>
+        <item quantity="other">%d hareket</item>
+    </plurals>
+    <string name="weight_kg">%s kg</string>
+    <string name="volume_kg">%s kg hacim</string>
+
+    <string name="field_date">Tarih</string>
+    <string name="field_notes">Not (isteğe bağlı)</string>
+    <string name="field_exercise">Hareket</string>
+    <string name="field_reps">Tekrar</string>
+    <string name="field_weight">Ağırlık (kg)</string>
+    <string name="field_rpe">RPE (isteğe bağlı)</string>
+    <string name="choose_exercise">Hareket seç</string>
+
+    <string name="action_create">Oluştur</string>
+    <string name="action_cancel">Vazgeç</string>
+    <string name="action_save">Kaydet</string>
+    <string name="action_delete">Sil</string>
+    <string name="action_retry">Tekrar dene</string>
+    <string name="action_edit">Düzenle</string>
+    <string name="action_back">Geri</string>
+    <string name="action_more">Diğer seçenekler</string>
+    <string name="action_ok">Tamam</string>
+
+    <string name="workout_detail_title">Antrenman</string>
+    <string name="edit_workout">Antrenmanı düzenle</string>
+    <string name="delete_workout">Antrenmanı sil</string>
+    <string name="delete_workout_title">Bu antrenman silinsin mi?</string>
+    <string name="delete_workout_body">Antrenman ve tüm setleri silinecek.</string>
+    <string name="delete_set">Seti sil</string>
+    <string name="add_set">Set ekle</string>
+    <string name="edit_set">Seti düzenle</string>
+    <string name="detail_empty_title">Henüz set yok</string>
+    <string name="detail_empty_body">Antrenmana başlamak için ilk setini ekle.</string>
+    <string name="total_volume">Toplam hacim</string>
+    <string name="label_sets">Set</string>
+    <string name="label_exercises">Hareket</string>
+    <string name="set_number">#%d</string>
+    <string name="rpe_value">RPE %s</string>
+
+    <string name="error_reps">1–1000 arası tekrar gir</string>
+    <string name="error_weight">0 ile 9999.99 arası ağırlık gir</string>
+    <string name="error_rpe">RPE 1 ile 10 arasında olmalı</string>
+    <string name="error_exercise">Bir hareket seç</string>
+    <string name="error_name_required">İsim zorunlu</string>
+
+    <string name="exercise_search">Hareket ara</string>
+    <string name="exercise_new">Yeni hareket</string>
+    <string name="exercise_name">Hareket adı</string>
+    <string name="exercise_muscle_group">Kas grubu (isteğe bağlı)</string>
+    <string name="exercise_custom_badge">Özel</string>
+    <string name="exercise_none_found">\"%s\" ile eşleşen hareket yok</string>
+
+    <string name="error_network">Sunucuya ulaşılamıyor. Bağlantını kontrol et.</string>
+    <string name="error_not_found">Bu kayıt artık yok.</string>
+    <string name="error_server">Sunucu hatası. Birazdan tekrar dene.</string>
+    <string name="error_unknown">Bir şeyler ters gitti.</string>
+    <string name="error_unauthorized">Oturumun sona erdi. Lütfen tekrar giriş yap.</string>
+    <string name="error_invalid">Bazı değerler geçersiz.</string>
+    <string name="error_conflict">Bu zaten mevcut.</string>
+
+    <string name="coming_soon_title">Yakında</string>
+    <string name="coming_soon_body">Bu sekme bir sonraki sürümde geliyor.</string>
+</resources>
