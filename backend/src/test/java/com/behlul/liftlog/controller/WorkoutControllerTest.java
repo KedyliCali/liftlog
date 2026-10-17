@@ -4,6 +4,7 @@ import com.behlul.liftlog.exception.ResourceNotFoundException;
 import com.behlul.liftlog.service.WorkoutService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -19,6 +20,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** Checks validation and the shared error format at the HTTP layer; the service is mocked. */
+// Security filters are off here: these tests cover MVC mapping only; ApiIntegrationTest covers auth
+@AutoConfigureMockMvc(addFilters = false)
 @WebMvcTest(WorkoutController.class)
 class WorkoutControllerTest {
 
@@ -72,7 +75,7 @@ class WorkoutControllerTest {
     @Test
     void addSetWithValidBodyReturns201() throws Exception {
         when(workoutService.addSet(eq(1L), any())).thenReturn(new com.behlul.liftlog.dto.SetResponse(
-                318L, 1L, "Squat", 3, 5, new java.math.BigDecimal("140.00"), new java.math.BigDecimal("8.0")));
+                318L, 1L, "Squat", 3, 5, new java.math.BigDecimal("140.00"), new java.math.BigDecimal("8.0"), false));
 
         mockMvc.perform(post("/api/v1/workouts/1/sets")
                         .contentType(MediaType.APPLICATION_JSON)
