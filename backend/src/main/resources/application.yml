@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: liftlog
+  config:
+    # Load DB credentials from the repo-root .env (works when started from backend/ or the root).
+    # "optional:" so a deployed container can rely on real environment variables instead.
+    import:
+      - optional:file:../.env[.properties]
+      - optional:file:.env[.properties]
+  datasource:
+    url: jdbc:postgresql://localhost:${DB_PORT:5433}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      # Flyway owns the schema; Hibernate only checks that entities match it
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
