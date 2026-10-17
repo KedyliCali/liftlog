@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Barbell built from stepped plates (outer large, inner small), collars and a bar sleeve. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- bar -->
+    <path android:fillColor="#FFC9CED8" android:pathData="M24,52.5h60v3h-60z" />
+    <!-- sleeves -->
+    <path android:fillColor="#FF8E96A6" android:pathData="M24,51h8v6h-8zM76,51h8v6h-8z" />
+    <!-- outer large plates -->
+    <path android:fillColor="#FFFF6B2C" android:pathData="M33,38h6a1.5,1.5 0,0 1,1.5 1.5v29a1.5,1.5 0,0 1,-1.5 1.5h-6a1.5,1.5 0,0 1,-1.5 -1.5v-29a1.5,1.5 0,0 1,1.5 -1.5z" />
+    <path android:fillColor="#FFFF6B2C" android:pathData="M69,38h6a1.5,1.5 0,0 1,1.5 1.5v29a1.5,1.5 0,0 1,-1.5 1.5h-6a1.5,1.5 0,0 1,-1.5 -1.5v-29a1.5,1.5 0,0 1,1.5 -1.5z" />
+    <!-- plate rim highlight -->
+    <path android:fillColor="#FFFFA476" android:pathData="M33,40h1.6v28h-1.6zM73.4,40h1.6v28h-1.6z" />
+    <!-- inner small plates -->
+    <path android:fillColor="#FFF2F3F5" android:pathData="M41.5,43.5h3.5a1,1 0,0 1,1 1v19a1,1 0,0 1,-1 1h-3.5a1,1 0,0 1,-1 -1v-19a1,1 0,0 1,1 -1z" />
+    <path android:fillColor="#FFF2F3F5" android:pathData="M63,43.5h3.5a1,1 0,0 1,1 1v19a1,1 0,0 1,-1 1h-3.5a1,1 0,0 1,-1 -1v-19a1,1 0,0 1,1 -1z" />
+    <!-- collars -->
+    <path android:fillColor="#FF8E96A6" android:pathData="M46.5,49.5h2.5v9h-2.5zM59,49.5h2.5v9h-2.5z" />
+    <!-- knurling ticks -->
+    <path android:fillColor="#FF5C6372" android:pathData="M51.5,52.5h1v3h-1zM55.5,52.5h1v3h-1z" />
+</vector>
