@@ -46,6 +46,8 @@ data class WorkoutSet(
     val reps: Int,
     val weightKg: Double,
     val rpe: Double?,
+    /** Only ever true on the set returned right after adding it. */
+    val isNewPersonalRecord: Boolean = false,
 ) {
     val volumeKg: Double get() = reps * weightKg
 }
@@ -63,3 +65,37 @@ data class Page<T>(
     val page: Int,
     val isLast: Boolean,
 )
+
+data class Session(
+    val token: String,
+    val userId: Long,
+    val email: String,
+    val displayName: String?,
+)
+
+sealed interface SessionState {
+    /** DataStore has not been read yet; the UI shows a splash instead of guessing. */
+    data object Loading : SessionState
+    data object LoggedOut : SessionState
+    data class LoggedIn(val session: Session) : SessionState
+}
+
+data class PersonalRecord(
+    val exerciseId: Long,
+    val exerciseName: String,
+    val heaviestWeightKg: Double,
+    val heaviestReps: Int,
+    val heaviestDate: LocalDate,
+    val bestEstimated1RmKg: Double,
+    val bestEstimated1RmDate: LocalDate,
+    val totalSets: Int,
+)
+
+data class ProgressPoint(
+    val date: LocalDate,
+    val topWeightKg: Double,
+    val estimated1RmKg: Double,
+    val volumeKg: Double,
+)
+
+data class WeeklyVolume(val weekStart: LocalDate, val volumeKg: Double, val setCount: Int)
