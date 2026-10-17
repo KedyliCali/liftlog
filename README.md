@@ -1,19 +1,173 @@
 # LiftLog
 
-Workout tracking app for Android: log workouts, exercises and sets, and follow your strength progress.
+[![CI](https://github.com/KedyliCali/liftlog/actions/workflows/ci.yml/badge.svg)](https://github.com/KedyliCali/liftlog/actions/workflows/ci.yml)
 
-- **Android:** Kotlin, Jetpack Compose, MVVM, Hilt, Retrofit
-- **Backend:** Java 21, Spring Boot 3, Spring Data JPA, PostgreSQL, Flyway
-- **Infra:** Docker Compose, GitHub Actions
+A workout tracker for Android. Log workouts, exercises and sets, then follow your personal
+records and estimated one-rep max over time. The Kotlin/Jetpack Compose app talks to a
+JWT-secured Spring Boot REST API backed by PostgreSQL, packaged with Docker.
 
-> Work in progress. See [`docs/PLAN.md`](docs/PLAN.md) for the roadmap and [`PROGRESS.md`](PROGRESS.md) for the current status.
+<p>
+  <img src="docs/screenshots/workouts.png" width="200" alt="Workout list">
+  <img src="docs/screenshots/workout-detail.png" width="200" alt="Workout detail">
+  <img src="docs/screenshots/progress.png" width="200" alt="Progress charts">
+  <img src="docs/screenshots/login.png" width="200" alt="Sign in">
+</p>
 
-## Running the backend locally
+## Features
+
+- **Workouts and sets:** create, edit and delete workouts. Add sets with reps, weight and optional RPE. The next set is pre-filled from the previous one.
+- **Exercises:** 16 built-in lifts plus your own custom exercises, with search.
+- **Accounts:** email and password sign-up with JWT. Every user sees only their own data.
+- **Progress:** heaviest set and best estimated 1RM per exercise, an e1RM trend chart and weekly training volume.
+- **PR alerts:** the app celebrates when a new set beats your previous best.
+- **English and Turkish UI**, light and dark theme following the system.
+
+## Tech stack
+
+| Layer | Technology |
+| --- | --- |
+| Android | Kotlin, Jetpack Compose (Material 3), MVVM + `StateFlow`, Hilt, Retrofit + kotlinx.serialization, Navigation Compose, DataStore, Vico charts |
+| Backend | Java 21, Spring Boot 4, Spring Web MVC, Spring Data JPA (Hibernate 7), Spring Security (OAuth2 resource server, HS256 JWT), Bean Validation, springdoc-openapi |
+| Database | PostgreSQL 17, schema versioned with Flyway |
+| Testing | JUnit 5, Mockito, AssertJ, Testcontainers, MockMvc; JUnit 4, MockK, Turbine and coroutines-test on Android |
+| Infrastructure | Docker (multi-stage), Docker Compose, Caddy (automatic HTTPS), GitHub Actions |
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Phone["Android app"]
+        UI["Compose screens"] --> VM["ViewModels<br/>(UiState via StateFlow)"]
+        VM --> Repo["Repositories"]
+        Repo --> API["Retrofit + AuthInterceptor"]
+        Repo --> Store["DataStore<br/>(session / JWT)"]
+    end
+    subgraph Server["Docker Compose"]
+        Caddy["Caddy<br/>HTTPS"] --> Ctrl["Controllers + DTOs"]
+        Ctrl --> Svc["Services<br/>(PRs, e1RM, volume)"]
+        Svc --> JPA["Spring Data JPA"]
+        JPA --> PG[("PostgreSQL<br/>Flyway schema")]
+    end
+    API -- "JSON over HTTPS<br/>Authorization: Bearer JWT" --> Caddy
+```
+
+Each Android screen follows the same layers. The **Screen** only renders state and forwards
+user actions. The **ViewModel** owns the `UiState` (loading / data / error). The
+**Repository** decides where data comes from. **Retrofit** does the HTTP call. The backend
+mirrors this: Controller → Service → Repository, with DTOs at the edge, so JPA entities are
+never serialized directly.
+
+## Project structure
+
+```
+liftlog/
+├── backend/                 Spring Boot API (controller, service, repository, entity, dto, security, exception)
+│   └── src/main/resources/db/migration/   Flyway migrations (V1__init.sql, ...)
+├── android/                 Compose app (data/remote, data/local, data/repository, domain/model, ui/*, di)
+├── deploy/                  Production compose file + Caddyfile
+├── scripts/                 Demo data seeding
+├── docs/                    Plan, walkthrough, screenshots
+└── docker-compose.yml       Local PostgreSQL (+ API container)
+```
+
+## Running locally
+
+**Requirements:** Docker, JDK 21, and Android Studio (or the Android SDK) for the app.
 
 ```bash
-cp .env.example .env        # then set your own database password
-docker compose up -d        # starts PostgreSQL
+cp .env.example .env              # then set DB_PASSWORD and a 32+ character JWT_SECRET
+docker compose up -d --build      # PostgreSQL on :5433 and the API on :8080
+```
+
+Or run only the database in Docker and the API from your IDE:
+
+```bash
+docker compose up -d db
 cd backend && ./mvnw spring-boot:run
 ```
 
-Health check: <http://localhost:8080/api/v1/health>
+- Health check: <http://localhost:8080/api/v1/health>
+- Swagger UI: <http://localhost:8080/swagger-ui.html>
+
+**Android:** open `android/` in Android Studio and run on an emulator. Debug builds call
+`http://10.0.2.2:8080/`, which is the host machine as seen from the emulator.
+
+**Demo data:** creates a local demo account with eight weeks of training, so the Progress
+tab has something to show:
+
+```bash
+python scripts/seed_demo_data.py
+```
+
+## API
+
+All endpoints are under `/api/v1`. Everything except `auth/register`, `auth/login` and
+`health` needs `Authorization: Bearer <token>`.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| POST | `/auth/register` | Create an account, returns a JWT |
+| POST | `/auth/login` | Sign in, returns a JWT |
+| GET | `/auth/me` | Current user |
+| GET / POST | `/exercises` | Built-in + own exercises / create a custom one |
+| GET | `/workouts?page=0&size=20` | Paged workout summaries, newest first |
+| GET / PUT / DELETE | `/workouts/{id}` | Workout with its sets / update / delete |
+| POST | `/workouts` | Create a workout |
+| POST | `/workouts/{id}/sets` | Add a set (response flags a new personal record) |
+| PUT / DELETE | `/sets/{id}` | Update / delete a set |
+| GET | `/stats/prs` | Heaviest set and best estimated 1RM per exercise |
+| GET | `/stats/progress?exerciseId=1` | Per-session top weight, e1RM and volume |
+| GET | `/stats/volume?weeks=8` | Weekly volume, gaps filled with zero |
+
+Errors always use the same shape:
+
+```json
+{ "timestamp": "...", "status": 400, "error": "Bad Request", "message": "Validation failed",
+  "path": "/api/v1/workouts/1/sets", "fieldErrors": { "reps": "must be greater than or equal to 1" } }
+```
+
+## Testing
+
+```bash
+cd backend && ./mvnw verify                  # unit tests + Testcontainers integration tests (needs Docker)
+cd android && ./gradlew testDebugUnitTest    # ViewModel tests with fake repositories
+```
+
+- **Backend:** service unit tests (Mockito), MVC slice tests for validation and the error format, and integration tests that run the real security chain, Flyway schema and PostgreSQL in a container. These cover 401s, registration rules, per-user isolation, PR detection and the SQL weekly-volume query.
+- **Android:** ViewModel tests for loading and error states, paging, refresh on resume, set validation, auth and progress selection.
+- **CI:** GitHub Actions runs both suites, Android lint and a Docker image build on every push and pull request.
+
+## Design decisions
+
+- **`NUMERIC(6,2)` for weights, not `FLOAT`:** 2.5 kg plates must add up exactly, and binary floating point cannot represent many decimal values.
+- **PRs are computed, not stored:** records are derived from sets on each request, so editing or deleting a set can never leave a stale PR behind.
+- **Entity and DTO are separate:** the API contract stays stable when the database changes, and lazy JPA relations are never serialized by accident.
+- **404 for other users' data:** a foreign workout looks exactly like a missing one, so IDs reveal nothing.
+- **`CurrentUserProvider` interface:** the MVP used a demo user, and adding JWT meant swapping a single implementation. Services did not change.
+- **JWT with Spring's resource server:** tokens are issued with Nimbus and validated by Spring Security's own filter, so no hand-written filter or extra JWT library is needed.
+- **Login gives no hints:** login returns the same error for an unknown email and a wrong password, and runs a dummy BCrypt check so response timing does not reveal registered emails.
+- **The session drives the UI:** the root composable switches between sign-in and the app based only on the stored session. Logout or an expired token (401) needs no navigation code.
+
+## Deployment
+
+`deploy/docker-compose.prod.yml` runs PostgreSQL, the API and Caddy on one Linux server.
+Caddy gets an HTTPS certificate for `DOMAIN` automatically. Only ports 80 and 443 are public;
+the database has no published port.
+
+```bash
+docker compose -f deploy/docker-compose.prod.yml --env-file .env up -d --build
+```
+
+Release APKs point at the deployed API:
+
+```bash
+cd android && ./gradlew assembleRelease -PliftlogApiUrl=https://your-domain/
+```
+
+Signing reads `android/keystore.properties` (git-ignored). Without it the release build is unsigned.
+
+## Status
+
+The MVP, accounts and progress features are done. Next: a public deployment and an APK on
+GitHub Releases, a rest timer and workout templates (v1.3), and offline support with Room (v2.0).
+See [docs/PLAN.md](docs/PLAN.md) for the full roadmap and [PROGRESS.md](PROGRESS.md) for the log.
