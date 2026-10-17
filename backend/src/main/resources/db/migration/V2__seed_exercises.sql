@@ -1,0 +1,17 @@
+INSERT INTO exercises (name, muscle_group) VALUES
+    ('Squat',              'Legs'),
+    ('Front Squat',        'Legs'),
+    ('Romanian Deadlift',  'Legs'),
+    ('Leg Press',          'Legs'),
+    ('Deadlift',           'Back'),
+    ('Barbell Row',        'Back'),
+    ('Pull-up',            'Back'),
+    ('Lat Pulldown',       'Back'),
+    ('Bench Press',        'Chest'),
+    ('Incline Bench Press','Chest'),
+    ('Dumbbell Bench Press','Chest'),
+    ('Dip',                'Chest'),
+    ('Overhead Press',     'Shoulders'),
+    ('Lateral Raise',      'Shoulders'),
+    ('Barbell Curl',       'Arms'),
+    ('Triceps Pushdown',   'Arms');
