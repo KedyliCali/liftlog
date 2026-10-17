@@ -11,6 +11,13 @@ spring:
     url: jdbc:postgresql://localhost:${DB_PORT:5433}/${DB_NAME:liftlog}
     username: ${DB_USER:liftlog}
     password: ${DB_PASSWORD}
+    hikari:
+      # Small pool: free hosted PostgreSQL plans allow few connections
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+      # Neon suspends idle databases and drops their connections; recycle ours before that happens
+      idle-timeout: 120000
+      max-lifetime: 240000
+      keepalive-time: 60000
   jpa:
     hibernate:
       # Flyway owns the schema; Hibernate only checks that entities match it
@@ -22,6 +29,10 @@ spring:
     # API messages stay English regardless of the server machine's OS language
     locale: en
     locale-resolver: fixed
+
+server:
+  # Hosting platforms such as Render tell the app which port to listen on via PORT
+  port: ${PORT:8080}
 
 liftlog:
   jwt:

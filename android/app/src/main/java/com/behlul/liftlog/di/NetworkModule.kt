@@ -31,8 +31,10 @@ object NetworkModule {
     @Singleton
     fun provideOkHttpClient(interceptors: Set<@JvmSuppressWildcards okhttp3.Interceptor>): OkHttpClient =
         OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
+            .connectTimeout(20, TimeUnit.SECONDS)
+            // A sleeping free-tier server holds the first request until it has booted (measured
+            // ~150 s at Render's 0.1 CPU), so the read timeout must outlast a cold start
+            .readTimeout(180, TimeUnit.SECONDS)
             .apply { interceptors.forEach(::addInterceptor) }
             .apply {
                 if (BuildConfig.DEBUG) {

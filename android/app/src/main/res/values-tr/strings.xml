@@ -107,4 +107,5 @@
     <string name="pr_all_title">Tüm rekorlar</string>
     <string name="pr_reps">%1$s kg × %2$d</string>
     <string name="new_pr_message">%s hareketinde yeni kişisel rekor! 🎉</string>
+    <string name="server_waking_up">Sunucu uyanıyor… Bir süre kullanılmadıysa ilk açılış 2–3 dakika sürebilir.</string>
 </resources>
