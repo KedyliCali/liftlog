@@ -57,3 +57,22 @@ her kararın nedenini ve mülakat cevaplarını anlatıyor. **Sıradaki ilk iş 
 - v1.3 (dinlenme zamanlayıcısı, şablonlar) ve v2.0 (Room) başlanmadı.
 
 **Sıradaki adım:** WALKTHROUGH.md'yi oku → PR'ları sırayla incele ve birleştir → sunucu seçimi.
+
+## 2026-10-17 (akşam) — Yayın ve cila (yarım kaldı)
+
+**Yayın:** Oracle kartı reddetti → **Render + Neon** (kart yok) seçildi.
+- `render.yaml`, PORT/512 MB uyumu, uyanma ipucu ve uzun zaman aşımı → PR [#6](https://github.com/KedyliCali/liftlog/pull/6) **birleşti**.
+- Behlül'de kalan: Neon projesi (Frankfurt, yalnızca Postgres açık) → Render Blueprint. Adımlar `docs/DEPLOY.md`'de.
+  Neon'dan **sunucu adı + kullanıcı adı** gelecek (şifre değil), sonra Render'daki 3 alan doldurulacak.
+
+**Cila** (branch `feature/app-polish`, henüz PR yok):
+- [x] Otomatik cihaz hesabı: giriş ekranı kaldırıldı (emülatörde doğrulandı, 21 Android testi geçti)
+- [x] Profil backend'i: isim, boy, kilo, fotoğraf (V4, `/api/v1/profile`, 40 backend testi geçti)
+- [ ] Profil Android ekranı: fotoğraf seç/kırp/küçült (256 px JPEG), isim/boy/kilo düzenleme
+- [ ] Dinlenme zamanlayıcısı (set kaydedince geri sayım + titreşim)
+- [ ] Kaydırarak silme + geri al (antrenman ve set)
+- [ ] Animasyon, titreşim, PR konfetisi
+- [ ] Antrenman şablonları + son ağırlıkları önerme (backend V5 + Android)
+- [ ] README'yi güncelle: "email + password" yerine cihaz hesabı, yeni ekran görüntüleri
+
+**Sıradaki adım:** Profil Android ekranı → kalan cila maddeleri → tek PR → Render'a yayın.
