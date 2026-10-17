@@ -2,6 +2,7 @@ package com.behlul.liftlog.controller;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -10,6 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 // @WebMvcTest starts only the web layer, so this test needs no database
+// Security filters are off here: these tests cover MVC mapping only; ApiIntegrationTest covers auth
+@AutoConfigureMockMvc(addFilters = false)
 @WebMvcTest(HealthController.class)
 class HealthControllerTest {
 

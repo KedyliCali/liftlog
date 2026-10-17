@@ -8,8 +8,8 @@ spring:
       - optional:file:../.env[.properties]
       - optional:file:.env[.properties]
   datasource:
-    url: jdbc:postgresql://localhost:${DB_PORT:5433}/${DB_NAME}
-    username: ${DB_USER}
+    url: jdbc:postgresql://localhost:${DB_PORT:5433}/${DB_NAME:liftlog}
+    username: ${DB_USER:liftlog}
     password: ${DB_PASSWORD}
   jpa:
     hibernate:
@@ -22,3 +22,9 @@ spring:
     # API messages stay English regardless of the server machine's OS language
     locale: en
     locale-resolver: fixed
+
+liftlog:
+  jwt:
+    # Required; at least 32 bytes. Set via JWT_SECRET in .env (local) or the server environment.
+    secret: ${JWT_SECRET}
+    ttl: 30d

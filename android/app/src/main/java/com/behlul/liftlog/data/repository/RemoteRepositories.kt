@@ -90,6 +90,7 @@ private fun SetDto.toDomain() = WorkoutSet(
     reps = reps,
     weightKg = weightKg,
     rpe = rpe,
+    isNewPersonalRecord = newPersonalRecord,
 )
 
 private fun ExerciseDto.toDomain() = Exercise(id = id, name = name, muscleGroup = muscleGroup, isCustom = custom)

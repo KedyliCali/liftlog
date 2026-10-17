@@ -89,6 +89,7 @@ fun WorkoutDetailScreen(
         onUpdateWorkout = viewModel::updateWorkout,
         onDeleteWorkout = viewModel::deleteWorkout,
         onActionErrorShown = viewModel::actionErrorShown,
+        onNewRecordShown = viewModel::newRecordShown,
     )
 
     state.editor?.let { editor ->
@@ -119,6 +120,7 @@ fun WorkoutDetailContent(
     onUpdateWorkout: (java.time.LocalDate, String) -> Unit,
     onDeleteWorkout: () -> Unit,
     onActionErrorShown: () -> Unit,
+    onNewRecordShown: () -> Unit = {},
 ) {
     val snackbarHost = remember { SnackbarHostState() }
     val actionErrorText = state.actionError?.message()
@@ -126,6 +128,13 @@ fun WorkoutDetailContent(
         if (actionErrorText != null) {
             snackbarHost.showSnackbar(actionErrorText)
             onActionErrorShown()
+        }
+    }
+    val newRecordText = state.newRecordExercise?.let { stringResource(R.string.new_pr_message, it) }
+    LaunchedEffect(newRecordText) {
+        if (newRecordText != null) {
+            onNewRecordShown()
+            snackbarHost.showSnackbar(newRecordText)
         }
     }
 

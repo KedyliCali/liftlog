@@ -9,6 +9,8 @@ import com.behlul.liftlog.entity.Workout;
 import com.behlul.liftlog.entity.WorkoutSet;
 import com.behlul.liftlog.exception.ResourceNotFoundException;
 import com.behlul.liftlog.repository.ExerciseRepository;
+import com.behlul.liftlog.repository.SetFact;
+import com.behlul.liftlog.repository.StatsRepository;
 import com.behlul.liftlog.repository.UserRepository;
 import com.behlul.liftlog.repository.WorkoutRepository;
 import com.behlul.liftlog.repository.WorkoutSetRepository;
@@ -25,6 +27,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,6 +47,7 @@ class WorkoutServiceTest {
     @Mock private WorkoutSetRepository setRepository;
     @Mock private ExerciseRepository exerciseRepository;
     @Mock private UserRepository userRepository;
+    @Mock private StatsRepository statsRepository;
     @Mock private CurrentUserProvider currentUser;
 
     @InjectMocks private WorkoutService workoutService;
@@ -81,6 +85,31 @@ class WorkoutServiceTest {
         SetResponse response = workoutService.addSet(1L, setRequest(3L, 3, "130.00"));
 
         assertThat(response.setOrder()).isEqualTo(5);
+    }
+
+    @Test
+    void addSetFlagsNewPersonalRecordOnlyWhenItBeatsThePreviousBest() {
+        Workout workout = new Workout(user, LocalDate.of(2026, 10, 17), null);
+        when(workoutRepository.findDetailByIdAndUserId(1L, USER_ID)).thenReturn(Optional.of(workout));
+        when(exerciseRepository.findVisibleById(3L, USER_ID)).thenReturn(Optional.of(squat));
+        // Previous best: 100 kg x 5 -> e1RM 116.67
+        when(statsRepository.findFactsForExercise(USER_ID, squat.getId())).thenReturn(List.of(
+                new SetFact(1L, squat.getId(), "Squat", LocalDate.of(2026, 10, 10), 5, new BigDecimal("100"))));
+
+        SetResponse weaker = workoutService.addSet(1L, setRequest(3L, 5, "100"));
+        SetResponse stronger = workoutService.addSet(1L, setRequest(3L, 3, "110"));
+
+        assertThat(weaker.newPersonalRecord()).isFalse();
+        assertThat(stronger.newPersonalRecord()).isTrue(); // 110 x 3 -> e1RM 121.00
+    }
+
+    @Test
+    void firstEverSetOfAnExerciseIsNotAnnouncedAsRecord() {
+        Workout workout = new Workout(user, LocalDate.of(2026, 10, 17), null);
+        when(workoutRepository.findDetailByIdAndUserId(1L, USER_ID)).thenReturn(Optional.of(workout));
+        when(exerciseRepository.findVisibleById(3L, USER_ID)).thenReturn(Optional.of(squat));
+
+        assertThat(workoutService.addSet(1L, setRequest(3L, 1, "200")).newPersonalRecord()).isFalse();
     }
 
     @Test

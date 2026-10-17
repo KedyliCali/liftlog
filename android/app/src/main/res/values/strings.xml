@@ -78,6 +78,39 @@
     <string name="error_invalid">Some values are invalid.</string>
     <string name="error_conflict">This already exists.</string>
 
-    <string name="coming_soon_title">Coming soon</string>
-    <string name="coming_soon_body">This tab arrives in the next release.</string>
+    <string name="auth_tagline">Log every set. Watch every PR.</string>
+    <string name="auth_login">Sign in</string>
+    <string name="auth_register">Create account</string>
+    <string name="auth_switch_to_register">New here? Create an account</string>
+    <string name="auth_switch_to_login">Already have an account? Sign in</string>
+    <string name="field_email">Email</string>
+    <string name="field_password">Password</string>
+    <string name="field_display_name">Name (optional)</string>
+    <string name="error_email">Enter a valid email</string>
+    <string name="error_password_length">Use at least 8 characters</string>
+    <string name="error_bad_credentials">Wrong email or password.</string>
+    <string name="error_email_taken">An account with this email already exists.</string>
+    <string name="show_password">Show password</string>
+    <string name="hide_password">Hide password</string>
+
+    <string name="profile_title">Profile</string>
+    <string name="profile_logout">Sign out</string>
+    <string name="profile_server">Server</string>
+    <string name="profile_version">Version</string>
+    <string name="profile_records">Personal records</string>
+
+    <string name="progress_title">Progress</string>
+    <string name="progress_subtitle">Strength over time</string>
+    <string name="progress_empty_title">No records yet</string>
+    <string name="progress_empty_body">Log a few sets and your progress shows up here.</string>
+    <string name="progress_chart_title">Estimated 1RM</string>
+    <string name="progress_chart_caption">Best estimated one-rep max per session (Epley)</string>
+    <string name="progress_volume_title">Weekly volume</string>
+    <string name="progress_volume_caption">Sets × reps × weight, last 8 weeks</string>
+    <string name="progress_need_more">Log this exercise on another day to see a trend.</string>
+    <string name="pr_heaviest">Heaviest set</string>
+    <string name="pr_e1rm">Best est. 1RM</string>
+    <string name="pr_all_title">All records</string>
+    <string name="pr_reps">%1$s kg × %2$d</string>
+    <string name="new_pr_message">New personal record on %s! 🎉</string>
 </resources>

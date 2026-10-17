@@ -51,6 +51,7 @@ data class SetDto(
     val reps: Int,
     val weightKg: Double,
     val rpe: Double? = null,
+    val newPersonalRecord: Boolean = false,
 )
 
 @Serializable
@@ -77,3 +78,38 @@ data class ApiErrorDto(
     val message: String? = null,
     val fieldErrors: Map<String, String>? = null,
 )
+
+@Serializable
+data class LoginRequestDto(val email: String, val password: String)
+
+@Serializable
+data class RegisterRequestDto(val email: String, val password: String, val displayName: String? = null)
+
+@Serializable
+data class UserDto(val id: Long, val email: String, val displayName: String? = null)
+
+@Serializable
+data class AuthResponseDto(val token: String, val expiresAt: String, val user: UserDto)
+
+@Serializable
+data class PersonalRecordDto(
+    val exerciseId: Long,
+    val exerciseName: String,
+    val heaviestWeightKg: Double,
+    val heaviestReps: Int,
+    val heaviestDate: String,
+    val bestEstimated1RmKg: Double,
+    val bestEstimated1RmDate: String,
+    val totalSets: Int,
+)
+
+@Serializable
+data class ProgressPointDto(
+    val date: String,
+    val topWeightKg: Double,
+    val estimated1RmKg: Double,
+    val volumeKg: Double,
+)
+
+@Serializable
+data class WeeklyVolumeDto(val weekStart: String, val volumeKg: Double, val setCount: Int)

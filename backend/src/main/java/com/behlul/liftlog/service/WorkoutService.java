@@ -11,6 +11,7 @@ import com.behlul.liftlog.entity.Workout;
 import com.behlul.liftlog.entity.WorkoutSet;
 import com.behlul.liftlog.exception.ResourceNotFoundException;
 import com.behlul.liftlog.repository.ExerciseRepository;
+import com.behlul.liftlog.repository.StatsRepository;
 import com.behlul.liftlog.repository.UserRepository;
 import com.behlul.liftlog.repository.WorkoutRepository;
 import com.behlul.liftlog.repository.WorkoutSetRepository;
@@ -18,6 +19,8 @@ import com.behlul.liftlog.security.CurrentUserProvider;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
 
 /**
  * Every lookup is scoped to the current user, so another user's workout looks exactly like a
@@ -32,15 +35,17 @@ public class WorkoutService {
     private final WorkoutSetRepository setRepository;
     private final ExerciseRepository exerciseRepository;
     private final UserRepository userRepository;
+    private final StatsRepository statsRepository;
     private final CurrentUserProvider currentUser;
 
     public WorkoutService(WorkoutRepository workoutRepository, WorkoutSetRepository setRepository,
                           ExerciseRepository exerciseRepository, UserRepository userRepository,
-                          CurrentUserProvider currentUser) {
+                          StatsRepository statsRepository, CurrentUserProvider currentUser) {
         this.workoutRepository = workoutRepository;
         this.setRepository = setRepository;
         this.exerciseRepository = exerciseRepository;
         this.userRepository = userRepository;
+        this.statsRepository = statsRepository;
         this.currentUser = currentUser;
     }
 
@@ -83,12 +88,20 @@ public class WorkoutService {
     public SetResponse addSet(Long workoutId, SetRequest request) {
         Workout workout = loadDetail(workoutId);
         Exercise exercise = loadExercise(request.exerciseId());
+        // Read the previous best before saving, otherwise the new set would compare against itself
+        BigDecimal previousBest = StatsService.bestEstimate(
+                statsRepository.findFactsForExercise(currentUser.currentUserId(), exercise.getId()));
+
         WorkoutSet set = new WorkoutSet(exercise, workout.nextSetOrder(), request.reps(),
                 request.weightKg(), request.rpe());
         workout.addSet(set);
         // Flush so the generated id is available for the response
         setRepository.saveAndFlush(set);
-        return SetResponse.from(set);
+
+        // The very first set of an exercise is not announced as a record
+        boolean newRecord = previousBest != null
+                && OneRepMax.estimate(set.getWeightKg(), set.getReps()).compareTo(previousBest) > 0;
+        return SetResponse.from(set, newRecord);
     }
 
     @Transactional

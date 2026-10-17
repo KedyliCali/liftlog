@@ -43,6 +43,8 @@ data class WorkoutDetailUiState(
     val editor: SetEditorState? = null,
     val exercises: UiState<List<Exercise>> = UiState.Loading,
     val actionError: AppError? = null,
+    /** Exercise name to celebrate after a set beat the previous best estimated 1RM. */
+    val newRecordExercise: String? = null,
 )
 
 @HiltViewModel
@@ -138,8 +140,10 @@ class WorkoutDetailViewModel @Inject constructor(
                 ?.let { workoutRepository.updateSet(it, result.input) }
                 ?: workoutRepository.addSet(workoutId, result.input)
             saved
-                .onSuccess {
-                    _uiState.update { it.copy(editor = null) }
+                .onSuccess { set ->
+                    _uiState.update {
+                        it.copy(editor = null, newRecordExercise = set.exerciseName.takeIf { set.isNewPersonalRecord })
+                    }
                     load()
                 }
                 .onFailure { error ->
@@ -190,6 +194,8 @@ class WorkoutDetailViewModel @Inject constructor(
     }
 
     fun actionErrorShown() = _uiState.update { it.copy(actionError = null) }
+
+    fun newRecordShown() = _uiState.update { it.copy(newRecordExercise = null) }
 
     private fun currentWorkout() = (_uiState.value.workout as? UiState.Success)?.data
 
