@@ -26,10 +26,6 @@ import javax.inject.Singleton
 private val Context.sessionDataStore: DataStore<Preferences> by preferencesDataStore(name = "session")
 
 /**
- * Persists the JWT and basic user info in app-private storage (DataStore). Exposed as a StateFlow
- * so the OkHttp interceptor can read the token synchronously on its own thread.
- */
-/**
  * The hidden account this installation signs in with. Generated once on first launch; the user never
  * types or sees it. Android Auto Backup restores app data, so it usually survives a phone change too.
  */
@@ -46,6 +42,10 @@ data class DeviceCredentials(val email: String, val password: String) {
     }
 }
 
+/**
+ * Persists the JWT and basic user info in app-private storage (DataStore). Exposed as a StateFlow
+ * so the OkHttp interceptor can read the token synchronously on its own thread.
+ */
 @Singleton
 class SessionStore @Inject constructor(
     @ApplicationContext context: Context,

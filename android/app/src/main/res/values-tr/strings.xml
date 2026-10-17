@@ -92,4 +92,17 @@
     <string name="pr_reps">%1$s kg × %2$d</string>
     <string name="new_pr_message">%s hareketinde yeni kişisel rekor! 🎉</string>
     <string name="server_waking_up">Sunucu uyanıyor… Bir süre kullanılmadıysa ilk açılış 2–3 dakika sürebilir.</string>
+    <string name="profile_default_name">Sporcu</string>
+    <string name="profile_edit">Profili düzenle</string>
+    <string name="profile_name">İsim</string>
+    <string name="profile_height">Boy</string>
+    <string name="profile_body_weight">Kilo</string>
+    <string name="profile_bmi">VKİ</string>
+    <string name="profile_height_cm">Boy (cm)</string>
+    <string name="profile_body_weight_kg">Kilo (kg)</string>
+    <string name="profile_change_photo">Fotoğrafı değiştir</string>
+    <string name="profile_remove_photo">Fotoğrafı kaldır</string>
+    <string name="unit_cm">%s cm</string>
+    <string name="error_height">50–272 cm</string>
+    <string name="error_body_weight">20–500 kg</string>
 </resources>

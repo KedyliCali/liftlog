@@ -1,10 +1,14 @@
 package com.behlul.liftlog.di
 
+import com.behlul.liftlog.data.local.AvatarEncoder
+import com.behlul.liftlog.data.local.AvatarImageProcessor
 import com.behlul.liftlog.data.remote.AuthInterceptor
 import com.behlul.liftlog.data.repository.AuthRepository
 import com.behlul.liftlog.data.repository.ExerciseRepository
+import com.behlul.liftlog.data.repository.ProfileRepository
 import com.behlul.liftlog.data.repository.RemoteAuthRepository
 import com.behlul.liftlog.data.repository.RemoteExerciseRepository
+import com.behlul.liftlog.data.repository.RemoteProfileRepository
 import com.behlul.liftlog.data.repository.RemoteStatsRepository
 import com.behlul.liftlog.data.repository.RemoteWorkoutRepository
 import com.behlul.liftlog.data.repository.StatsRepository
@@ -32,6 +36,12 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindStatsRepository(impl: RemoteStatsRepository): StatsRepository
+
+    @Binds
+    abstract fun bindProfileRepository(impl: RemoteProfileRepository): ProfileRepository
+
+    @Binds
+    abstract fun bindAvatarEncoder(impl: AvatarImageProcessor): AvatarEncoder
 
     @Binds
     @IntoSet

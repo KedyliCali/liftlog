@@ -6,15 +6,19 @@ import com.behlul.liftlog.data.remote.dto.ExerciseDto
 import com.behlul.liftlog.data.remote.dto.LoginRequestDto
 import com.behlul.liftlog.data.remote.dto.PageDto
 import com.behlul.liftlog.data.remote.dto.PersonalRecordDto
+import com.behlul.liftlog.data.remote.dto.ProfileDto
 import com.behlul.liftlog.data.remote.dto.ProgressPointDto
 import com.behlul.liftlog.data.remote.dto.RegisterRequestDto
 import com.behlul.liftlog.data.remote.dto.SetDto
 import com.behlul.liftlog.data.remote.dto.SetRequestDto
 import com.behlul.liftlog.data.remote.dto.WorkoutDetailDto
+import com.behlul.liftlog.data.remote.dto.UpdateProfileRequestDto
 import com.behlul.liftlog.data.remote.dto.UserDto
 import com.behlul.liftlog.data.remote.dto.WeeklyVolumeDto
 import com.behlul.liftlog.data.remote.dto.WorkoutRequestDto
 import com.behlul.liftlog.data.remote.dto.WorkoutSummaryDto
+import okhttp3.RequestBody
+import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -72,4 +76,20 @@ interface LiftLogApi {
 
     @GET("api/v1/stats/volume")
     suspend fun getWeeklyVolume(@Query("weeks") weeks: Int): List<WeeklyVolumeDto>
+
+    @GET("api/v1/profile")
+    suspend fun getProfile(): ProfileDto
+
+    @PUT("api/v1/profile")
+    suspend fun updateProfile(@Body request: UpdateProfileRequestDto): ProfileDto
+
+    /** Raw JPEG bytes as the body; the content type comes from the RequestBody. */
+    @PUT("api/v1/profile/avatar")
+    suspend fun uploadAvatar(@Body image: RequestBody): ProfileDto
+
+    @GET("api/v1/profile/avatar")
+    suspend fun getAvatar(): ResponseBody
+
+    @DELETE("api/v1/profile/avatar")
+    suspend fun deleteAvatar()
 }

@@ -94,4 +94,17 @@
     <string name="pr_reps">%1$s kg × %2$d</string>
     <string name="new_pr_message">New personal record on %s! 🎉</string>
     <string name="server_waking_up">Waking up the server… The first load after a break can take up to 2–3 minutes.</string>
+    <string name="profile_default_name">Lifter</string>
+    <string name="profile_edit">Edit profile</string>
+    <string name="profile_name">Name</string>
+    <string name="profile_height">Height</string>
+    <string name="profile_body_weight">Body weight</string>
+    <string name="profile_bmi">BMI</string>
+    <string name="profile_height_cm">Height (cm)</string>
+    <string name="profile_body_weight_kg">Body weight (kg)</string>
+    <string name="profile_change_photo">Change photo</string>
+    <string name="profile_remove_photo">Remove photo</string>
+    <string name="unit_cm">%s cm</string>
+    <string name="error_height">50–272 cm</string>
+    <string name="error_body_weight">20–500 kg</string>
 </resources>
