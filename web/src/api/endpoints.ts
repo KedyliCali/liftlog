@@ -1,0 +1,49 @@
+import { request } from './client'
+import type {
+  AuthResponse,
+  Exercise,
+  Page,
+  PersonalRecord,
+  Profile,
+  ProgressPoint,
+  SetInput,
+  WeeklyVolume,
+  WorkoutDetail,
+  WorkoutSet,
+  WorkoutSummary,
+} from './types'
+
+export const api = {
+  register: (email: string, password: string) =>
+    request<AuthResponse>('/api/v1/auth/register', { method: 'POST', body: { email, password }, anonymous: true }),
+  login: (email: string, password: string) =>
+    request<AuthResponse>('/api/v1/auth/login', { method: 'POST', body: { email, password }, anonymous: true }),
+
+  exercises: () => request<Exercise[]>('/api/v1/exercises'),
+  createExercise: (name: string, muscleGroup: string | null) =>
+    request<Exercise>('/api/v1/exercises', { method: 'POST', body: { name, muscleGroup } }),
+
+  workouts: (page: number, size = 20) => request<Page<WorkoutSummary>>(`/api/v1/workouts?page=${page}&size=${size}`),
+  workout: (id: number) => request<WorkoutDetail>(`/api/v1/workouts/${id}`),
+  createWorkout: (workoutDate: string, notes: string | null) =>
+    request<WorkoutDetail>('/api/v1/workouts', { method: 'POST', body: { workoutDate, notes } }),
+  updateWorkout: (id: number, workoutDate: string, notes: string | null) =>
+    request<WorkoutDetail>(`/api/v1/workouts/${id}`, { method: 'PUT', body: { workoutDate, notes } }),
+  deleteWorkout: (id: number) => request<void>(`/api/v1/workouts/${id}`, { method: 'DELETE', responseType: 'none' }),
+
+  addSet: (workoutId: number, input: SetInput) =>
+    request<WorkoutSet>(`/api/v1/workouts/${workoutId}/sets`, { method: 'POST', body: input }),
+  updateSet: (id: number, input: SetInput) => request<WorkoutSet>(`/api/v1/sets/${id}`, { method: 'PUT', body: input }),
+  deleteSet: (id: number) => request<void>(`/api/v1/sets/${id}`, { method: 'DELETE', responseType: 'none' }),
+
+  personalRecords: () => request<PersonalRecord[]>('/api/v1/stats/prs'),
+  progress: (exerciseId: number) => request<ProgressPoint[]>(`/api/v1/stats/progress?exerciseId=${exerciseId}`),
+  weeklyVolume: (weeks: number) => request<WeeklyVolume[]>(`/api/v1/stats/volume?weeks=${weeks}`),
+
+  profile: () => request<Profile>('/api/v1/profile'),
+  updateProfile: (displayName: string | null, heightCm: number | null, bodyWeightKg: number | null) =>
+    request<Profile>('/api/v1/profile', { method: 'PUT', body: { displayName, heightCm, bodyWeightKg } }),
+  uploadAvatar: (jpeg: Blob) => request<Profile>('/api/v1/profile/avatar', { method: 'PUT', blob: jpeg }),
+  avatar: () => request<Blob>('/api/v1/profile/avatar', { responseType: 'blob' }),
+  deleteAvatar: () => request<void>('/api/v1/profile/avatar', { method: 'DELETE', responseType: 'none' }),
+}
