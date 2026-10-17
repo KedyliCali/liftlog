@@ -18,3 +18,7 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+  web:
+    # API messages stay English regardless of the server machine's OS language
+    locale: en
+    locale-resolver: fixed
