@@ -277,43 +277,43 @@ Her kapı geçilmeden bir sonraki faza geçilmez; böylece yarım kalan çok öz
 
 **Faz 0 · Kurulum**
 
-- [ ] Araçları kur (bkz. son bölüm)
-- [ ] GitHub deposu ve klasör yapısı
-- [ ] Spring Boot projesi + Docker'da PostgreSQL
-- [ ] `GET /api/v1/health` çalışıyor
+- [x] Araçları kur (bkz. son bölüm)
+- [x] GitHub deposu ve klasör yapısı
+- [x] Spring Boot projesi + Docker'da PostgreSQL
+- [x] `GET /api/v1/health` çalışıyor
 
 **Faz 1 · Backend MVP**
 
-- [ ] Flyway ile ilk şema (`V1__init.sql`) ve hazır hareketler
-- [ ] Entity, Repository, DTO sınıfları
-- [ ] Hareket, antrenman ve set endpoint'leri
-- [ ] Doğrulama ve ortak hata formatı
-- [ ] Swagger sayfası
-- [ ] Service katmanı birim testleri
+- [x] Flyway ile ilk şema (`V1__init.sql`) ve hazır hareketler
+- [x] Entity, Repository, DTO sınıfları
+- [x] Hareket, antrenman ve set endpoint'leri
+- [x] Doğrulama ve ortak hata formatı
+- [x] Swagger sayfası
+- [x] Service katmanı birim testleri
 
 **Faz 2 · Android MVP**
 
-- [ ] Android Studio'da Compose projesi, tema, alt menü
-- [ ] Retrofit + Hilt kurulumu
-- [ ] Antrenman listesi ekranı
-- [ ] Antrenman detayı ve set ekleme
-- [ ] Yükleniyor / hata durumları
-- [ ] Gerçek telefonda deneme
+- [x] Android Studio'da Compose projesi, tema, alt menü
+- [x] Retrofit + Hilt kurulumu
+- [x] Antrenman listesi ekranı
+- [x] Antrenman detayı ve set ekleme
+- [x] Yükleniyor / hata durumları
+- [ ] Gerçek telefonda deneme (şimdilik yalnızca emülatörde denendi)
 
 **Faz 3 · Hesaplar ve ilerleme**
 
-- [ ] Spring Security + JWT, kayıt ve giriş
-- [ ] Android'de giriş ekranı, token'ı güvenli saklama (DataStore)
-- [ ] PR ve 1RM hesabı, `stats` endpoint'leri
-- [ ] İlerleme ekranı ve grafik
-- [ ] Testcontainers ile entegrasyon testleri
+- [x] Spring Security + JWT, kayıt ve giriş
+- [x] Android'de giriş ekranı, token'ı güvenli saklama (DataStore)
+- [x] PR ve 1RM hesabı, `stats` endpoint'leri
+- [x] İlerleme ekranı ve grafik
+- [x] Testcontainers ile entegrasyon testleri
 
 **Faz 4 · Yayın ve vitrin**
 
-- [ ] Dockerfile ve sunucuya kurulum, HTTPS
-- [ ] GitHub Actions ile CI
-- [ ] İmzalı APK ve GitHub Release
-- [ ] README, ekran görüntüleri, demo GIF
+- [ ] Dockerfile ve sunucuya kurulum, HTTPS (Dockerfile + Caddy'li prod compose hazır; sunucu yok)
+- [x] GitHub Actions ile CI
+- [ ] İmzalı APK ve GitHub Release (imzalama hazır; yayın canlı API adresini bekliyor)
+- [x] README, ekran görüntüleri (demo GIF henüz yok)
 - [ ] İsteğe bağlı: dinlenme zamanlayıcısı ve şablonlar
 
 ## Test, Git ve kod kalitesi
@@ -398,13 +398,13 @@ Proje bittiğinde CV'de iki satır, GitHub'da iyi bir README ve mülakatta anlat
 
 **Kurulacaklar:**
 
-- [ ] JDK 21 (backend için)
-- [ ] IntelliJ IDEA Community (backend)
-- [ ] Android Studio (Kotlin ve emülatör dahil)
-- [ ] PostgreSQL (kuruluysa sürümünü kontrol et) + pgAdmin veya DBeaver
-- [ ] Docker Desktop
-- [ ] Git + GitHub hesabı
-- [ ] Postman veya Bruno (API denemek için)
+- [x] JDK 21 (backend için)
+- [x] IntelliJ IDEA Community (backend)
+- [x] Android Studio (Kotlin ve emülatör dahil)
+- [x] PostgreSQL (kuruluysa sürümünü kontrol et) + pgAdmin veya DBeaver
+- [x] Docker Desktop
+- [x] Git + GitHub hesabı
+- [x] Postman veya Bruno (API denemek için)
 - [ ] Telefonunda Geliştirici Seçenekleri ve USB hata ayıklama (gerçek cihazda denemek için)
 
 **İlk oturumun adımları:**
