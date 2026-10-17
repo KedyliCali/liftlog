@@ -150,7 +150,14 @@ cd android && ./gradlew testDebugUnitTest    # ViewModel tests with fake reposit
 
 ## Deployment
 
-`deploy/docker-compose.prod.yml` runs PostgreSQL, the API and Caddy on one Linux server.
+**Hosted (free):** the API runs on [Render](https://render.com) from `render.yaml`, which builds
+`backend/Dockerfile`. PostgreSQL runs on [Neon](https://neon.tech). Every backend change merged
+to `main` redeploys automatically. On the free plan the API sleeps after 15 idle minutes, and the
+next request waits for a cold start (about 2–3 minutes at 0.1 CPU). The app shows a
+"waking up" hint and its timeouts cover the wait. Step-by-step setup (Turkish):
+[docs/DEPLOY.md](docs/DEPLOY.md).
+
+**Self-hosted:** `deploy/docker-compose.prod.yml` runs PostgreSQL, the API and Caddy on one Linux server.
 Caddy gets an HTTPS certificate for `DOMAIN` automatically. Only ports 80 and 443 are public;
 the database has no published port.
 
