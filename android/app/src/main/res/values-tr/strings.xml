@@ -76,6 +76,39 @@
     <string name="error_invalid">Bazı değerler geçersiz.</string>
     <string name="error_conflict">Bu zaten mevcut.</string>
 
-    <string name="coming_soon_title">Yakında</string>
-    <string name="coming_soon_body">Bu sekme bir sonraki sürümde geliyor.</string>
+    <string name="auth_tagline">Her seti kaydet. Her rekoru gör.</string>
+    <string name="auth_login">Giriş yap</string>
+    <string name="auth_register">Hesap oluştur</string>
+    <string name="auth_switch_to_register">Yeni misin? Hesap oluştur</string>
+    <string name="auth_switch_to_login">Zaten hesabın var mı? Giriş yap</string>
+    <string name="field_email">E-posta</string>
+    <string name="field_password">Şifre</string>
+    <string name="field_display_name">İsim (isteğe bağlı)</string>
+    <string name="error_email">Geçerli bir e-posta gir</string>
+    <string name="error_password_length">En az 8 karakter kullan</string>
+    <string name="error_bad_credentials">E-posta veya şifre hatalı.</string>
+    <string name="error_email_taken">Bu e-postayla zaten bir hesap var.</string>
+    <string name="show_password">Şifreyi göster</string>
+    <string name="hide_password">Şifreyi gizle</string>
+
+    <string name="profile_title">Profil</string>
+    <string name="profile_logout">Çıkış yap</string>
+    <string name="profile_server">Sunucu</string>
+    <string name="profile_version">Sürüm</string>
+    <string name="profile_records">Kişisel rekorlar</string>
+
+    <string name="progress_title">İlerleme</string>
+    <string name="progress_subtitle">Zaman içinde gücün</string>
+    <string name="progress_empty_title">Henüz rekor yok</string>
+    <string name="progress_empty_body">Birkaç set kaydet, ilerlemen burada görünsün.</string>
+    <string name="progress_chart_title">Tahmini 1RM</string>
+    <string name="progress_chart_caption">Antrenman başına en iyi tahmini tek tekrar maksimumu (Epley)</string>
+    <string name="progress_volume_title">Haftalık hacim</string>
+    <string name="progress_volume_caption">Set × tekrar × ağırlık, son 8 hafta</string>
+    <string name="progress_need_more">Eğilimi görmek için bu hareketi başka bir gün de kaydet.</string>
+    <string name="pr_heaviest">En ağır set</string>
+    <string name="pr_e1rm">En iyi tahmini 1RM</string>
+    <string name="pr_all_title">Tüm rekorlar</string>
+    <string name="pr_reps">%1$s kg × %2$d</string>
+    <string name="new_pr_message">%s hareketinde yeni kişisel rekor! 🎉</string>
 </resources>
