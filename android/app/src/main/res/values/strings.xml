@@ -75,23 +75,7 @@
     <string name="error_invalid">Some values are invalid.</string>
     <string name="error_conflict">This already exists.</string>
 
-    <string name="auth_tagline">Log every set. Watch every PR.</string>
-    <string name="auth_login">Sign in</string>
-    <string name="auth_register">Create account</string>
-    <string name="auth_switch_to_register">New here? Create an account</string>
-    <string name="auth_switch_to_login">Already have an account? Sign in</string>
-    <string name="field_email">Email</string>
-    <string name="field_password">Password</string>
-    <string name="field_display_name">Name (optional)</string>
-    <string name="error_email">Enter a valid email</string>
-    <string name="error_password_length">Use at least 8 characters</string>
-    <string name="error_bad_credentials">Wrong email or password.</string>
-    <string name="error_email_taken">An account with this email already exists.</string>
-    <string name="show_password">Show password</string>
-    <string name="hide_password">Hide password</string>
-
     <string name="profile_title">Profile</string>
-    <string name="profile_logout">Sign out</string>
     <string name="profile_server">Server</string>
     <string name="profile_version">Version</string>
 

@@ -73,23 +73,7 @@
     <string name="error_invalid">Bazı değerler geçersiz.</string>
     <string name="error_conflict">Bu zaten mevcut.</string>
 
-    <string name="auth_tagline">Her seti kaydet. Her rekoru gör.</string>
-    <string name="auth_login">Giriş yap</string>
-    <string name="auth_register">Hesap oluştur</string>
-    <string name="auth_switch_to_register">Yeni misin? Hesap oluştur</string>
-    <string name="auth_switch_to_login">Zaten hesabın var mı? Giriş yap</string>
-    <string name="field_email">E-posta</string>
-    <string name="field_password">Şifre</string>
-    <string name="field_display_name">İsim (isteğe bağlı)</string>
-    <string name="error_email">Geçerli bir e-posta gir</string>
-    <string name="error_password_length">En az 8 karakter kullan</string>
-    <string name="error_bad_credentials">E-posta veya şifre hatalı.</string>
-    <string name="error_email_taken">Bu e-postayla zaten bir hesap var.</string>
-    <string name="show_password">Şifreyi göster</string>
-    <string name="hide_password">Şifreyi gizle</string>
-
     <string name="profile_title">Profil</string>
-    <string name="profile_logout">Çıkış yap</string>
     <string name="profile_server">Sunucu</string>
     <string name="profile_version">Sürüm</string>
 

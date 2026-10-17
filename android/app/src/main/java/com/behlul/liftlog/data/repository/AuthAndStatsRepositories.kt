@@ -1,10 +1,12 @@
 package com.behlul.liftlog.data.repository
 
+import com.behlul.liftlog.data.local.DeviceCredentials
 import com.behlul.liftlog.data.local.SessionStore
 import com.behlul.liftlog.data.remote.LiftLogApi
 import com.behlul.liftlog.data.remote.dto.AuthResponseDto
 import com.behlul.liftlog.data.remote.dto.LoginRequestDto
 import com.behlul.liftlog.data.remote.dto.RegisterRequestDto
+import com.behlul.liftlog.domain.model.AppError
 import com.behlul.liftlog.domain.model.PersonalRecord
 import com.behlul.liftlog.domain.model.ProgressPoint
 import com.behlul.liftlog.domain.model.Session
@@ -18,9 +20,9 @@ import javax.inject.Singleton
 
 interface AuthRepository {
     val session: StateFlow<SessionState>
-    suspend fun login(email: String, password: String): Result<Unit>
-    suspend fun register(email: String, password: String, displayName: String?): Result<Unit>
-    suspend fun logout()
+
+    /** Signs in with this device's hidden account, creating the account on first launch. */
+    suspend fun signInDevice(): Result<Unit>
 }
 
 interface StatsRepository {
@@ -38,15 +40,24 @@ class RemoteAuthRepository @Inject constructor(
 
     override val session: StateFlow<SessionState> = sessionStore.state
 
-    override suspend fun login(email: String, password: String) = apiCall(json) {
-        store(api.login(LoginRequestDto(email.trim(), password)))
+    override suspend fun signInDevice(): Result<Unit> {
+        val saved = sessionStore.deviceCredentials()
+        if (saved == null) {
+            val created = DeviceCredentials.generate()
+            // Saved before calling the server, so a retry after a lost response reuses the same account
+            sessionStore.saveDeviceCredentials(created)
+            return register(created)
+        }
+        val login = apiCall(json) { store(api.login(LoginRequestDto(saved.email, saved.password))) }
+        val error = (login.exceptionOrNull() as? AppException)?.error
+        // 401 means the server no longer knows this account (e.g. its database was reset), or a
+        // retry is finishing a registration whose response never arrived: (re)create it
+        return if (error == AppError.Unauthorized) register(saved) else login
     }
 
-    override suspend fun register(email: String, password: String, displayName: String?) = apiCall(json) {
-        store(api.register(RegisterRequestDto(email.trim(), password, displayName?.trim()?.ifBlank { null })))
+    private suspend fun register(credentials: DeviceCredentials) = apiCall(json) {
+        store(api.register(RegisterRequestDto(credentials.email, credentials.password)))
     }
-
-    override suspend fun logout() = sessionStore.clear()
 
     private suspend fun store(response: AuthResponseDto) {
         sessionStore.save(Session(response.token, response.user.id, response.user.email, response.user.displayName))

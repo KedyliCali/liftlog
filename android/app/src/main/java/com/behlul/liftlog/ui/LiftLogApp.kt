@@ -31,8 +31,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.behlul.liftlog.R
 import com.behlul.liftlog.data.repository.AuthRepository
 import com.behlul.liftlog.domain.model.SessionState
-import com.behlul.liftlog.ui.auth.AuthScreen
+import com.behlul.liftlog.domain.model.AppError
+import com.behlul.liftlog.ui.components.ErrorView
 import com.behlul.liftlog.ui.components.LoadingView
+import com.behlul.liftlog.ui.components.toAppError
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
@@ -55,20 +64,62 @@ private val tabs = listOf(
     TopLevelTab(ProfileRoute, R.string.nav_profile, Icons.Outlined.Person),
 )
 
-@HiltViewModel
-class SessionViewModel @Inject constructor(authRepository: AuthRepository) : ViewModel() {
-    val session: StateFlow<SessionState> = authRepository.session
+sealed interface AppStartState {
+    data object SigningIn : AppStartState
+    data class Failed(val error: AppError) : AppStartState
+    data class Ready(val userId: Long) : AppStartState
 }
 
-/** Root switch: the session alone decides between login and the main app, so logout or an expired token needs no navigation code. */
+/**
+ * There is no login screen: whenever there is no session (first launch, or the token expired and a
+ * 401 cleared it) this signs in with the device's hidden account automatically.
+ */
+@HiltViewModel
+class SessionViewModel @Inject constructor(
+    private val authRepository: AuthRepository,
+) : ViewModel() {
+
+    private val signInError = MutableStateFlow<AppError?>(null)
+    private val signInMutex = Mutex()
+
+    val state: StateFlow<AppStartState> = combine(authRepository.session, signInError) { session, error ->
+        when {
+            session is SessionState.LoggedIn -> AppStartState.Ready(session.session.userId)
+            error != null -> AppStartState.Failed(error)
+            else -> AppStartState.SigningIn
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, AppStartState.SigningIn)
+
+    init {
+        viewModelScope.launch {
+            authRepository.session.collect { if (it is SessionState.LoggedOut) signIn() }
+        }
+    }
+
+    fun retry() {
+        viewModelScope.launch { signIn() }
+    }
+
+    private suspend fun signIn() {
+        // tryLock: a sign-in already in flight covers this request too
+        if (!signInMutex.tryLock()) return
+        try {
+            signInError.value = null
+            authRepository.signInDevice().onFailure { signInError.value = it.toAppError() }
+        } finally {
+            signInMutex.unlock()
+        }
+    }
+}
+
 @Composable
 fun LiftLogApp(sessionViewModel: SessionViewModel = hiltViewModel()) {
-    val session by sessionViewModel.session.collectAsStateWithLifecycle()
-    when (val state = session) {
-        SessionState.Loading -> LoadingView()
-        SessionState.LoggedOut -> AuthScreen()
+    val state by sessionViewModel.state.collectAsStateWithLifecycle()
+    when (val current = state) {
+        AppStartState.SigningIn -> LoadingView()
+        is AppStartState.Failed -> ErrorView(current.error, onRetry = sessionViewModel::retry)
         // Keyed by user so a different account never sees the previous account's screens or ViewModels
-        is SessionState.LoggedIn -> key(state.session.userId) { MainScaffold() }
+        is AppStartState.Ready -> key(current.userId) { MainScaffold() }
     }
 }
 

@@ -17,11 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Logout
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,7 +42,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import java.util.Locale
 import javax.inject.Inject
 
@@ -59,19 +54,16 @@ class ProfileViewModel @Inject constructor(
         .map { (it as? SessionState.LoggedIn)?.session }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    fun logout() {
-        viewModelScope.launch { authRepository.logout() }
-    }
 }
 
 @Composable
 fun ProfileScreen(viewModel: ProfileViewModel = hiltViewModel()) {
     val session by viewModel.session.collectAsStateWithLifecycle()
-    session?.let { ProfileContent(it, onLogout = viewModel::logout) }
+    session?.let { ProfileContent(it) }
 }
 
 @Composable
-fun ProfileContent(session: Session, onLogout: () -> Unit) {
+fun ProfileContent(session: Session) {
     val name = session.displayName ?: session.email.substringBefore('@')
     Column(
         Modifier
@@ -105,11 +97,6 @@ fun ProfileContent(session: Session, onLogout: () -> Unit) {
             }
         }
 
-        Spacer(Modifier.height(24.dp))
-        OutlinedButton(onClick = onLogout, modifier = Modifier.fillMaxWidth().height(52.dp).testTag("logout")) {
-            Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = null)
-            Text(stringResource(R.string.profile_logout), modifier = Modifier.padding(start = 8.dp))
-        }
     }
 }
 
