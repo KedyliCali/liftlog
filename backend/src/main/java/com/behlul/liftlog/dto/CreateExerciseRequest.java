@@ -5,6 +5,8 @@ import jakarta.validation.constraints.Size;
 
 public record CreateExerciseRequest(
         @NotBlank @Size(max = 100) String name,
-        @Size(max = 50) String muscleGroup
+        @Size(max = 50) String muscleGroup,
+        /** Optional; defaults to a regular weighted exercise. */
+        Boolean bodyweight
 ) {
 }

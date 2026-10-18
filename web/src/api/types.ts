@@ -5,6 +5,8 @@ export interface Exercise {
   name: string
   muscleGroup: string | null
   custom: boolean
+  /** Calisthenics: the logged weight is the added load, and body weight counts in stats */
+  bodyweight: boolean
 }
 
 export interface WorkoutSummary {
@@ -25,12 +27,16 @@ export interface WorkoutSet {
   weightKg: number
   rpe: number | null
   newPersonalRecord: boolean
+  /** weightKg is the added load (0 = bodyweight only) when true */
+  bodyweight: boolean
 }
 
 export interface WorkoutDetail {
   id: number
   workoutDate: string
   notes: string | null
+  /** Includes body weight for bodyweight exercises, so the client cannot simply sum reps × weight */
+  totalVolumeKg: number
   sets: WorkoutSet[]
 }
 
@@ -65,6 +71,9 @@ export interface PersonalRecord {
   bestEstimated1RmKg: number
   bestEstimated1RmDate: string
   totalSets: number
+  /** For bodyweight exercises heaviestWeightKg includes body weight; this is the extra load alone */
+  heaviestAddedKg: number
+  bodyweight: boolean
 }
 
 export interface ProgressPoint {

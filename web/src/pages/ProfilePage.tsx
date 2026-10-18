@@ -5,7 +5,8 @@ import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { Profile } from '../api/types'
 import { Sheet } from '../components/Sheet'
-import { ErrorState, Loading } from '../components/StateViews'
+import { ProfileSkeleton } from '../components/Skeletons'
+import { ErrorState } from '../components/StateViews'
 import { useToast } from '../components/contexts'
 import { errorMessage, formatKg } from '../lib/format'
 import { locale, t } from '../lib/i18n'
@@ -71,7 +72,7 @@ export function ProfilePage() {
       <h1 className="page-title">{t.profileTitle}</h1>
     </header>
   )
-  if (profile.isPending) return <div className="page">{header}<Loading /></div>
+  if (profile.isPending) return <div className="page">{header}<ProfileSkeleton /></div>
   if (profile.isError) return <div className="page">{header}<ErrorState error={profile.error} onRetry={() => profile.refetch()} /></div>
 
   const data = profile.data

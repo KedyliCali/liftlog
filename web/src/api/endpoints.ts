@@ -20,8 +20,8 @@ export const api = {
     request<AuthResponse>('/api/v1/auth/login', { method: 'POST', body: { email, password }, anonymous: true }),
 
   exercises: () => request<Exercise[]>('/api/v1/exercises'),
-  createExercise: (name: string, muscleGroup: string | null) =>
-    request<Exercise>('/api/v1/exercises', { method: 'POST', body: { name, muscleGroup } }),
+  createExercise: (name: string, muscleGroup: string | null, bodyweight: boolean) =>
+    request<Exercise>('/api/v1/exercises', { method: 'POST', body: { name, muscleGroup, bodyweight } }),
 
   workouts: (page: number, size = 20) => request<Page<WorkoutSummary>>(`/api/v1/workouts?page=${page}&size=${size}`),
   workout: (id: number) => request<WorkoutDetail>(`/api/v1/workouts/${id}`),

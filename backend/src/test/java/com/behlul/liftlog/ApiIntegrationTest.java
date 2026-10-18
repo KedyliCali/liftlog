@@ -232,6 +232,45 @@ class ApiIntegrationTest {
                 .andExpect(jsonPath("$.bodyWeightKg").value(82.4));
     }
 
+    @Test
+    void bodyweightExercisesCountBodyWeightPlusAddedLoad() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        authed(put("/api/v1/profile"), token, "{\"bodyWeightKg\":80}").andExpect(status().isOk());
+
+        JsonNode exercises = read(mockMvc.perform(get("/api/v1/exercises")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)).andReturn());
+        long pullUp = -1;
+        for (JsonNode e : exercises) {
+            if (e.get("name").asString().equals("Pull-up")) {
+                assertThat(e.get("bodyweight").asBoolean()).isTrue();
+                pullUp = e.get("id").asLong();
+            }
+        }
+        assertThat(pullUp).isPositive();
+
+        long workoutId = read(authed(post("/api/v1/workouts"), token, "{\"workoutDate\":\"2026-10-18\"}")
+                .andReturn()).get("id").asLong();
+        authed(post("/api/v1/workouts/" + workoutId + "/sets"), token,
+                json("{'exerciseId':%d,'reps':8,'weightKg':0}", pullUp))
+                .andExpect(jsonPath("$.bodyweight").value(true));
+        // +10 kg for 5 reps: 90 kg x 5 beats 80 kg x 8 on estimated 1RM (105 vs 101.33)
+        authed(post("/api/v1/workouts/" + workoutId + "/sets"), token,
+                json("{'exerciseId':%d,'reps':5,'weightKg':10}", pullUp))
+                .andExpect(jsonPath("$.newPersonalRecord").value(true))
+                .andExpect(jsonPath("$.weightKg").value(10));
+
+        mockMvc.perform(get("/api/v1/workouts/" + workoutId).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.totalVolumeKg").value(1090.0)); // 8 x 80 + 5 x 90
+        mockMvc.perform(get("/api/v1/stats/prs").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$[0].exerciseName").value("Pull-up"))
+                .andExpect(jsonPath("$[0].heaviestWeightKg").value(90.0))
+                .andExpect(jsonPath("$[0].heaviestAddedKg").value(10.0))
+                .andExpect(jsonPath("$[0].bodyweight").value(true))
+                .andExpect(jsonPath("$[0].bestEstimated1RmKg").value(105.0));
+        mockMvc.perform(get("/api/v1/workouts").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.content[0].totalVolumeKg").value(1090.0));
+    }
+
     private String register(String email, String password, String displayName) throws Exception {
         String body = displayName == null
                 ? json("{'email':'%s','password':'%s'}", email, password)

@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from 'react-router'
+import type { CSSProperties } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router'
 import { t } from '../lib/i18n'
 
 const tabs = [
@@ -7,14 +8,23 @@ const tabs = [
   { to: '/profile', label: t.navProfile, icon: <PersonIcon />, end: false },
 ]
 
+/** Index of the tab owning the current path; detail pages belong to the workouts tab. */
+function activeTabIndex(pathname: string): number {
+  const index = tabs.findIndex((tab) => tab.to !== '/' && pathname.startsWith(tab.to))
+  return index >= 0 ? index : 0
+}
+
 export function Layout() {
+  const { pathname } = useLocation()
   return (
     <div className="app">
       <Outlet />
       <nav className="bottom-nav" aria-label="Main">
-        <div className="bottom-nav-inner">
+        <div className="bottom-nav-inner" style={{ '--active-tab': activeTabIndex(pathname), '--tab-count': tabs.length } as CSSProperties}>
+          {/* One pill slides between tabs instead of each tab fading its own background */}
+          <span className="nav-indicator" aria-hidden />
           {tabs.map((tab) => (
-            <NavLink key={tab.to} to={tab.to} end={tab.end} className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
+            <NavLink key={tab.to} to={tab.to} end={tab.end} viewTransition className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
               <span className="nav-icon">{tab.icon}</span>
               {tab.label}
             </NavLink>

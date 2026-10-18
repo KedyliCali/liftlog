@@ -29,10 +29,11 @@ public interface WorkoutRepository extends JpaRepository<Workout, Long> {
                 w.id, w.workoutDate, w.notes,
                 count(s.id),
                 count(distinct s.exercise.id),
-                coalesce(sum(s.reps * s.weightKg), 0)
+                coalesce(sum(s.reps * (s.weightKg
+                    + case when e.bodyweight = true then coalesce(u.bodyWeightKg, 0) else 0 end)), 0)
             )
-            from Workout w left join w.sets s
-            where w.user.id = :userId
+            from Workout w join w.user u left join w.sets s left join s.exercise e
+            where u.id = :userId
             group by w.id, w.workoutDate, w.notes
             order by w.workoutDate desc, w.id desc
             """,

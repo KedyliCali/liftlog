@@ -24,6 +24,10 @@ public class Exercise {
     @Column(name = "muscle_group", length = 50)
     private String muscleGroup;
 
+    /** True for calisthenics: logged weight is the added load and the user's body weight counts too. */
+    @Column(nullable = false)
+    private boolean bodyweight;
+
     /** Owner of a custom exercise; {@code null} for built-in exercises. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
@@ -33,9 +37,18 @@ public class Exercise {
     }
 
     public Exercise(String name, String muscleGroup, User owner) {
+        this(name, muscleGroup, false, owner);
+    }
+
+    public Exercise(String name, String muscleGroup, boolean bodyweight, User owner) {
         this.name = name;
         this.muscleGroup = muscleGroup;
+        this.bodyweight = bodyweight;
         this.owner = owner;
+    }
+
+    public boolean isBodyweight() {
+        return bodyweight;
     }
 
     public Long getId() {

@@ -1,19 +1,21 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
-import type { SetInput, WorkoutDetail, WorkoutSet } from '../api/types'
+import type { Page, SetInput, WorkoutDetail, WorkoutSet, WorkoutSummary } from '../api/types'
 import { Confetti } from '../components/Confetti'
+import { CountUp } from '../components/CountUp'
 import { useRestTimer } from '../components/contexts'
 import { Sheet } from '../components/Sheet'
-import { ErrorState, Loading, MessageState } from '../components/StateViews'
+import { DetailSkeleton, SetListSkeleton } from '../components/Skeletons'
+import { ErrorState, MessageState } from '../components/StateViews'
 import { SwipeToDelete } from '../components/SwipeToDelete'
 import { useToast } from '../components/contexts'
 import { unlockAudio, vibrate } from '../lib/feedback'
-import { errorMessage, formatKg, formatLongDate } from '../lib/format'
+import { errorMessage, formatKg, formatLoad, formatLongDate } from '../lib/format'
 import { t } from '../lib/i18n'
-import { groupByExercise } from '../lib/workoutLogic'
+import { groupByExercise, visibleVolume } from '../lib/workoutLogic'
 import { SetEditorSheet, type SetEditorProps } from './SetEditorSheet'
 
 type Editor = { mode: 'add' } | { mode: 'edit'; set: WorkoutSet }
@@ -31,9 +33,15 @@ export function WorkoutDetailPage() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [celebrate, setCelebrate] = useState(false)
   const [newSetId, setNewSetId] = useState<number | null>(null)
+  // The API flags a record only in the add response, so this page remembers which sets earned one
+  const [recordSetIds, setRecordSetIds] = useState<Set<number>>(new Set())
   const [pendingDelete, setPendingDelete] = useState<Set<number>>(new Set())
 
   const query = useQuery({ queryKey: queryKeys.workout(id), queryFn: () => api.workout(id) })
+  const profile = useQuery({ queryKey: queryKeys.profile, queryFn: api.profile, staleTime: 5 * 60_000 })
+  // Sets do not carry the muscle group; the exercise catalog (shared with the picker) does
+  const exercises = useQuery({ queryKey: queryKeys.exercises, queryFn: api.exercises, staleTime: 5 * 60_000 })
+  const muscleOf = (exerciseId: number) => exercises.data?.find((e) => e.id === exerciseId)?.muscleGroup ?? null
 
   const refreshAll = async () => {
     await Promise.all([
@@ -53,6 +61,7 @@ export function WorkoutDetailPage() {
         setNewSetId(saved.id)
         restTimer.start()
         if (saved.newPersonalRecord) {
+          setRecordSetIds((ids) => new Set(ids).add(saved.id))
           setCelebrate(true)
           vibrate([30, 40, 30, 40, 80])
           setTimeout(() => setCelebrate(false), 1800)
@@ -109,6 +118,8 @@ export function WorkoutDetailPage() {
   }
 
   const workout = query.data
+  // The list already knows date, name and totals, so the hero card can render (and be morphed into) at once
+  const preview = query.isPending ? cachedSummary(queryClient.getQueryData(queryKeys.workouts), id) : undefined
   const visibleSets = workout?.sets.filter((s) => !pendingDelete.has(s.id)) ?? []
 
   return (
@@ -136,28 +147,53 @@ export function WorkoutDetailPage() {
       </div>
 
       {query.isPending ? (
-        <Loading />
+        preview ? (
+          <>
+            <Summary date={preview.workoutDate} notes={preview.notes} setCount={preview.setCount} exerciseCount={preview.exerciseCount} volume={preview.totalVolumeKg} />
+            <SetListSkeleton />
+          </>
+        ) : (
+          <DetailSkeleton />
+        )
       ) : query.isError ? (
         <ErrorState error={query.error} onRetry={() => query.refetch()} />
       ) : (
         <>
-          <Summary workout={workout!} sets={visibleSets} />
+          <Summary
+            date={workout!.workoutDate}
+            notes={workout!.notes}
+            setCount={visibleSets.length}
+            exerciseCount={new Set(visibleSets.map((s) => s.exerciseId)).size}
+            volume={visibleVolume(workout!, pendingDelete, profile.data?.bodyWeightKg ?? null)}
+          />
           {visibleSets.length === 0 ? (
             <MessageState icon="🏋" title={t.detailEmptyTitle} body={t.detailEmptyBody} />
           ) : (
-            <div style={{ paddingBottom: 96 }}>
+            <div className="set-groups">
               {groupByExercise(visibleSets).map((group, index) => (
-                <section key={group.exerciseId} className="exercise-group" style={{ animationDelay: `${index * 40}ms` }}>
+                <section
+                  key={group.exerciseId}
+                  className="exercise-group"
+                  data-muscle={muscleOf(group.exerciseId) ?? undefined}
+                  style={{ animationDelay: `${index * 40}ms` }}
+                >
                   <div className="exercise-rail" aria-hidden />
                   <div className="exercise-group-body">
-                    <h3 className="exercise-group-title">{group.exerciseName}</h3>
+                    <h3 className="exercise-group-title">
+                      {group.exerciseName}
+                      {muscleOf(group.exerciseId) && <span className="muscle-tag">{t.muscleGroups[muscleOf(group.exerciseId)!] ?? muscleOf(group.exerciseId)}</span>}
+                    </h3>
                     {group.sets.map((set, i) => (
                       <SwipeToDelete key={set.id} label={`${group.exerciseName} #${i + 1}`} onDelete={() => deleteSet(set)}>
                         <button className={set.id === newSetId ? 'set-row new' : 'set-row'} onClick={() => setEditor({ mode: 'edit', set })}>
-                          <span className="set-number num">#{i + 1}</span>
-                          <span className="set-weight num">{t.kg(formatKg(set.weightKg))}</span>
+                          <span className="set-number num">
+                            #{i + 1}
+                            {recordSetIds.has(set.id) && <span className="pr-badge">{t.prBadge}</span>}
+                          </span>
+                          <span className={set.bodyweight ? 'set-weight num bodyweight' : 'set-weight num'}>{formatLoad(set.weightKg, set.bodyweight)}</span>
                           <span className="set-reps num">× {set.reps}</span>
                           <span className="set-rpe">{set.rpe != null ? t.rpe(formatKg(set.rpe)) : ''}</span>
+                          {set.id === newSetId && <SavedCheck />}
                         </button>
                       </SwipeToDelete>
                     ))}
@@ -181,6 +217,16 @@ export function WorkoutDetailPage() {
   )
 }
 
+/** Stroke draws itself in, then fades: confirms the save without another toast. */
+function SavedCheck() {
+  return (
+    <svg className="saved-check" width="22" height="22" viewBox="0 0 24 24" aria-hidden>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M7 12.5l3.2 3.2L17 9" />
+    </svg>
+  )
+}
+
 /** Adding pre-fills the previous set, since lifters usually repeat it; editing shows the set's values. */
 function editorProps(editor: Editor, sets: WorkoutSet[], saving: boolean): Omit<SetEditorProps, 'onSave' | 'onClose' | 'onDelete'> {
   const source = editor.mode === 'edit' ? editor.set : sets.at(-1)
@@ -190,6 +236,7 @@ function editorProps(editor: Editor, sets: WorkoutSet[], saving: boolean): Omit<
     initial: {
       exerciseId: source?.exerciseId ?? null,
       exerciseName: source?.exerciseName ?? null,
+      bodyweight: source?.bodyweight ?? false,
       reps: source ? String(source.reps) : '',
       weight: source ? String(source.weightKg) : '',
       rpe: editor.mode === 'edit' && editor.set.rpe != null ? String(editor.set.rpe) : '',
@@ -198,28 +245,44 @@ function editorProps(editor: Editor, sets: WorkoutSet[], saving: boolean): Omit<
 }
 
 /** Hero block: date and notes on a card, with the volume on a raised tile overlapping its corner. */
-function Summary({ workout, sets }: { workout: WorkoutDetail; sets: WorkoutSet[] }) {
-  const volume = sets.reduce((sum, s) => sum + s.reps * s.weightKg, 0)
-  const exerciseCount = new Set(sets.map((s) => s.exerciseId)).size
+function cachedSummary(cache: InfiniteData<Page<WorkoutSummary>> | undefined, id: number): WorkoutSummary | undefined {
+  return cache?.pages.flatMap((page) => page.content).find((w) => w.id === id)
+}
+
+interface SummaryProps {
+  date: string
+  notes: string | null
+  setCount: number
+  exerciseCount: number
+  volume: number
+}
+
+function Summary({ date, notes, setCount, exerciseCount, volume }: SummaryProps) {
   return (
     <div className="summary">
-      <div className="summary-card">
-        <div className="summary-date">{formatLongDate(workout.workoutDate)}</div>
-        <h2 className="summary-title">{workout.notes ?? t.untitledWorkout}</h2>
+      <div className="summary-card" style={{ viewTransitionName: 'workout-hero' }}>
+        <div className="summary-date">{formatLongDate(date)}</div>
+        <h2 className="summary-title">{notes ?? t.untitledWorkout}</h2>
         <div className="summary-stats">
           <div>
-            <div className="stat-value num">{sets.length}</div>
+            <div className="stat-value">
+              <CountUp value={setCount} format={String} durationMs={500} />
+            </div>
             <div className="stat-label">{t.labelSets}</div>
           </div>
           <div>
-            <div className="stat-value num">{exerciseCount}</div>
+            <div className="stat-value">
+              <CountUp value={exerciseCount} format={String} durationMs={500} />
+            </div>
             <div className="stat-label">{t.labelExercises}</div>
           </div>
         </div>
       </div>
       <div className="volume-badge">
         <small>{t.totalVolume}</small>
-        <strong>{t.kg(formatKg(volume))}</strong>
+        <strong>
+          <CountUp value={volume} format={(n) => t.kg(formatKg(n))} />
+        </strong>
       </div>
     </div>
   )

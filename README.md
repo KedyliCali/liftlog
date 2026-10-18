@@ -21,13 +21,15 @@ the same JWT-secured Spring Boot REST API backed by PostgreSQL, packaged with Do
 ## Features
 
 - **Workouts and sets:** create, edit and delete workouts. Add sets with reps, weight and optional RPE. The next set is pre-filled from the previous one.
-- **Exercises:** 16 built-in lifts plus your own custom exercises, with search.
+- **Exercises:** 16 built-in lifts and 16 calisthenics moves (pull-up, dip, muscle-up, pistol squat… and weighted versions), plus your own. The picker is grouped by muscle group with a bodyweight filter.
+- **Calisthenics:** bodyweight sets log only the extra load ("BW + 10 kg"); volume, PRs and e1RM add your profile body weight, so a weighted pull-up and a plain one compare fairly.
 - **No sign-up form:** each installation silently creates its own account (random credentials kept on the device) and authenticates with JWT. Every account sees only its own data.
 - **Profile:** name, height, body weight, BMI and a profile photo (resized to 256 px on the device before upload).
 - **In the gym:** rest timer after each set (vibration, plus a tone on iPhone), swipe a set or workout away with undo, start a new workout from a past one with its weights, confetti on a new PR.
 - **Progress:** heaviest set and best estimated 1RM per exercise, an e1RM trend chart and weekly training volume.
 - **PR alerts:** the app celebrates when a new set beats your previous best.
 - **English and Turkish UI**, light and dark theme following the system.
+- **Motion:** View Transitions (the tapped workout card morphs into the detail page), a spring-animated nav pill, skeleton loaders shaped like the real cards, count-up totals and a glowing PR tag.
 
 ## Tech stack
 
@@ -162,6 +164,7 @@ cd web && npm test                           # Vitest: validation, session handl
 - **Login gives no hints:** login returns the same error for an unknown email and a wrong password, and runs a dummy BCrypt check so response timing does not reveal registered emails.
 - **Device accounts instead of a login form:** for a personal tracker a sign-up form is friction. Each client generates a random email and a 256-bit password once, stores them locally and signs in silently. A 401 drops the token and the same credentials sign in again; if the server lost the account, it is recreated.
 - **Photos live in PostgreSQL:** Render's free disk is wiped on every restart, so avatars are stored as `BYTEA` in their own table (never loaded with the user), capped at 512 KB, and their type is detected from the file's magic bytes rather than trusted from the request.
+- **Bodyweight load = body weight + added weight, computed in SQL:** sets store only the added load, and queries add `users.body_weight_kg` for exercises flagged `bodyweight`. Changing body weight later re-scores old sets with the new value; that is a deliberate simplification instead of versioning weight history.
 - **Undo instead of "Are you sure?":** a swiped-away set is hidden at once and only deleted on the server when the 5-second undo window closes.
 
 ## Deployment

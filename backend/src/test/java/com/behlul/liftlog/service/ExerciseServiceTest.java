@@ -46,7 +46,7 @@ class ExerciseServiceTest {
     void createRejectsDuplicateNameCaseInsensitively() {
         when(exerciseRepository.existsVisibleByName("squat", USER_ID)).thenReturn(true);
 
-        assertThatThrownBy(() -> exerciseService.createExercise(new CreateExerciseRequest("  squat ", null)))
+        assertThatThrownBy(() -> exerciseService.createExercise(new CreateExerciseRequest("  squat ", null, null)))
                 .isInstanceOf(ConflictException.class);
         verify(exerciseRepository, never()).save(any());
     }
@@ -57,7 +57,7 @@ class ExerciseServiceTest {
         when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
         when(exerciseRepository.save(any(Exercise.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        ExerciseResponse response = exerciseService.createExercise(new CreateExerciseRequest(" Hip Thrust ", " "));
+        ExerciseResponse response = exerciseService.createExercise(new CreateExerciseRequest(" Hip Thrust ", " ", null));
 
         assertThat(response.name()).isEqualTo("Hip Thrust");
         assertThat(response.muscleGroup()).isNull();

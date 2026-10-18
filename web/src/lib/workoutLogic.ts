@@ -1,4 +1,4 @@
-import type { PersonalRecord, WorkoutSet, WorkoutSummary } from '../api/types'
+import type { Exercise, PersonalRecord, WorkoutDetail, WorkoutSet, WorkoutSummary } from '../api/types'
 import { locale } from './i18n'
 
 // Pure logic used by the pages, kept here so it can be unit-tested without rendering anything.
@@ -70,4 +70,51 @@ export function formatClock(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
   return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
+
+/** Weight that actually moved: for bodyweight exercises the logged weight is only the extra load. */
+export function effectiveLoad(set: Pick<WorkoutSet, 'weightKg' | 'bodyweight'>, bodyWeightKg: number | null): number {
+  return set.weightKg + (set.bodyweight ? (bodyWeightKg ?? 0) : 0)
+}
+
+/**
+ * The server's total already counts body weight; sets hidden while their undo toast is open are
+ * taken out locally so the number reacts immediately.
+ */
+export function visibleVolume(workout: WorkoutDetail, hiddenSetIds: Set<number>, bodyWeightKg: number | null): number {
+  let volume = workout.totalVolumeKg
+  for (const set of workout.sets) if (hiddenSetIds.has(set.id)) volume -= set.reps * effectiveLoad(set, bodyWeightKg)
+  return Math.max(0, volume)
+}
+
+const MUSCLE_ORDER = ['Chest', 'Back', 'Shoulders', 'Legs', 'Arms', 'Core']
+
+export interface MuscleSection {
+  muscleGroup: string
+  exercises: Exercise[]
+}
+
+/** Picker sections in a fixed training order; custom groups follow alphabetically, ungrouped last. */
+export function groupByMuscle(exercises: Exercise[]): MuscleSection[] {
+  const sections = new Map<string, Exercise[]>()
+  for (const exercise of exercises) {
+    const key = exercise.muscleGroup?.trim() || 'Other'
+    sections.set(key, [...(sections.get(key) ?? []), exercise])
+  }
+  const rank = (group: string) => {
+    const index = MUSCLE_ORDER.indexOf(group)
+    return index >= 0 ? index : group === 'Other' ? Number.MAX_SAFE_INTEGER : MUSCLE_ORDER.length
+  }
+  return [...sections.entries()]
+    .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
+    .map(([muscleGroup, list]) => ({ muscleGroup, exercises: list }))
+}
+
+/**
+ * Switching between a barbell lift and a bodyweight one makes the old number meaningless
+ * (100 kg squat → "+100 kg" pull-up), so the weight resets; within the same kind it is kept.
+ */
+export function weightAfterPick(currentWeight: string, wasBodyweight: boolean, picked: Pick<Exercise, 'bodyweight'>): string {
+  if (picked.bodyweight === wasBodyweight && currentWeight !== '') return currentWeight
+  return picked.bodyweight ? '0' : ''
 }

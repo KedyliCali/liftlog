@@ -5,13 +5,20 @@ import { AppError } from './api/client'
 import { session, signInDevice } from './api/session'
 import { Layout } from './components/Layout'
 import { RestTimerProvider } from './components/RestTimer'
+import { ProgressSkeleton } from './components/Skeletons'
 import { ErrorState, Loading } from './components/StateViews'
 import { ToastProvider } from './components/Toast'
+import { t } from './lib/i18n'
 import { ProfilePage } from './pages/ProfilePage'
 import { WorkoutDetailPage } from './pages/WorkoutDetailPage'
 import { WorkoutsPage } from './pages/WorkoutsPage'
 
-const ProgressPage = lazy(() => import('./pages/ProgressPage').then((m) => ({ default: m.ProgressPage })))
+const loadProgressPage = () => import('./pages/ProgressPage')
+const ProgressPage = lazy(() => loadProgressPage().then((m) => ({ default: m.ProgressPage })))
+// The chart library stays out of the first load, but is fetched once the browser is idle so opening
+// the tab rarely has to wait for it
+const whenIdle = window.requestIdleCallback ?? ((callback: () => void) => setTimeout(callback, 1500))
+whenIdle(() => void loadProgressPage())
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,7 +40,17 @@ const router = createBrowserRouter([
       {
         path: '/progress',
         element: (
-          <Suspense fallback={<Loading />}>
+          <Suspense
+            fallback={
+              <div className="page">
+                <header className="page-header">
+                  <h1 className="page-title">{t.progressTitle}</h1>
+                  <p className="page-subtitle">{t.progressSubtitle}</p>
+                </header>
+                <ProgressSkeleton />
+              </div>
+            }
+          >
             <ProgressPage />
           </Suspense>
         ),

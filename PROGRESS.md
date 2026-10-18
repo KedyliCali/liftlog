@@ -92,3 +92,21 @@ her kararın nedenini ve mülakat cevaplarını anlatıyor. **Sıradaki ilk iş 
 
 **Sıradaki adım:** iPhone'da Safari ile web adresini aç → Paylaş → Ana Ekrana Ekle. Android tarafında
 zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derlemek.
+
+## 2026-10-18 — Kalistenik + web cilası (branch `feature/calisthenics-polish`)
+
+- **Backend V5:** `exercises.bodyweight` sütunu; Pull-up ve Dip işaretlendi, 14 yeni hareket eklendi
+  (Chin-up, Muscle-up, Inverted Row, Push-up, Pike/Handstand Push-up, Pistol/Bulgarian Split Squat,
+  Hanging Leg Raise, L-sit, Weighted Pull-up/Chin-up/Dip/Push-up).
+- Kural: sette yalnızca **ek ağırlık** saklanır; hacim, PR ve e1RM sorgularında profildeki vücut ağırlığı
+  eklenir (`weight + case when bodyweight then body_weight_kg`). Kilo değişirse eski setler yeni kiloyla
+  hesaplanır (bilinçli sadeleştirme).
+- **Web:** kas grubuna göre gruplu seçici + "Kalistenik" filtresi, "Ek ağırlık (kg)" alanı ve ipucu,
+  satırlarda "VA + 10 kg", sunucunun `totalVolumeKg` değeri, PR kartında ek yük + toplam.
+- **Cila:** View Transitions (kart → detay morfu), yay animasyonlu alt menü hapı, içerik şeklinde iskelet
+  yükleyiciler, sayarak artan toplamlar, kas grubu renkleri, başlık parıltısı, basınca yaylanan düğmeler,
+  set kaydında çizilen onay işareti, PR köşe etiketi.
+- Doğrulama: backend 42 test, web 27 test, lint ve build temiz; yerel Docker API (V5 uygulandı) ile telefon
+  boyutunda uçtan uca denendi (ağırlıklı barfiks, hacim 1.279,5 → 2.815,5 kg elle doğrulandı, PR, iskeletler,
+  açık/koyu tema).
+- Android bu alanları yok sayıyor (bilinmeyen JSON alanları); vücut ağırlığı gösterimi Android'e eklenmedi.

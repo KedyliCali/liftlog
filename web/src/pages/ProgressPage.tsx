@@ -4,8 +4,10 @@ import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Too
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { PersonalRecord, ProgressPoint, WeeklyVolume } from '../api/types'
-import { ErrorState, Loading, MessageState } from '../components/StateViews'
-import { formatKg, formatShortDate } from '../lib/format'
+import { CountUp } from '../components/CountUp'
+import { ProgressSkeleton } from '../components/Skeletons'
+import { ErrorState, MessageState } from '../components/StateViews'
+import { formatKg, formatRecordSet, formatShortDate } from '../lib/format'
 import { t } from '../lib/i18n'
 import { chooseExercise, yDomain } from '../lib/workoutLogic'
 
@@ -23,14 +25,9 @@ export function ProgressPage() {
     enabled: selectedId !== null,
   })
 
-  const header = (
-    <header className="page-header">
-      <h1 className="page-title">{t.progressTitle}</h1>
-      <p className="page-subtitle">{t.progressSubtitle}</p>
-    </header>
-  )
+  const header = <ProgressHeader />
 
-  if (records.isPending || volume.isPending) return <div className="page">{header}<Loading /></div>
+  if (records.isPending || volume.isPending) return <div className="page">{header}<ProgressSkeleton /></div>
   if (records.isError || volume.isError) {
     return (
       <div className="page">
@@ -94,7 +91,8 @@ export function ProgressPage() {
           <div className="record-row-main">
             <strong>{record.exerciseName}</strong>
             <div className="muted" style={{ fontSize: 13 }}>
-              {t.weightTimesReps(formatKg(record.heaviestWeightKg), record.heaviestReps)}
+              {formatRecordSet(record)}
+              {record.bodyweight && <span className="badge badge-bodyweight">{t.calisthenics}</span>}
             </div>
           </div>
           <div className="record-row-side">
@@ -107,18 +105,32 @@ export function ProgressPage() {
   )
 }
 
+function ProgressHeader() {
+  return (
+    <header className="page-header">
+      <h1 className="page-title">{t.progressTitle}</h1>
+      <p className="page-subtitle">{t.progressSubtitle}</p>
+    </header>
+  )
+}
+
 /** Two stat tiles; the trophy badge overlaps the corner of the first one. */
 function RecordHighlight({ record }: { record: PersonalRecord }) {
   return (
     <div className="record-highlight">
       <div className="stat-tile">
         <small>{t.heaviestSet}</small>
-        <strong>{t.weightTimesReps(formatKg(record.heaviestWeightKg), record.heaviestReps)}</strong>
-        <span>{formatShortDate(record.heaviestDate)}</span>
+        <strong>{formatRecordSet(record)}</strong>
+        <span>
+          {formatShortDate(record.heaviestDate)}
+          {record.bodyweight && ` · ${t.totalLoad(formatKg(record.heaviestWeightKg))}`}
+        </span>
       </div>
       <div className="stat-tile emphasized">
         <small>{t.bestE1rm}</small>
-        <strong>{t.kg(formatKg(record.bestEstimated1RmKg))}</strong>
+        <strong>
+          <CountUp value={record.bestEstimated1RmKg} format={(n) => t.kg(formatKg(n))} />
+        </strong>
         <span>{formatShortDate(record.bestEstimated1RmDate)}</span>
       </div>
       <span className="trophy" aria-hidden>
