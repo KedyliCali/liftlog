@@ -122,3 +122,28 @@ describe('RestoreForm on a signed-out device', () => {
     expect(JSON.parse(localStorage.getItem('liftlog.device')!)).toEqual({ email: MINE.email, password: 'Newer-23456789abcdefghijklmnopqrstuvwxyzABC' })
   })
 })
+
+describe('SignedOutScreen', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.resetModules()
+  })
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllGlobals()
+  })
+
+  it("calls the device's own stale code unrecognized rather than 'already on this device'", async () => {
+    localStorage.setItem('liftlog.device', JSON.stringify(MINE))
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(401, { status: 401 })))
+    const { SignedOutScreen } = await import('./Recovery')
+    render(<SignedOutScreen onRestored={vi.fn()} onStartFresh={vi.fn()} />)
+    const user = userEvent.setup()
+
+    await user.type(screen.getByLabelText(t.restorePlaceholder), MINE_CODE)
+    await user.click(screen.getByTestId('restore-submit'))
+
+    expect(await screen.findByText(t.restoreNotRecognized)).toBeInTheDocument()
+    expect(screen.queryByText(t.restoreSameAccount)).not.toBeInTheDocument()
+  })
+})

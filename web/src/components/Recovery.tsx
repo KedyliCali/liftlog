@@ -53,7 +53,8 @@ export function SignedOutScreen({ onRestored, onStartFresh }: { onRestored: () =
   return (
     <div className="page recovery-screen">
       <MessageState icon={<KeyIcon size={32} />} title={t.signedOutTitle} body={t.signedOutBody} />
-      <RestoreForm needsConfirm={false} onRestored={onRestored} />
+      {/* The stored credentials are known to be dead here, so pasting them must read as "not recognized" */}
+      <RestoreForm needsConfirm={false} checkSameDevice={false} onRestored={onRestored} />
       <button
         className="btn btn-text recovery-fresh"
         onClick={() => {
@@ -72,7 +73,15 @@ export function SignedOutScreen({ onRestored, onStartFresh }: { onRestored: () =
  * it. When the device already has a log (needsConfirm), the target is named first and the current code is
  * offered for copying, so the log being replaced stays reachable.
  */
-export function RestoreForm({ needsConfirm, onRestored }: { needsConfirm: boolean; onRestored: () => void }) {
+export function RestoreForm({
+  needsConfirm,
+  checkSameDevice = true,
+  onRestored,
+}: {
+  needsConfirm: boolean
+  checkSameDevice?: boolean
+  onRestored: () => void
+}) {
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [checking, setChecking] = useState(false)
@@ -89,7 +98,7 @@ export function RestoreForm({ needsConfirm, onRestored }: { needsConfirm: boolea
       setError(t.restoreInvalid)
       return
     }
-    if (isThisDevicesCode(credentials)) {
+    if (checkSameDevice && isThisDevicesCode(credentials)) {
       setError(t.restoreSameAccount)
       return
     }
@@ -151,7 +160,11 @@ export function RestoreForm({ needsConfirm, onRestored }: { needsConfirm: boolea
           spellCheck={false}
           onChange={(e) => (setText(e.target.value), setError(null))}
         />
-        {error && <span className="field-error">{error}</span>}
+        {error && (
+          <span className="field-error" role="alert">
+            {error}
+          </span>
+        )}
       </div>
       <button type="submit" className="btn btn-primary btn-block" disabled={checking || text.trim() === ''} data-testid="restore-submit">
         {checking ? <span className="spinner small" /> : t.restoreButton}

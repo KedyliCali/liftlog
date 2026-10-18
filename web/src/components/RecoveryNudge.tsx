@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { currentRecoveryCode } from '../api/session'
+import { currentRecoveryCode, NUDGE_KEY } from '../api/session'
 import { t } from '../lib/i18n'
 import { todayIso } from '../lib/nutrition'
 import { addDays, shouldNudge } from '../lib/recoveryCode'
-import { NUDGE_KEY } from './RecoveryCard'
 
 function readState(): string | null {
   try {

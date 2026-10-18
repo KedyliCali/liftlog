@@ -495,4 +495,7 @@ const tr: Strings = {
 }
 
 export const locale = navigator.language || 'en'
-export const t: Strings = locale.toLowerCase().startsWith('tr') ? tr : en
+const isTurkish = locale.toLowerCase().startsWith('tr')
+export const t: Strings = isTurkish ? tr : en
+// text-transform: uppercase uses the page language: with lang="en" a Turkish "i" became "I" instead of "İ"
+if (typeof document !== 'undefined') document.documentElement.lang = isTurkish ? 'tr' : 'en'

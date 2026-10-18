@@ -103,7 +103,7 @@ describe('recovery code session', () => {
     expect(code.endsWith('.' + body.newPassword)).toBe(true)
   })
 
-  it('a lost answer keeps the new password pending and reuses it on retry', async () => {
+  it('a request that never reached the server keeps the new password pending and reuses it on retry', async () => {
     store(STORED)
     localStorage.setItem('liftlog.token', 'old')
     const fetchMock = vi.fn().mockRejectedValueOnce(new TypeError('offline')).mockResolvedValueOnce(jsonResponse(200, AUTH))
@@ -208,5 +208,64 @@ describe('recovery code session', () => {
     expect(call(fetchMock, 0)[0]).toMatch(/register$/)
     expect(stored().email).not.toBe(STORED.email)
     expect(hasDeviceCredentials()).toBe(true)
+  })
+})
+
+describe('review fixes', () => {
+  const P0 = 'Ab-_0123456789abcdefghijklmnopqrstuvwxyzABC'
+  const EMAIL = 'device-0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d@liftlog.device'
+
+  beforeEach(() => {
+    localStorage.clear()
+    sessionStorage.clear()
+    vi.resetModules()
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('a new code that reached the server though its answer was lost is adopted and announced', async () => {
+    localStorage.setItem('liftlog.device', JSON.stringify({ email: EMAIL, password: P0 }))
+    localStorage.setItem('liftlog.token', 'old')
+    localStorage.setItem('liftlog.recoveryNudge', 'saved')
+    // The server: the first PUT commits the new password but the answer never arrives
+    let serverPassword = P0
+    let revoked = false
+    const fetchMock = vi.fn(async (url: string, init: RequestInit) => {
+      const body = init.body ? JSON.parse(String(init.body)) : {}
+      if (url.endsWith('/profile/password')) {
+        if (revoked) return jsonResponse(401, { status: 401 })
+        serverPassword = body.newPassword
+        revoked = true
+        throw new TypeError('connection lost')
+      }
+      if (url.endsWith('/auth/login')) return body.password === serverPassword ? jsonResponse(200, AUTH) : jsonResponse(401, { status: 401 })
+      return jsonResponse(500, {})
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { regenerateRecoveryCode, signInDevice, session, CODE_CHANGED_KEY } = await import('./session')
+
+    await expect(regenerateRecoveryCode()).rejects.toMatchObject({ kind: 'network' })
+    // Following the card's hint and tapping New code again meets the revoked token
+    await expect(regenerateRecoveryCode()).rejects.toMatchObject({ kind: 'unauthorized' })
+    expect(session.getToken()).toBeNull()
+
+    await signInDevice()
+
+    expect(JSON.parse(localStorage.getItem('liftlog.device')!)).toEqual({ email: EMAIL, password: serverPassword })
+    expect(localStorage.getItem('liftlog.recoveryNudge')).toBeNull()
+    expect(sessionStorage.getItem(CODE_CHANGED_KEY)).toBe('1')
+    expect(session.getToken()).toBe('jwt-token')
+  })
+
+  it('notices another tab switching accounts although storage already holds the new value', async () => {
+    localStorage.setItem('liftlog.device', JSON.stringify({ email: EMAIL, password: P0 }))
+    const { isAccountChangeElsewhere } = await import('./session')
+    const other = JSON.stringify({ email: 'device-ffffffff-ffff-4fff-8fff-ffffffffffff@liftlog.device', password: P0 })
+    // What the browser does before firing the event in this tab
+    localStorage.setItem('liftlog.device', other)
+
+    expect(isAccountChangeElsewhere('liftlog.device', other)).toBe(true)
+    expect(isAccountChangeElsewhere('liftlog.device', null)).toBe(true)
+    expect(isAccountChangeElsewhere('liftlog.device', JSON.stringify({ email: EMAIL, password: 'rotated' }))).toBe(false)
+    expect(isAccountChangeElsewhere('liftlog.token', other)).toBe(false)
   })
 })

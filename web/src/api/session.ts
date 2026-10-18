@@ -12,6 +12,10 @@ const CREDENTIALS_KEY = 'liftlog.device'
 const TOKEN_KEY = 'liftlog.token'
 /** One-time "welcome back" after a restore, read by the layout after the reload. */
 export const RESTORED_KEY = 'liftlog.restored'
+/** One-time "new code created" when a pending new code turns out to have reached the server after all. */
+export const CODE_CHANGED_KEY = 'liftlog.codeChanged'
+/** Per device: 'saved' once the code was copied or shared, or 'snooze:YYYY-MM-DD'. */
+export const NUDGE_KEY = 'liftlog.recoveryNudge'
 
 interface DeviceCredentials extends Credentials {
   /** Set only between sending a new code and the server confirming it; see regenerateRecoveryCode. */
@@ -38,8 +42,23 @@ function readCredentials(): DeviceCredentials | null {
   }
 }
 
+/**
+ * The account this tab is showing. Kept in memory because a storage event fires after localStorage
+ * already holds the new value, so reading storage then would compare the new account with itself.
+ */
+let currentEmail: string | null = readCredentials()?.email ?? null
+
 function writeCredentials(credentials: DeviceCredentials) {
   localStorage.setItem(CREDENTIALS_KEY, JSON.stringify(credentials))
+  currentEmail = credentials.email
+}
+
+function quietly(action: () => void) {
+  try {
+    action()
+  } catch {
+    // Storage can be unavailable (private mode); these keys only drive reminders
+  }
 }
 
 let token: string | null = localStorage.getItem(TOKEN_KEY)
@@ -69,12 +88,14 @@ configureAuth({
   },
 })
 
-// Another tab switched or removed this browser's account: reload rather than show the old account's data
+/** Another tab switched or removed this browser's account; this tab must reload rather than show the old one. */
+export function isAccountChangeElsewhere(key: string | null, newValue: string | null): boolean {
+  return key === CREDENTIALS_KEY && isOtherAccount(currentEmail, newValue)
+}
+
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (event) => {
-    if (event.key === CREDENTIALS_KEY && isOtherAccount(readCredentials()?.email ?? null, event.newValue)) {
-      window.location.reload()
-    }
+    if (isAccountChangeElsewhere(event.key, event.newValue)) window.location.reload()
   })
 }
 
@@ -131,6 +152,10 @@ async function doSignIn() {
     try {
       const auth = await api.login(credentials.email, credentials.pendingPassword)
       writeCredentials({ email: credentials.email, password: credentials.pendingPassword })
+      // The code really changed, so the one the user saved no longer works: tell them (after the gate
+      // remounts the app) and bring the "save your code" reminder back
+      quietly(() => localStorage.removeItem(NUDGE_KEY))
+      quietly(() => sessionStorage.setItem(CODE_CHANGED_KEY, '1'))
       setToken(auth.token)
       return
     } catch (error) {
@@ -190,5 +215,6 @@ export function commitRestore(credentials: Credentials, auth: AuthResponse) {
 /** Only offered after this device's credentials stopped working: starts a brand-new, empty account. */
 export function startFresh(): Promise<void> {
   localStorage.removeItem(CREDENTIALS_KEY)
+  currentEmail = null
   return signInDevice()
 }

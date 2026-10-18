@@ -30,7 +30,7 @@ export function SessionGate({ children, onRestored = reloadHome }: { children: R
         onRestored={onRestored}
         onStartFresh={() => {
           setError(null)
-          startFresh().catch(setError)
+          startFresh().then(onRestored, setError)
         }}
       />
     )

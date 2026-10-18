@@ -2827,3 +2827,12 @@ body:has(.rest-timer) .set-groups {
   flex: none;
   min-height: 38px;
 }
+
+.recovery-pending {
+  margin: 14px 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--primary);
+  border-radius: 0 var(--radius-m) var(--radius-m) 0;
+  background: var(--surface-high);
+  font-size: 14px;
+}

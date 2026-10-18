@@ -2,7 +2,7 @@ import { useEffect, type CSSProperties } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { t } from '../lib/i18n'
 import { setNavDirection } from '../lib/navDirection'
-import { RESTORED_KEY } from '../api/session'
+import { CODE_CHANGED_KEY, RESTORED_KEY } from '../api/session'
 import { useToast } from './contexts'
 import { useTabSwipe } from './useTabSwipe'
 import { ChartIcon, ControllerIcon, DumbbellIcon, PersonIcon, PlateIcon } from './Icons'
@@ -29,9 +29,14 @@ export function Layout() {
   // A restore reloads the page; the name of the restored log is waiting here for one welcome-back toast
   useEffect(() => {
     const restored = sessionStorage.getItem(RESTORED_KEY)
-    if (restored === null) return
-    sessionStorage.removeItem(RESTORED_KEY)
-    toast({ message: t.restoredToast(restored), durationMs: 5000 })
+    if (restored !== null) {
+      sessionStorage.removeItem(RESTORED_KEY)
+      toast({ message: t.restoredToast(restored), durationMs: 5000 })
+    } else if (sessionStorage.getItem(CODE_CHANGED_KEY) !== null) {
+      // Set when signing in found that a pending new code had reached the server after all
+      sessionStorage.removeItem(CODE_CHANGED_KEY)
+      toast({ message: t.newCodeDone, durationMs: 6000 })
+    }
   }, [toast])
   const activeIndex = activeTabIndex(pathname)
   return (

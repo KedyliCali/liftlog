@@ -10,10 +10,13 @@ function jsonResponse(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 }
 
+let onRestored = vi.fn()
+
 async function renderGate() {
   const { SessionGate } = await import('./SessionGate')
+  onRestored = vi.fn()
   render(
-    <SessionGate onRestored={vi.fn()}>
+    <SessionGate onRestored={onRestored}>
       <p>app content</p>
     </SessionGate>,
   )
@@ -76,7 +79,8 @@ describe('SessionGate', () => {
     expect(await screen.findByText(t.signedOutTitle)).toBeInTheDocument()
     await user.click(screen.getByText(t.startFresh))
 
-    expect(await screen.findByText('app content')).toBeInTheDocument()
+    // A full reload follows, so no cached data of the old account can show in the new log
+    await vi.waitFor(() => expect(onRestored).toHaveBeenCalledTimes(1))
     expect(JSON.parse(localStorage.getItem('liftlog.device')!).email).not.toBe(STORED.email)
   })
 })
