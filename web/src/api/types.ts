@@ -156,6 +156,70 @@ export interface FrequentFood {
   timesEaten: number
 }
 
+/** Solo/duo rank; null while unranked. */
+export interface LolRank {
+  tier: string
+  division: string
+  lp: number
+  wins: number
+  losses: number
+}
+
+export interface LolPlayer {
+  puuid: string
+  gameName: string
+  tagLine: string
+  platform: string
+  profileIconId: number | null
+  summonerLevel: number | null
+  rank: LolRank | null
+  recentGames: number
+  recentWins: number
+  /** When Riot was last asked; older data is shown when Riot is unavailable */
+  refreshedAt: string | null
+}
+
+export interface LolMatch {
+  matchId: string
+  queueId: number
+  endedAt: string
+  durationS: number
+  champion: string
+  position: string | null
+  kills: number
+  deaths: number
+  assists: number
+  cs: number
+  damage: number
+  win: boolean
+}
+
+export interface LolChampionStats {
+  champion: string
+  games: number
+  wins: number
+  kda: number
+}
+
+export interface LolSummary {
+  games: number
+  wins: number
+  avgKills: number
+  avgDeaths: number
+  avgAssists: number
+  kda: number
+  csPerMinute: number
+  champions: LolChampionStats[]
+  /** Newest first, true for a win */
+  form: boolean[]
+}
+
+export interface LolPlayerDetail {
+  player: LolPlayer
+  summary: LolSummary
+  matches: LolMatch[]
+}
+
 export interface ApiErrorBody {
   status: number
   message?: string

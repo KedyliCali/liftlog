@@ -2316,3 +2316,329 @@ body:has(.rest-timer) .set-groups {
 .set-weight {
   font-size: 19px;
 }
+
+/* ---------- League tracker ---------- */
+.lol-board {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 96px;
+}
+
+.lol-board .swipe-content {
+  background: var(--bg);
+}
+
+.lol-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  animation: card-in 0.55s var(--ease-spring) backwards;
+}
+
+.lol-row:active {
+  background: var(--surface-high);
+}
+
+/* Place number set in the condensed face; the top three get the signal color */
+.lol-place {
+  width: 22px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.lol-place.top-1 {
+  color: var(--primary);
+}
+
+.lol-place.top-2,
+.lol-place.top-3 {
+  color: var(--text);
+}
+
+.lol-avatar,
+.champion-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--radius-m);
+  background: var(--surface-highest);
+  font-family: var(--font-display);
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.lol-avatar img,
+.champion-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lol-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lol-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.lol-name small,
+.lol-hero-name small {
+  margin-left: 3px;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.75em;
+}
+
+.lol-row-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.form-bar {
+  width: 56px;
+  height: 5px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--error) 55%, var(--surface-highest));
+}
+
+.form-bar span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}
+
+/* Tier colors follow the in-game emblems, kept flat */
+.rank-badge {
+  align-self: flex-start;
+  padding: 2px 7px;
+  border-radius: var(--radius-s);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--tier, var(--text-muted));
+  background: color-mix(in srgb, var(--tier, var(--outline)) 16%, transparent);
+}
+
+.rank-badge[data-tier='IRON'] { --tier: #a19d94; }
+.rank-badge[data-tier='BRONZE'] { --tier: #c8865b; }
+.rank-badge[data-tier='SILVER'] { --tier: #b6c2cc; }
+.rank-badge[data-tier='GOLD'] { --tier: #e8c15a; }
+.rank-badge[data-tier='PLATINUM'] { --tier: #4fd1c5; }
+.rank-badge[data-tier='EMERALD'] { --tier: #3ddc84; }
+.rank-badge[data-tier='DIAMOND'] { --tier: #7aa7ff; }
+.rank-badge[data-tier='MASTER'] { --tier: #c58cff; }
+.rank-badge[data-tier='GRANDMASTER'] { --tier: #ff6b6b; }
+.rank-badge[data-tier='CHALLENGER'] { --tier: #ffd75e; }
+
+.lol-hero {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin: 4px 0 16px;
+  padding: 16px;
+  border: 1px solid var(--outline-variant);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+}
+
+.lol-hero-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lol-hero-name {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.lol-hero-meta,
+.lol-season {
+  font-size: 12px;
+}
+
+.lol-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.lol-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+}
+
+.lol-stat small {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.lol-stat strong {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+.lol-stat > span {
+  font-size: 12px;
+}
+
+/* Ten squares, newest on the left, like a results ticker */
+.lol-form {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.lol-form span {
+  flex: 1;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-s);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.lol-form .win {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.lol-form .loss {
+  background: color-mix(in srgb, var(--error) 22%, var(--surface));
+  color: var(--error);
+}
+
+.lol-champions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.lol-champion {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 6px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  text-align: center;
+}
+
+.lol-champion strong {
+  font-family: var(--font-display);
+  font-size: 16px;
+}
+
+.lol-champion span {
+  font-size: 11px;
+}
+
+.lol-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 32px;
+}
+
+/* Result shown as a colored edge, the same win/loss colors as the form strip */
+.lol-match {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--outline-variant);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  animation: card-in 0.55s var(--ease-spring) backwards;
+}
+
+.lol-match.loss {
+  border-left-color: var(--error);
+}
+
+.lol-match-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.lol-match-main strong {
+  font-size: 18px;
+}
+
+.lol-match-main .deaths {
+  color: var(--error);
+}
+
+.lol-match-main span,
+.lol-match-side .muted {
+  font-size: 12px;
+}
+
+.lol-match-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 14px;
+}
+
+.icon-btn.spinning {
+  animation: spin 0.9s linear infinite;
+}
+
+.field select {
+  width: 100%;
+  height: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-m);
+  background: var(--surface-high);
+}

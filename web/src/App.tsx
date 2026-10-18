@@ -9,6 +9,8 @@ import { ProgressSkeleton } from './components/Skeletons'
 import { ErrorState, Loading } from './components/StateViews'
 import { ToastProvider } from './components/Toast'
 import { t } from './lib/i18n'
+import { GamePage } from './pages/GamePage'
+import { LolPlayerPage } from './pages/LolPlayerPage'
 import { NutritionPage } from './pages/NutritionPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { WorkoutDetailPage } from './pages/WorkoutDetailPage'
@@ -39,6 +41,8 @@ const router = createBrowserRouter([
       { path: '/', element: <WorkoutsPage /> },
       { path: '/workouts/:id', element: <WorkoutDetailPage /> },
       { path: '/nutrition', element: <NutritionPage /> },
+      { path: '/game', element: <GamePage /> },
+      { path: '/game/:puuid', element: <LolPlayerPage /> },
       {
         path: '/progress',
         element: (

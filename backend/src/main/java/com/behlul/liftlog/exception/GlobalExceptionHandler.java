@@ -1,6 +1,7 @@
 package com.behlul.liftlog.exception;
 
 import com.behlul.liftlog.dto.ApiError;
+import com.behlul.liftlog.riot.RiotUnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResourceNotFoundException.class)
     ResponseEntity<ApiError> handleNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
         return build(HttpStatus.NOT_FOUND, ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(RiotIdNotFoundException.class)
+    ResponseEntity<ApiError> handleRiotIdNotFound(RiotIdNotFoundException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request, null);
+    }
+
+    /** The reason travels in fieldErrors.riot so the app can tell "no key yet" apart from "try again later". */
+    @ExceptionHandler(RiotUnavailableException.class)
+    ResponseEntity<ApiError> handleRiotUnavailable(RiotUnavailableException ex, HttpServletRequest request) {
+        return build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request, Map.of("riot", ex.reason().name()));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

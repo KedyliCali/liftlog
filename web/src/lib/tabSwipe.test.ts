@@ -6,7 +6,8 @@ describe('tabIndexOf', () => {
     expect(tabIndexOf('/')).toBe(0)
     expect(tabIndexOf('/nutrition')).toBe(1)
     expect(tabIndexOf('/progress')).toBe(2)
-    expect(tabIndexOf('/profile')).toBe(3)
+    expect(tabIndexOf('/game')).toBe(3)
+    expect(tabIndexOf('/profile')).toBe(4)
     expect(tabIndexOf('/workouts/3')).toBeNull()
   })
 })
@@ -19,7 +20,7 @@ describe('swipeTarget', () => {
 
   it('stops at the first and last tab', () => {
     expect(swipeTarget({ dx: 120, dy: 0, durationMs: 300 }, 0)).toBeNull()
-    expect(swipeTarget({ dx: -120, dy: 0, durationMs: 300 }, 3)).toBeNull()
+    expect(swipeTarget({ dx: -120, dy: 0, durationMs: 300 }, 4)).toBeNull()
   })
 
   it('ignores vertical scrolls and short slow drags', () => {

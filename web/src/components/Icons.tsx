@@ -100,3 +100,12 @@ export function CameraIcon({ size = 16 }: { size?: number }) {
     </Icon>
   )
 }
+
+export function ControllerIcon({ size }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M6 9h12a4 4 0 0 1 3.9 4.9l-.8 3.4a2.2 2.2 0 0 1-3.8 1L15 16H9l-2.3 2.3a2.2 2.2 0 0 1-3.8-1l-.8-3.4A4 4 0 0 1 6 9z" />
+      <path d="M8 12v3M6.5 13.5h3M15.5 12.5v.01M17.5 14.5v.01" />
+    </Icon>
+  )
+}

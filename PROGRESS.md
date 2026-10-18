@@ -177,3 +177,22 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
 - Doğrulama: web 51 test, lint, build; telefon boyutunda dört sekme + detay, açık ve koyu tema ekran
   görüntüsüyle kontrol edildi.
 - Not: Android uygulamasının teması hâlâ eski turuncu tasarımda.
+
+## 2026-10-18 — League of Legends takibi (branch `feature/lol-tracker`)
+
+- PR #13 (makrolar + 315 yemek) ve #14 (spor stili) birleştirildi; canlıda doğrulandı.
+- Behlül "sadece ben ve arkadaşlarım kullanacak" dedi → Riot'un **kişisel API anahtarı** buna uygun.
+  Seçim: LiftLog'un içinde 5. sekme ("Oyun").
+- **Backend V9:** `lol_players` (paylaşılan önbellek), `lol_tracked_players` (kim kimi takip ediyor),
+  `lol_match_players` (maç başına oyuncu satırı). `RiotClient` arayüzü: gerçek HTTP (anahtar sadece
+  sunucuda), sahte veri (`RIOT_FAKE=true`, yerel geliştirme), "ayarlı değil". Hız sınırlayıcı 18/sn ve
+  90/2dk; oyuncu 10 dakikada bir yenileniyor, Riot cevap veremezse kayıtlı veri gösteriliyor.
+- **Web:** Oyun sekmesi = arkadaş sıralaması (tier/kademe/LP), oyuncu ekleme (Riot ID + sunucu), oyuncu
+  sayfası (kazanma oranı, KDA, CS/dk, son 10 maç şeridi, en çok oynanan 3 şampiyon, son maçlar). Resimler
+  Riot'un Data Dragon CDN'inden; ulaşılamazsa baş harfler.
+- Testlerin yakaladığı iki hata: yeni oyuncu kaydedilmeden maç satırları yazılıyordu (PUUID dışarıdan
+  geldiği için `save()` merge yapıyordu → `Persistable`), Master+ LP 100'ü geçince sıralama karışıyordu.
+- Doğrulama: backend 56 test, web 58 test, lint; yerelde sahte veriyle ekleme, bulunamayan ID, sıralama,
+  oyuncu sayfası, yenileme; anahtarsız modda "anahtar eklenmedi" mesajı ve önbellekten liste.
+- **Sıradaki adım (Behlül):** [docs/RIOT.md](docs/RIOT.md)'deki adımlarla kişisel anahtarı alıp Render'da
+  `RIOT_API_KEY` olarak eklemek. Nick: Pesimist Fidan#2003.

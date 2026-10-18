@@ -29,6 +29,9 @@ services:
       # The web app's address, e.g. https://liftlog-web.onrender.com (lets browsers call the API)
       - key: CORS_ALLOWED_ORIGINS
         sync: false
+      # Personal Riot API key for the League tracker; the tracker shows "not set up" until it is added
+      - key: RIOT_API_KEY
+        sync: false
 
   # The web app (installable on iPhone). Static sites on the free plan never sleep.
   - type: web
