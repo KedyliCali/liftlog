@@ -16,7 +16,9 @@ public record SetResponse(
         int reps,
         BigDecimal weightKg,
         BigDecimal rpe,
-        boolean newPersonalRecord
+        boolean newPersonalRecord,
+        /* weightKg is the added load (0 = bodyweight only) when this is true */
+        boolean bodyweight
 ) {
 
     public static SetResponse from(WorkoutSet set) {
@@ -32,6 +34,7 @@ public record SetResponse(
                 set.getReps(),
                 set.getWeightKg(),
                 set.getRpe(),
-                newPersonalRecord);
+                newPersonalRecord,
+                set.getExercise().isBodyweight());
     }
 }

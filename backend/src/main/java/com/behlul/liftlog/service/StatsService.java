@@ -120,7 +120,9 @@ public class StatsService {
                 heaviest.workoutDate(),
                 estimate(best1Rm),
                 best1Rm.workoutDate(),
-                sets.size());
+                sets.size(),
+                heaviest.addedWeightKg(),
+                heaviest.bodyweight());
     }
 
     private static BigDecimal estimate(SetFact set) {

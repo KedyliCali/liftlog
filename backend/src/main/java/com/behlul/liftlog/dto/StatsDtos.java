@@ -17,7 +17,10 @@ public final class StatsDtos {
             LocalDate heaviestDate,
             BigDecimal bestEstimated1RmKg,
             LocalDate bestEstimated1RmDate,
-            int totalSets
+            int totalSets,
+            /* For bodyweight exercises heaviestWeightKg includes body weight; this is the extra load alone */
+            BigDecimal heaviestAddedKg,
+            boolean bodyweight
     ) {
     }
 

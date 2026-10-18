@@ -91,6 +91,11 @@ public class WorkoutSet {
         this.weightKg = weightKg;
     }
 
+    /** Logged weight, plus the lifter's body weight for bodyweight exercises (when it is known). */
+    public BigDecimal effectiveLoadKg(BigDecimal bodyWeightKg) {
+        return exercise.isBodyweight() && bodyWeightKg != null ? weightKg.add(bodyWeightKg) : weightKg;
+    }
+
     public BigDecimal getRpe() {
         return rpe;
     }

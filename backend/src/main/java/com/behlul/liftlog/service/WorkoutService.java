@@ -99,8 +99,10 @@ public class WorkoutService {
         setRepository.saveAndFlush(set);
 
         // The very first set of an exercise is not announced as a record
+        // Compare like the stats do: bodyweight sets count the lifter's body weight on top
+        BigDecimal load = set.effectiveLoadKg(workout.getUser().getBodyWeightKg());
         boolean newRecord = previousBest != null
-                && OneRepMax.estimate(set.getWeightKg(), set.getReps()).compareTo(previousBest) > 0;
+                && OneRepMax.estimate(load, set.getReps()).compareTo(previousBest) > 0;
         return SetResponse.from(set, newRecord);
     }
 

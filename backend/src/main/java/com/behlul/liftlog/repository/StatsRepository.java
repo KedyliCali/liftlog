@@ -13,32 +13,40 @@ public interface StatsRepository extends Repository<WorkoutSet, Long> {
 
     @Query("""
             select new com.behlul.liftlog.repository.SetFact(
-                s.id, e.id, e.name, w.workoutDate, s.reps, s.weightKg)
-            from WorkoutSet s join s.workout w join s.exercise e
-            where w.user.id = :userId
+                s.id, e.id, e.name, w.workoutDate, s.reps,
+                s.weightKg + case when e.bodyweight = true then coalesce(u.bodyWeightKg, 0) else 0 end,
+                s.weightKg, e.bodyweight)
+            from WorkoutSet s join s.workout w join w.user u join s.exercise e
+            where u.id = :userId
             order by w.workoutDate, s.setOrder
             """)
     List<SetFact> findAllFacts(@Param("userId") Long userId);
 
     @Query("""
             select new com.behlul.liftlog.repository.SetFact(
-                s.id, e.id, e.name, w.workoutDate, s.reps, s.weightKg)
-            from WorkoutSet s join s.workout w join s.exercise e
-            where w.user.id = :userId and e.id = :exerciseId
+                s.id, e.id, e.name, w.workoutDate, s.reps,
+                s.weightKg + case when e.bodyweight = true then coalesce(u.bodyWeightKg, 0) else 0 end,
+                s.weightKg, e.bodyweight)
+            from WorkoutSet s join s.workout w join w.user u join s.exercise e
+            where u.id = :userId and e.id = :exerciseId
             order by w.workoutDate, s.setOrder
             """)
     List<SetFact> findFactsForExercise(@Param("userId") Long userId, @Param("exerciseId") Long exerciseId);
 
     /**
      * Weekly volume computed in PostgreSQL; date_trunc('week') starts weeks on Monday (ISO 8601).
-     * Returns only weeks that have sets; the service fills the gaps with zeros.
+     * Returns only weeks that have sets; the service fills the gaps with zeros. Bodyweight exercises
+     * count the user's current body weight plus the added load.
      */
     @Query(value = """
             select cast(date_trunc('week', w.workout_date) as date) as week_start,
-                   sum(s.reps * s.weight_kg)                        as volume_kg,
+                   sum(s.reps * (s.weight_kg + case when e.bodyweight then coalesce(u.body_weight_kg, 0) else 0 end))
+                                                                    as volume_kg,
                    count(s.id)                                      as set_count
             from workout_sets s
             join workouts w on w.id = s.workout_id
+            join exercises e on e.id = s.exercise_id
+            join users u on u.id = w.user_id
             where w.user_id = :userId and w.workout_date >= :fromDate
             group by week_start
             order by week_start
