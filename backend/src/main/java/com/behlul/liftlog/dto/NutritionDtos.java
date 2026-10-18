@@ -25,15 +25,20 @@ public final class NutritionDtos {
             @NotNull LocalDate entryDate,
             @NotBlank @Size(max = 100) String name,
             @NotNull @Min(0) @Max(10000) Integer caloriesKcal,
-            @NotNull @DecimalMin("0.0") @DecimalMax("1000.0") @Digits(integer = 4, fraction = 1) BigDecimal proteinG
+            @NotNull @DecimalMin("0.0") @DecimalMax("1000.0") @Digits(integer = 4, fraction = 1) BigDecimal proteinG,
+            /* Optional: older clients and quick manual entries may not know them */
+            @DecimalMin("0.0") @DecimalMax("1000.0") @Digits(integer = 4, fraction = 1) BigDecimal carbsG,
+            @DecimalMin("0.0") @DecimalMax("1000.0") @Digits(integer = 4, fraction = 1) BigDecimal fatG
     ) {
     }
 
-    public record FoodEntryResponse(Long id, LocalDate entryDate, String name, int caloriesKcal, BigDecimal proteinG) {
+    /** carbsG and fatG are null when the entry was logged without them. */
+    public record FoodEntryResponse(Long id, LocalDate entryDate, String name, int caloriesKcal, BigDecimal proteinG,
+                                    BigDecimal carbsG, BigDecimal fatG) {
 
         public static FoodEntryResponse from(FoodEntry entry) {
             return new FoodEntryResponse(entry.getId(), entry.getEntryDate(), entry.getName(),
-                    entry.getCaloriesKcal(), entry.getProteinG());
+                    entry.getCaloriesKcal(), entry.getProteinG(), entry.getCarbsG(), entry.getFatG());
         }
     }
 
@@ -46,20 +51,23 @@ public final class NutritionDtos {
 
     /** Everything the day screen needs in one request: entries, their totals and the goals to compare with. */
     public record NutritionDayResponse(LocalDate date, List<FoodEntryResponse> entries, int totalCaloriesKcal,
-                                       BigDecimal totalProteinG, NutritionGoals goals) {
+                                       BigDecimal totalProteinG, BigDecimal totalCarbsG, BigDecimal totalFatG,
+                                       NutritionGoals goals) {
     }
 
     /** Catalog food with both languages; the client shows the one matching the phone's language. */
     public record FoodResponse(Long id, String category, String nameTr, String nameEn, BigDecimal kcalPer100g,
-                               BigDecimal proteinPer100g, BigDecimal servingG, String servingTr, String servingEn) {
+                               BigDecimal proteinPer100g, BigDecimal carbsPer100g, BigDecimal fatPer100g,
+                               BigDecimal servingG, String servingTr, String servingEn) {
 
         public static FoodResponse from(Food food) {
             return new FoodResponse(food.getId(), food.getCategory(), food.getNameTr(), food.getNameEn(),
-                    food.getKcalPer100g(), food.getProteinPer100g(), food.getServingG(), food.getServingTr(),
-                    food.getServingEn());
+                    food.getKcalPer100g(), food.getProteinPer100g(), food.getCarbsPer100g(), food.getFatPer100g(),
+                    food.getServingG(), food.getServingTr(), food.getServingEn());
         }
     }
 
-    public record FrequentFoodResponse(String name, int caloriesKcal, BigDecimal proteinG, long timesEaten) {
+    public record FrequentFoodResponse(String name, int caloriesKcal, BigDecimal proteinG, BigDecimal carbsG,
+                                       BigDecimal fatG, long timesEaten) {
     }
 }

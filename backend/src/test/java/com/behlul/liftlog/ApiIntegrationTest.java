@@ -276,7 +276,7 @@ class ApiIntegrationTest {
         String token = register(randomEmail(), "s3cret-pass", null);
         String today = LocalDate.now(ZoneOffset.UTC).toString();
         String yesterday = LocalDate.now(ZoneOffset.UTC).minusDays(1).toString();
-        String oats = json("{'entryDate':'%s','name':' Oats ','caloriesKcal':380,'proteinG':13.5}", today);
+        String oats = json("{'entryDate':'%s','name':' Oats ','caloriesKcal':380,'proteinG':13.5,'carbsG':60.2,'fatG':6.5}", today);
         String shake = json("{'entryDate':'%s','name':'Protein shake','caloriesKcal':120,'proteinG':24}", today);
 
         authed(post("/api/v1/nutrition/entries"), token, oats).andExpect(status().isCreated())
@@ -299,6 +299,10 @@ class ApiIntegrationTest {
                 .andExpect(jsonPath("$.entries[0].name").value("Oats"))
                 .andExpect(jsonPath("$.totalCaloriesKcal").value(500))
                 .andExpect(jsonPath("$.totalProteinG").value(37.5))
+                // The shake was logged without carbs or fat: it counts as zero, and stays null on the entry
+                .andExpect(jsonPath("$.totalCarbsG").value(60.2))
+                .andExpect(jsonPath("$.totalFatG").value(6.5))
+                .andExpect(jsonPath("$.entries[1].carbsG").doesNotExist())
                 .andExpect(jsonPath("$.goals.calorieGoalKcal").value(2600))
                 .andExpect(jsonPath("$.goals.proteinGoalG").value(160));
 
@@ -334,10 +338,20 @@ class ApiIntegrationTest {
                 .andExpect(jsonPath("$[0].servingG").value(250.0))
                 .andReturn();
         JsonNode foods = read(result);
-        assertThat(foods.size()).isGreaterThan(90);
+        assertThat(foods.size()).isGreaterThan(280);
+        java.util.Set<String> names = new java.util.HashSet<>();
         for (JsonNode food : foods) {
+            String name = food.get("nameTr").asString();
+            assertThat(names.add(name)).as("duplicate food %s", name).isTrue();
             assertThat(food.get("servingTr").asString()).isNotBlank();
-            assertThat(food.get("kcalPer100g").asDouble()).isBetween(0.0, 900.0);
+            // Catches typos in the seed data: energy must roughly match 4 kcal/g protein and carbs, 9 kcal/g fat
+            // (alcohol adds 7 kcal/g of its own, so those drinks are skipped)
+            if (java.util.List.of("Bira", "Kırmızı şarap", "Rakı").contains(name)) continue;
+            double kcal = food.get("kcalPer100g").asDouble();
+            double fromMacros = 4 * food.get("proteinPer100g").asDouble() + 4 * food.get("carbsPer100g").asDouble()
+                    + 9 * food.get("fatPer100g").asDouble();
+            assertThat(Math.abs(kcal - fromMacros)).as("energy of %s: %s kcal vs %s from macros", name, kcal, fromMacros)
+                    .isLessThanOrEqualTo(Math.max(25, kcal * 0.2));
         }
     }
 

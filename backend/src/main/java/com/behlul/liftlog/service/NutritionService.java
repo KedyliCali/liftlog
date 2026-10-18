@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class NutritionService {
@@ -50,14 +51,17 @@ public class NutritionService {
         List<FoodEntryResponse> entries = entryRepository.findByUserIdAndEntryDateOrderByIdAsc(user.getId(), date)
                 .stream().map(FoodEntryResponse::from).toList();
         int calories = entries.stream().mapToInt(FoodEntryResponse::caloriesKcal).sum();
-        BigDecimal protein = entries.stream().map(FoodEntryResponse::proteinG).reduce(BigDecimal.ZERO, BigDecimal::add);
-        return new NutritionDayResponse(date, entries, calories, protein, goalsOf(user));
+        BigDecimal protein = sum(entries.stream().map(FoodEntryResponse::proteinG).toList());
+        BigDecimal carbs = sum(entries.stream().map(FoodEntryResponse::carbsG).toList());
+        BigDecimal fat = sum(entries.stream().map(FoodEntryResponse::fatG).toList());
+        return new NutritionDayResponse(date, entries, calories, protein, carbs, fat, goalsOf(user));
     }
 
     @Transactional
     public FoodEntryResponse addEntry(FoodEntryRequest request) {
         FoodEntry entry = new FoodEntry(userRepository.getReferenceById(currentUser.currentUserId()),
-                request.entryDate(), request.name().trim(), request.caloriesKcal(), request.proteinG());
+                request.entryDate(), request.name().trim(), request.caloriesKcal(), request.proteinG(),
+                request.carbsG(), request.fatG());
         return FoodEntryResponse.from(entryRepository.save(entry));
     }
 
@@ -73,7 +77,8 @@ public class NutritionService {
         LocalDate since = LocalDate.now(clock).minusDays(FREQUENT_WINDOW_DAYS);
         return entryRepository.findFrequent(currentUser.currentUserId(), since, PageRequest.of(0, MAX_FREQUENT))
                 .stream()
-                .map(f -> new FrequentFoodResponse(f.name(), f.caloriesKcal(), f.proteinG(), f.timesEaten()))
+                .map(f -> new FrequentFoodResponse(f.name(), f.caloriesKcal(), f.proteinG(), f.carbsG(), f.fatG(),
+                        f.timesEaten()))
                 .toList();
     }
 
@@ -92,6 +97,11 @@ public class NutritionService {
     private User loadUser() {
         Long id = currentUser.currentUserId();
         return userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User", id));
+    }
+
+    /** Entries logged without carbs or fat count as zero in the day total. */
+    private static BigDecimal sum(List<BigDecimal> values) {
+        return values.stream().filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private static NutritionGoals goalsOf(User user) {

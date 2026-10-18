@@ -21,10 +21,11 @@ public interface FoodEntryRepository extends JpaRepository<FoodEntry, Long> {
      * habit shows up before an old one.
      */
     @Query("""
-            select new com.behlul.liftlog.repository.FrequentFood(f.name, f.caloriesKcal, f.proteinG, count(f))
+            select new com.behlul.liftlog.repository.FrequentFood(
+                       f.name, f.caloriesKcal, f.proteinG, f.carbsG, f.fatG, count(f))
             from FoodEntry f
             where f.user.id = :userId and f.entryDate >= :since
-            group by f.name, f.caloriesKcal, f.proteinG
+            group by f.name, f.caloriesKcal, f.proteinG, f.carbsG, f.fatG
             order by count(f) desc, max(f.id) desc
             """)
     List<FrequentFood> findFrequent(@Param("userId") Long userId, @Param("since") LocalDate since, Pageable page);
