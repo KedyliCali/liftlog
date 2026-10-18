@@ -78,4 +78,17 @@ her kararın nedenini ve mülakat cevaplarını anlatıyor. **Sıradaki ilk iş 
 - Not: Docker Desktop açılışta çöküyordu (kalmış soket dosyaları). `%LOCALAPPDATA%\Docker\run` ve
   `docker-secrets-engine` klasörlerinin adı `.bozuk*` yapılarak çözüldü; bu klasörler silinebilir.
 
-**Sıradaki adım:** PR'ı birleştir → Neon projesi → Render Blueprint (`docs/DEPLOY.md`) → iPhone'a ekle.
+## 2026-10-18 — Canlıya çıktı
+
+- PR #7 birleşti. Neon projesi `liftlog` (Frankfurt, PostgreSQL 18), Render Blueprint `liftlog`.
+- **Web (iPhone):** <https://liftlog-web.onrender.com>
+- **API:** <https://liftlog-api-evn4.onrender.com> (Swagger: `/swagger-ui.html`). Render, `liftlog-api`
+  adı dolu olduğu için `-evn4` ekledi; web'in `VITE_API_URL` değeri buna göre düzeltildi.
+- Canlıda doğrulandı: sağlık 200, CORS yalnızca web adresine izin veriyor, cihaz hesabı, antrenman ve set
+  yazma, PR tespiti, profil, doğrudan alt sayfa açma, service worker.
+- Neon araçları: `neon` + `neon-postgres` skill'leri ve proje düzeyinde OAuth'lu MCP (`.mcp.json`).
+- Testten kalan veri: canlıda bir test cihaz hesabı (1 antrenman, 2 set) ve `smoke-…@liftlog.test` hesabı var; zararsız.
+- Küçük kusur: `manifest.webmanifest` `binary/octet-stream` türüyle sunuluyor (iPhone kurulumunu etkilemiyor).
+
+**Sıradaki adım:** iPhone'da Safari ile web adresini aç → Paylaş → Ana Ekrana Ekle. Android tarafında
+zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derlemek.

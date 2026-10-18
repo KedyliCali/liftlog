@@ -2,6 +2,10 @@
 
 [![CI](https://github.com/KedyliCali/liftlog/actions/workflows/ci.yml/badge.svg)](https://github.com/KedyliCali/liftlog/actions/workflows/ci.yml)
 
+**Try it:** <https://liftlog-web.onrender.com> (on iPhone: Share → Add to Home Screen) ·
+API docs: <https://liftlog-api-evn4.onrender.com/swagger-ui.html>. Free hosting: the first request
+after a quiet period wakes the API and can take 2–3 minutes.
+
 A workout tracker with two clients: a native Android app (Kotlin, Jetpack Compose) and a web
 app you can install on an iPhone home screen (React, PWA). Log workouts, exercises and sets,
 then follow your personal records and estimated one-rep max over time. Both clients talk to
