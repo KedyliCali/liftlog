@@ -33,6 +33,8 @@ export function WorkoutDetailPage() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [celebrate, setCelebrate] = useState(false)
   const [newSetId, setNewSetId] = useState<number | null>(null)
+  // The API flags a record only in the add response, so this page remembers which sets earned one
+  const [recordSetIds, setRecordSetIds] = useState<Set<number>>(new Set())
   const [pendingDelete, setPendingDelete] = useState<Set<number>>(new Set())
 
   const query = useQuery({ queryKey: queryKeys.workout(id), queryFn: () => api.workout(id) })
@@ -59,6 +61,7 @@ export function WorkoutDetailPage() {
         setNewSetId(saved.id)
         restTimer.start()
         if (saved.newPersonalRecord) {
+          setRecordSetIds((ids) => new Set(ids).add(saved.id))
           setCelebrate(true)
           vibrate([30, 40, 30, 40, 80])
           setTimeout(() => setCelebrate(false), 1800)
@@ -166,7 +169,7 @@ export function WorkoutDetailPage() {
           {visibleSets.length === 0 ? (
             <MessageState icon="🏋" title={t.detailEmptyTitle} body={t.detailEmptyBody} />
           ) : (
-            <div style={{ paddingBottom: 96 }}>
+            <div className="set-groups">
               {groupByExercise(visibleSets).map((group, index) => (
                 <section
                   key={group.exerciseId}
@@ -183,10 +186,14 @@ export function WorkoutDetailPage() {
                     {group.sets.map((set, i) => (
                       <SwipeToDelete key={set.id} label={`${group.exerciseName} #${i + 1}`} onDelete={() => deleteSet(set)}>
                         <button className={set.id === newSetId ? 'set-row new' : 'set-row'} onClick={() => setEditor({ mode: 'edit', set })}>
-                          <span className="set-number num">#{i + 1}</span>
+                          <span className="set-number num">
+                            #{i + 1}
+                            {recordSetIds.has(set.id) && <span className="pr-badge">{t.prBadge}</span>}
+                          </span>
                           <span className={set.bodyweight ? 'set-weight num bodyweight' : 'set-weight num'}>{formatLoad(set.weightKg, set.bodyweight)}</span>
                           <span className="set-reps num">× {set.reps}</span>
                           <span className="set-rpe">{set.rpe != null ? t.rpe(formatKg(set.rpe)) : ''}</span>
+                          {set.id === newSetId && <SavedCheck />}
                         </button>
                       </SwipeToDelete>
                     ))}
@@ -207,6 +214,16 @@ export function WorkoutDetailPage() {
       {editingWorkout && workout && <EditWorkoutSheet workout={workout} onClose={() => setEditingWorkout(false)} onSaved={refreshAll} />}
       {celebrate && <Confetti />}
     </div>
+  )
+}
+
+/** Stroke draws itself in, then fades: confirms the save without another toast. */
+function SavedCheck() {
+  return (
+    <svg className="saved-check" width="22" height="22" viewBox="0 0 24 24" aria-hidden>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M7 12.5l3.2 3.2L17 9" />
+    </svg>
   )
 }
 

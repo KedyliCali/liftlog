@@ -649,6 +649,7 @@
 }
 
 .set-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -674,6 +675,7 @@
 }
 
 .set-number {
+  position: relative;
   padding: 4px 8px;
   border-radius: var(--radius-s);
   background: var(--secondary-container);
@@ -683,7 +685,9 @@
 
 .set-weight {
   flex: 1;
+  min-width: 0;
   font-size: 17px;
+  white-space: nowrap;
 }
 
 .set-reps {
@@ -1548,4 +1552,131 @@ body:has(.rest-timer) .toast {
   height: 180px;
   background: radial-gradient(closest-side, color-mix(in srgb, var(--primary) 22%, transparent), transparent);
   pointer-events: none;
+}
+
+/* ---------- Micro-interactions ---------- */
+/* Press in quickly, spring back out: the release uses the slower overshooting curve */
+.btn,
+.fab,
+.icon-btn,
+.filter-chip,
+.set-row,
+.exercise-item,
+.workout-card-body {
+  transition-property: transform, background, filter, border-color;
+  transition-duration: 0.45s;
+  transition-timing-function: var(--ease-spring);
+}
+
+.btn:active,
+.fab:active,
+.icon-btn:active,
+.filter-chip:active {
+  transform: scale(0.94);
+  transition-duration: 0.08s;
+  transition-timing-function: ease-out;
+}
+
+.set-row:active,
+.exercise-item:active,
+.workout-card:active .workout-card-body {
+  transform: scale(0.985);
+  transition-duration: 0.08s;
+  transition-timing-function: ease-out;
+}
+
+.fab-plus {
+  display: inline-block;
+  transition: transform 0.45s var(--ease-spring);
+}
+
+.fab:active .fab-plus {
+  transform: rotate(90deg);
+}
+
+/* Personal-record tag: warm glow that breathes, with a light sweep across it on arrival */
+/* Tag hangs off the top-right corner of the set number, so the row keeps its column widths */
+.pr-badge {
+  position: absolute;
+  top: -8px;
+  right: -14px;
+  overflow: hidden;
+  padding: 1px 5px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #2b1600;
+  background: linear-gradient(135deg, #ffd43b, #ff922b);
+  box-shadow: 0 0 0 0 rgb(255 169 77 / 50%);
+  animation: pr-glow 2.4s ease-in-out infinite;
+}
+
+.pr-badge::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 35%, rgb(255 255 255 / 70%) 50%, transparent 65%);
+  transform: translateX(-100%);
+  animation: pr-shine 1.2s 0.3s ease-out;
+}
+
+@keyframes pr-glow {
+  50% {
+    box-shadow: 0 0 10px 1px rgb(255 169 77 / 45%);
+  }
+}
+
+@keyframes pr-shine {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.saved-check {
+  position: absolute;
+  right: 4px;
+  top: calc(50% - 11px);
+  border-radius: 50%;
+  background: var(--surface);
+  fill: none;
+  stroke: var(--tertiary);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: check-fade 0.4s 1.6s forwards;
+}
+
+.saved-check circle {
+  stroke-dasharray: 63;
+  stroke-dashoffset: 63;
+  animation: draw 0.45s var(--ease-out) forwards;
+}
+
+.saved-check path {
+  stroke-dasharray: 16;
+  stroke-dashoffset: 16;
+  animation: draw 0.3s 0.35s var(--ease-out) forwards;
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes check-fade {
+  to {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+/* Room for the FAB, plus the rest timer that pushes the FAB up while it runs */
+.set-groups {
+  padding-bottom: 96px;
+}
+
+body:has(.rest-timer) .set-groups {
+  padding-bottom: 176px;
 }
