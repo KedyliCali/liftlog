@@ -221,3 +221,19 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
   token çalışıyor, karşılama → kodla geri yükleme, yeni kod → eski cihaz çıkış ekranı → yeni kodla dönüş.
 - Kurtarma için yönetici yedeği (kod da cihaz da kaybolursa): Neon SQL'de pgcrypto ile yeni BCrypt parola
   ve `token_version + 1`, sonra arkadaşa `<uuid tiresiz>.<parola>` gönderilir.
+
+## 2026-10-19 — Açılış hızı ve kalan iş (branch `feature/faster-startup`, PR #17)
+
+- Behlül uyuma sorunu için "sadece hızlandır"ı seçti (ping yok: Render ekibi uyandırma isteklerini
+  ücretsiz planın ruhuna aykırı buluyor, ayrıca sürekli açık API Neon'un aylık ücretsiz süresini bitirir).
+- 0.1 CPU / 512 MB'ta ölçüm: açılış **178 sn → 96 sn** (`-XX:TieredStopAtLevel=1`) **→ 51 sn** (CDS
+  arşivi, imaj oluşturulurken veritabanısız eğitim açılışıyla). Ayrıntılar `docs/DEPLOY.md`'de.
+- League grup davet kodu tasarımı hazır, henüz yapılmadı: `docs/design/lol-groups.md` (PR #17'de).
+  Kararlar: sadece üyeler, kişi başı tek grup.
+
+**Sıradaki adımlar:**
+1. PR #16 (kurtarma kodu) ve #17 (açılış hızı) CI yeşilse birleştir; ikisi de `README.md`'ye farklı
+   satırlar ekliyor, çakışma beklenmiyor. Birleşince canlıda kontrol: V10 Neon'da, eski token'lar çalışıyor,
+   Render loglarında açılış ~1 dakikanın altında, League sekmesi kalıcı Riot anahtarıyla çalışıyor.
+2. iPhone'da: Profil → Kurtarma kodu → Kopyala, Notlar'a kaydet.
+3. League grupları: `docs/design/lol-groups.md`'ye göre (V11, önce HttpRiotClient 404 düzeltmesi).
