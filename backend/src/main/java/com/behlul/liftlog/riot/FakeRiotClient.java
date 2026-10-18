@@ -24,7 +24,6 @@ public class FakeRiotClient implements RiotClient {
     private static final String[] POSITIONS = {"TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"};
     private static final String[] TIERS = {"IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND"};
     private static final String[] DIVISIONS = {"IV", "III", "II", "I"};
-    private static final long FIRST_MATCH_END = 1_760_000_000_000L;
 
     /** Which player each generated match id belongs to, so match() can put them in it. */
     private final Map<String, String> matchOwners = new ConcurrentHashMap<>();
@@ -76,8 +75,9 @@ public class FakeRiotClient implements RiotClient {
         Participant owner = new Participant(matchOwners.get(matchId), CHAMPIONS[random.nextInt(CHAMPIONS.length)],
                 POSITIONS[random.nextInt(POSITIONS.length)], random.nextInt(win ? 14 : 8), random.nextInt(10),
                 random.nextInt(16), 90 + random.nextInt(180), random.nextInt(40), 8_000 + random.nextInt(30_000), win);
-        // Matches are four hours apart, newest with the highest number
-        long endedAt = FIRST_MATCH_END + number * 4 * 3_600_000L;
+        // Newest match ended about an hour ago, the rest four hours apart, so lists read like real recent play
+        long hour = 3_600_000L;
+        long endedAt = (System.currentTimeMillis() / hour) * hour - (500 - number) * 4 * hour - hour;
         return new Match(matchId, random.nextInt(4) == 0 ? 440 : 420, endedAt, 1_300 + random.nextInt(1_100), List.of(owner));
     }
 
