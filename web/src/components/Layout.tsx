@@ -6,6 +6,7 @@ import { useTabSwipe } from './useTabSwipe'
 
 const tabs = [
   { to: '/', label: t.navWorkouts, icon: <DumbbellIcon />, end: true },
+  { to: '/nutrition', label: t.navNutrition, icon: <PlateIcon />, end: false },
   { to: '/progress', label: t.navProgress, icon: <ChartIcon />, end: false },
   { to: '/profile', label: t.navProfile, icon: <PersonIcon />, end: false },
 ]
@@ -49,6 +50,16 @@ function DumbbellIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
       <path d="M6.5 6.5l11 11M4 9l5-5M15 20l5-5M3 12l1-1M12 3l-1 1M21 12l-1 1M12 21l1-1" />
+    </svg>
+  )
+}
+
+function PlateIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+      <circle cx="13" cy="13" r="7" />
+      <circle cx="13" cy="13" r="3" />
+      <path d="M3 3v6a2 2 0 0 0 2 2M5 3v18M7 3v6a2 2 0 0 1-2 2" />
     </svg>
   )
 }

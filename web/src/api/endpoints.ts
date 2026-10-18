@@ -1,17 +1,5 @@
 import { request } from './client'
-import type {
-  AuthResponse,
-  Exercise,
-  Page,
-  PersonalRecord,
-  Profile,
-  ProgressPoint,
-  SetInput,
-  WeeklyVolume,
-  WorkoutDetail,
-  WorkoutSet,
-  WorkoutSummary,
-} from './types'
+import type { AuthResponse, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, PersonalRecord, Profile, ProgressPoint, SetInput, WeeklyVolume, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types'
 
 export const api = {
   register: (email: string, password: string) =>
@@ -39,6 +27,12 @@ export const api = {
   personalRecords: () => request<PersonalRecord[]>('/api/v1/stats/prs'),
   progress: (exerciseId: number) => request<ProgressPoint[]>(`/api/v1/stats/progress?exerciseId=${exerciseId}`),
   weeklyVolume: (weeks: number) => request<WeeklyVolume[]>(`/api/v1/stats/volume?weeks=${weeks}`),
+
+  nutritionDay: (date: string) => request<NutritionDay>(`/api/v1/nutrition/days/${date}`),
+  addFood: (input: FoodInput) => request<FoodEntry>('/api/v1/nutrition/entries', { method: 'POST', body: input }),
+  deleteFood: (id: number) => request<void>(`/api/v1/nutrition/entries/${id}`, { method: 'DELETE', responseType: 'none' }),
+  frequentFoods: () => request<FrequentFood[]>('/api/v1/nutrition/frequent'),
+  updateNutritionGoals: (goals: NutritionGoals) => request<NutritionGoals>('/api/v1/nutrition/goals', { method: 'PUT', body: goals }),
 
   profile: () => request<Profile>('/api/v1/profile'),
   updateProfile: (displayName: string | null, heightCm: number | null, bodyWeightKg: number | null) =>

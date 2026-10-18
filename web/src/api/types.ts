@@ -97,6 +97,41 @@ export interface Profile {
   avatarVersion: number | null
 }
 
+export interface FoodEntry {
+  id: number
+  entryDate: string
+  name: string
+  caloriesKcal: number
+  proteinG: number
+}
+
+export interface FoodInput {
+  entryDate: string
+  name: string
+  caloriesKcal: number
+  proteinG: number
+}
+
+export interface NutritionGoals {
+  calorieGoalKcal: number | null
+  proteinGoalG: number | null
+}
+
+export interface NutritionDay {
+  date: string
+  entries: FoodEntry[]
+  totalCaloriesKcal: number
+  totalProteinG: number
+  goals: NutritionGoals
+}
+
+export interface FrequentFood {
+  name: string
+  caloriesKcal: number
+  proteinG: number
+  timesEaten: number
+}
+
 export interface ApiErrorBody {
   status: number
   message?: string
