@@ -1,13 +1,14 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
-import type { SetInput, WorkoutDetail, WorkoutSet } from '../api/types'
+import type { Page, SetInput, WorkoutDetail, WorkoutSet, WorkoutSummary } from '../api/types'
 import { Confetti } from '../components/Confetti'
 import { useRestTimer } from '../components/contexts'
 import { Sheet } from '../components/Sheet'
-import { ErrorState, Loading, MessageState } from '../components/StateViews'
+import { DetailSkeleton, SetListSkeleton } from '../components/Skeletons'
+import { ErrorState, MessageState } from '../components/StateViews'
 import { SwipeToDelete } from '../components/SwipeToDelete'
 import { useToast } from '../components/contexts'
 import { unlockAudio, vibrate } from '../lib/feedback'
@@ -110,6 +111,8 @@ export function WorkoutDetailPage() {
   }
 
   const workout = query.data
+  // The list already knows date, name and totals, so the hero card can render (and be morphed into) at once
+  const preview = query.isPending ? cachedSummary(queryClient.getQueryData(queryKeys.workouts), id) : undefined
   const visibleSets = workout?.sets.filter((s) => !pendingDelete.has(s.id)) ?? []
 
   return (
@@ -137,12 +140,25 @@ export function WorkoutDetailPage() {
       </div>
 
       {query.isPending ? (
-        <Loading />
+        preview ? (
+          <>
+            <Summary date={preview.workoutDate} notes={preview.notes} setCount={preview.setCount} exerciseCount={preview.exerciseCount} volume={preview.totalVolumeKg} />
+            <SetListSkeleton />
+          </>
+        ) : (
+          <DetailSkeleton />
+        )
       ) : query.isError ? (
         <ErrorState error={query.error} onRetry={() => query.refetch()} />
       ) : (
         <>
-          <Summary workout={workout!} sets={visibleSets} volume={visibleVolume(workout!, pendingDelete, profile.data?.bodyWeightKg ?? null)} />
+          <Summary
+            date={workout!.workoutDate}
+            notes={workout!.notes}
+            setCount={visibleSets.length}
+            exerciseCount={new Set(visibleSets.map((s) => s.exerciseId)).size}
+            volume={visibleVolume(workout!, pendingDelete, profile.data?.bodyWeightKg ?? null)}
+          />
           {visibleSets.length === 0 ? (
             <MessageState icon="🏋" title={t.detailEmptyTitle} body={t.detailEmptyBody} />
           ) : (
@@ -200,16 +216,27 @@ function editorProps(editor: Editor, sets: WorkoutSet[], saving: boolean): Omit<
 }
 
 /** Hero block: date and notes on a card, with the volume on a raised tile overlapping its corner. */
-function Summary({ workout, sets, volume }: { workout: WorkoutDetail; sets: WorkoutSet[]; volume: number }) {
-  const exerciseCount = new Set(sets.map((s) => s.exerciseId)).size
+function cachedSummary(cache: InfiniteData<Page<WorkoutSummary>> | undefined, id: number): WorkoutSummary | undefined {
+  return cache?.pages.flatMap((page) => page.content).find((w) => w.id === id)
+}
+
+interface SummaryProps {
+  date: string
+  notes: string | null
+  setCount: number
+  exerciseCount: number
+  volume: number
+}
+
+function Summary({ date, notes, setCount, exerciseCount, volume }: SummaryProps) {
   return (
     <div className="summary">
-      <div className="summary-card">
-        <div className="summary-date">{formatLongDate(workout.workoutDate)}</div>
-        <h2 className="summary-title">{workout.notes ?? t.untitledWorkout}</h2>
+      <div className="summary-card" style={{ viewTransitionName: 'workout-hero' }}>
+        <div className="summary-date">{formatLongDate(date)}</div>
+        <h2 className="summary-title">{notes ?? t.untitledWorkout}</h2>
         <div className="summary-stats">
           <div>
-            <div className="stat-value num">{sets.length}</div>
+            <div className="stat-value num">{setCount}</div>
             <div className="stat-label">{t.labelSets}</div>
           </div>
           <div>

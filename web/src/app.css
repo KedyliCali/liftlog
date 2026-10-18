@@ -123,8 +123,86 @@
   color: var(--text);
 }
 
-.nav-item.active .nav-icon {
+/* Sliding pill behind the active tab; it sits under the icon row of each equal-width tab */
+.bottom-nav-inner {
+  position: relative;
+}
+
+.nav-indicator {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  width: calc(100% / var(--tab-count));
+  height: 30px;
+  transform: translateX(calc(var(--active-tab) * 100%));
+  transition: transform 0.5s var(--ease-spring);
+  pointer-events: none;
+}
+
+.nav-indicator::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 56px;
+  height: 100%;
+  margin-left: -28px;
+  border-radius: 15px;
   background: var(--secondary-container);
+}
+
+.nav-item .nav-icon {
+  position: relative;
+  transition: transform 0.4s var(--ease-spring);
+}
+
+.nav-item.active .nav-icon {
+  transform: translateY(-1px) scale(1.08);
+}
+
+/* ---------- Page transitions (View Transitions API) ---------- */
+/* The nav is its own layer so it stays put while the page underneath changes */
+.bottom-nav {
+  view-transition-name: bottom-nav;
+}
+
+::view-transition-old(root) {
+  animation: vt-out 0.16s ease-in both;
+}
+
+::view-transition-new(root) {
+  animation: vt-in 0.3s var(--ease-out) both;
+}
+
+::view-transition-group(workout-hero) {
+  animation-duration: 0.38s;
+  animation-timing-function: var(--ease-out);
+}
+
+/* Card and summary differ in content; crossfading both snapshots while the box morphs hides that */
+::view-transition-old(workout-hero),
+::view-transition-new(workout-hero) {
+  height: 100%;
+  object-fit: cover;
+  object-position: top left;
+}
+
+@keyframes vt-out {
+  to {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+}
+
+@keyframes vt-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* The page's own fade would run a second time inside the transition */
+:root:active-view-transition .page {
+  animation: none;
 }
 
 /* ---------- Buttons ---------- */
@@ -360,7 +438,7 @@
   display: block;
   text-decoration: none;
   color: inherit;
-  animation: card-in 0.3s var(--ease-out) backwards;
+  animation: card-in 0.55s var(--ease-spring) backwards;
 }
 
 @keyframes card-in {
@@ -528,7 +606,7 @@
   background: var(--surface);
   overflow: hidden;
   margin-bottom: 14px;
-  animation: card-in 0.3s var(--ease-out) backwards;
+  animation: card-in 0.55s var(--ease-spring) backwards;
 }
 
 .exercise-rail {
@@ -1326,4 +1404,76 @@ body:has(.rest-timer) .toast {
 .fab,
 .toast {
   transition: bottom 0.25s var(--ease-out), transform 0.15s;
+}
+
+/* ---------- Skeletons ---------- */
+/* One shimmer band sweeps across every bone at once (fixed background), so they pulse together */
+.bone {
+  display: block;
+  flex: none;
+  border-radius: 6px;
+  background: linear-gradient(100deg, var(--surface-highest) 40%, color-mix(in srgb, var(--surface-highest) 55%, var(--text)) 50%, var(--surface-highest) 60%) fixed;
+  background-size: 200vw 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100vw 0;
+  }
+  to {
+    background-position: -100vw 0;
+  }
+}
+
+.skeleton .workout-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Accent shapes keep their silhouette but lose their color, so the eye is not drawn to placeholders */
+.skeleton .date-block::before,
+.skeleton .exercise-rail::after {
+  background: var(--surface-high);
+}
+
+.skeleton .date-block-front,
+.skeleton .exercise-rail::before {
+  background: var(--surface-highest);
+}
+
+.skeleton .volume-badge {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+  background: var(--surface-highest);
+}
+
+.skeleton-set-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+}
+
+.skeleton-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: 160px;
+}
+
+.skeleton-chart .bone {
+  flex: 1;
+  border-radius: 6px 6px 2px 2px;
+}
+
+.skeleton-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin: 8px 0 24px;
 }

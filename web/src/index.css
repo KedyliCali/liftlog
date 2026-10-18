@@ -28,6 +28,8 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Overshooting curve for things that should feel physical (nav pill, pressed buttons) */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   background: var(--bg);
@@ -104,7 +106,20 @@ select {
   color: var(--text-muted);
 }
 
+/* A real damped spring where linear() is supported; the cubic-bezier above is the fallback */
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    --ease-spring: linear(0, 0.06, 0.24 5%, 0.81 12%, 1.04 17%, 1.11 21%, 1.12 24%, 1.08 30%, 0.99 41%, 0.98 47%, 1 62%, 1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+
   *,
   *::before,
   *::after {

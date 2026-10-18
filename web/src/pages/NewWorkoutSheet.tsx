@@ -36,7 +36,7 @@ export function NewWorkoutSheet({ onClose }: { onClose: () => void }) {
       }
       await queryClient.invalidateQueries({ queryKey: queryKeys.workouts })
       onClose()
-      navigate(`/workouts/${workout.id}`)
+      navigate(`/workouts/${workout.id}`, { viewTransition: true })
     } catch (error) {
       toast({ message: errorMessage(error) })
       setBusy(null)

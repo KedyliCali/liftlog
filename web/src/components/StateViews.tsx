@@ -5,18 +5,22 @@ import { t } from '../lib/i18n'
 const WAKE_UP_HINT_DELAY_MS = 4000
 
 export function Loading() {
-  // Only shown when loading is unusually slow, which in practice means the server is cold-starting
+  return (
+    <div className="state-view" role="status">
+      <div className="spinner" />
+      <WakeUpHint />
+    </div>
+  )
+}
+
+/** Only shown when loading is unusually slow, which in practice means the server is cold-starting. */
+export function WakeUpHint() {
   const [showHint, setShowHint] = useState(false)
   useEffect(() => {
     const timer = setTimeout(() => setShowHint(true), WAKE_UP_HINT_DELAY_MS)
     return () => clearTimeout(timer)
   }, [])
-  return (
-    <div className="state-view" role="status">
-      <div className="spinner" />
-      {showHint && <p className="muted state-hint">{t.serverWakingUp}</p>}
-    </div>
-  )
+  return showHint ? <p className="muted state-hint">{t.serverWakingUp}</p> : null
 }
 
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => void }) {

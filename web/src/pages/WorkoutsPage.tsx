@@ -1,10 +1,11 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useViewTransitionState } from 'react-router'
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { WorkoutSummary } from '../api/types'
-import { ErrorState, Loading, MessageState } from '../components/StateViews'
+import { WorkoutListSkeleton } from '../components/Skeletons'
+import { ErrorState, MessageState } from '../components/StateViews'
 import { SwipeToDelete } from '../components/SwipeToDelete'
 import { useToast } from '../components/contexts'
 import { formatKg, monthShort, parseDate, weekdayShort } from '../lib/format'
@@ -69,7 +70,7 @@ export function WorkoutsPage() {
       </header>
 
       {query.isPending ? (
-        <Loading />
+        <WorkoutListSkeleton />
       ) : query.isError ? (
         <ErrorState error={query.error} onRetry={() => query.refetch()} />
       ) : workouts.length === 0 ? (
@@ -95,15 +96,19 @@ export function WorkoutsPage() {
 }
 
 function WorkoutCard({ workout, index }: { workout: WorkoutSummary; index: number }) {
+  const to = `/workouts/${workout.id}`
+  // Only the tapped card gets the shared name, so it morphs into the detail page's summary card
+  const opening = useViewTransitionState(to)
   return (
     <Link
-      to={`/workouts/${workout.id}`}
+      viewTransition
+      to={to}
       className="workout-card"
       // Stagger the entrance of the first few cards; later pages appear immediately
       style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
       draggable={false}
     >
-      <div className="workout-card-body">
+      <div className="workout-card-body" style={{ viewTransitionName: opening ? 'workout-hero' : undefined }}>
         <h3 className="workout-card-title">{workout.notes ?? t.untitledWorkout}</h3>
         <div className="chips">
           <span className="chip">{t.sets(workout.setCount)}</span>

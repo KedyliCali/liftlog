@@ -4,7 +4,8 @@ import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Too
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { PersonalRecord, ProgressPoint, WeeklyVolume } from '../api/types'
-import { ErrorState, Loading, MessageState } from '../components/StateViews'
+import { ProgressSkeleton } from '../components/Skeletons'
+import { ErrorState, MessageState } from '../components/StateViews'
 import { formatKg, formatRecordSet, formatShortDate } from '../lib/format'
 import { t } from '../lib/i18n'
 import { chooseExercise, yDomain } from '../lib/workoutLogic'
@@ -23,14 +24,9 @@ export function ProgressPage() {
     enabled: selectedId !== null,
   })
 
-  const header = (
-    <header className="page-header">
-      <h1 className="page-title">{t.progressTitle}</h1>
-      <p className="page-subtitle">{t.progressSubtitle}</p>
-    </header>
-  )
+  const header = <ProgressHeader />
 
-  if (records.isPending || volume.isPending) return <div className="page">{header}<Loading /></div>
+  if (records.isPending || volume.isPending) return <div className="page">{header}<ProgressSkeleton /></div>
   if (records.isError || volume.isError) {
     return (
       <div className="page">
@@ -105,6 +101,15 @@ export function ProgressPage() {
         </div>
       ))}
     </div>
+  )
+}
+
+function ProgressHeader() {
+  return (
+    <header className="page-header">
+      <h1 className="page-title">{t.progressTitle}</h1>
+      <p className="page-subtitle">{t.progressSubtitle}</p>
+    </header>
   )
 }
 
