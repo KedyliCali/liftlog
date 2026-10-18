@@ -323,6 +323,24 @@ class ApiIntegrationTest {
                 .andExpect(jsonPath("$.totalCaloriesKcal").value(380));
     }
 
+    @Test
+    void foodCatalogListsSeededFoodsInBothLanguages() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        MvcResult result = mockMvc.perform(get("/api/v1/foods").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "max-age=86400, private"))
+                .andExpect(jsonPath("$[0].nameTr").value("Mercimek çorbası"))
+                .andExpect(jsonPath("$[0].nameEn").value("Red lentil soup"))
+                .andExpect(jsonPath("$[0].servingG").value(250.0))
+                .andReturn();
+        JsonNode foods = read(result);
+        assertThat(foods.size()).isGreaterThan(90);
+        for (JsonNode food : foods) {
+            assertThat(food.get("servingTr").asString()).isNotBlank();
+            assertThat(food.get("kcalPer100g").asDouble()).isBetween(0.0, 900.0);
+        }
+    }
+
     private String register(String email, String password, String displayName) throws Exception {
         String body = displayName == null
                 ? json("{'email':'%s','password':'%s'}", email, password)
