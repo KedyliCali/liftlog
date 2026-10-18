@@ -2,3 +2,6 @@ liftlog:
   jwt:
     # Test-only key; real keys come from the environment
     secret: test-secret-that-is-at-least-32-bytes-long!!
+  riot:
+    # Integration tests talk to the generated League data, never to Riot
+    fake: true

@@ -355,6 +355,52 @@ class ApiIntegrationTest {
         }
     }
 
+    @Test
+    void lolTrackerFollowsPlayersAndKeepsThemPrivate() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+
+        authed(post("/api/v1/lol/players"), token, "{\"riotId\":\"bad-id\",\"platform\":\"TR1\"}")
+                .andExpect(status().isBadRequest());
+        authed(post("/api/v1/lol/players"), token, "{\"riotId\":\"Behlul#TR1\",\"platform\":\"XX9\"}")
+                .andExpect(status().isBadRequest());
+        authed(post("/api/v1/lol/players"), token, "{\"riotId\":\"notfound#TR1\",\"platform\":\"TR1\"}")
+                .andExpect(status().isNotFound());
+
+        // The fake Riot client answers every other Riot ID with the same generated data each time
+        MvcResult tracked = authed(post("/api/v1/lol/players"), token, "{\"riotId\":\"Behlul K#TR1\",\"platform\":\"tr1\"}")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.gameName").value("Behlul K"))
+                .andExpect(jsonPath("$.platform").value("TR1"))
+                .andExpect(jsonPath("$.refreshedAt").isNotEmpty())
+                .andReturn();
+        String puuid = read(tracked).get("puuid").asString();
+
+        // Following the same player again is harmless
+        authed(post("/api/v1/lol/players"), token, "{\"riotId\":\"Behlul K#TR1\",\"platform\":\"TR1\"}")
+                .andExpect(status().isCreated());
+        mockMvc.perform(get("/api/v1/lol/players").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.length()").value(1))
+                // One refresh stores at most ten new matches
+                .andExpect(jsonPath("$[0].recentGames").value(10));
+
+        mockMvc.perform(get("/api/v1/lol/players/" + puuid).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.games").value(10))
+                .andExpect(jsonPath("$.matches.length()").value(10))
+                .andExpect(jsonPath("$.summary.form.length()").value(10));
+
+        String stranger = register(randomEmail(), "s3cret-pass", null);
+        mockMvc.perform(get("/api/v1/lol/players/" + puuid).header(HttpHeaders.AUTHORIZATION, "Bearer " + stranger))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/lol/players").header(HttpHeaders.AUTHORIZATION, "Bearer " + stranger))
+                .andExpect(jsonPath("$.length()").value(0));
+
+        mockMvc.perform(delete("/api/v1/lol/players/" + puuid).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/v1/lol/players").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
     private String register(String email, String password, String displayName) throws Exception {
         String body = displayName == null
                 ? json("{'email':'%s','password':'%s'}", email, password)
