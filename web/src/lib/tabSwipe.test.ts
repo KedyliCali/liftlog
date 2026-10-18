@@ -4,8 +4,9 @@ import { swipeTarget, tabIndexOf } from './tabSwipe'
 describe('tabIndexOf', () => {
   it('only matches the tab pages themselves', () => {
     expect(tabIndexOf('/')).toBe(0)
-    expect(tabIndexOf('/progress')).toBe(1)
-    expect(tabIndexOf('/profile')).toBe(2)
+    expect(tabIndexOf('/nutrition')).toBe(1)
+    expect(tabIndexOf('/progress')).toBe(2)
+    expect(tabIndexOf('/profile')).toBe(3)
     expect(tabIndexOf('/workouts/3')).toBeNull()
   })
 })
@@ -18,7 +19,7 @@ describe('swipeTarget', () => {
 
   it('stops at the first and last tab', () => {
     expect(swipeTarget({ dx: 120, dy: 0, durationMs: 300 }, 0)).toBeNull()
-    expect(swipeTarget({ dx: -120, dy: 0, durationMs: 300 }, 2)).toBeNull()
+    expect(swipeTarget({ dx: -120, dy: 0, durationMs: 300 }, 3)).toBeNull()
   })
 
   it('ignores vertical scrolls and short slow drags', () => {

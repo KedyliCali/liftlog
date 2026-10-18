@@ -5,5 +5,8 @@ export const queryKeys = {
   exercises: ['exercises'] as const,
   stats: ['stats'] as const,
   profile: ['profile'] as const,
+  nutrition: ['nutrition'] as const,
+  nutritionDay: (date: string) => ['nutrition', 'day', date] as const,
+  frequentFoods: ['nutrition', 'frequent'] as const,
   avatar: (version: number) => ['avatar', version] as const,
 }

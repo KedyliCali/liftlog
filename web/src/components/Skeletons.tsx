@@ -119,6 +119,30 @@ export function ProgressSkeleton() {
   )
 }
 
+export function NutritionSkeleton() {
+  return (
+    <SkeletonFrame>
+      <div className="goal-rings skeleton-rings">
+        <span className="bone ring-calories" />
+        <span className="bone ring-protein" />
+      </div>
+      <div className="chip-row">
+        <Bone width={120} height={52} />
+        <Bone width={100} height={52} />
+        <Bone width={110} height={52} />
+      </div>
+      <div className="food-list">
+        {[0.5, 0.65, 0.4].map((w, i) => (
+          <div key={i} className="food-row">
+            <Bone width={`${w * 100}%`} height={16} />
+            <Bone width={56} height={16} style={{ marginLeft: 'auto' }} />
+          </div>
+        ))}
+      </div>
+    </SkeletonFrame>
+  )
+}
+
 export function ProfileSkeleton() {
   return (
     <SkeletonFrame>

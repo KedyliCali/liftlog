@@ -36,6 +36,12 @@ public class User {
     @Column(name = "body_weight_kg", precision = 5, scale = 2)
     private BigDecimal bodyWeightKg;
 
+    @Column(name = "calorie_goal_kcal")
+    private Integer calorieGoalKcal;
+
+    @Column(name = "protein_goal_g")
+    private Integer proteinGoalG;
+
     protected User() {
     }
 
@@ -83,6 +89,19 @@ public class User {
 
     public void setBodyWeightKg(BigDecimal bodyWeightKg) {
         this.bodyWeightKg = bodyWeightKg;
+    }
+
+    public Integer getCalorieGoalKcal() {
+        return calorieGoalKcal;
+    }
+
+    public Integer getProteinGoalG() {
+        return proteinGoalG;
+    }
+
+    public void setNutritionGoals(Integer calorieGoalKcal, Integer proteinGoalG) {
+        this.calorieGoalKcal = calorieGoalKcal;
+        this.proteinGoalG = proteinGoalG;
     }
 
     public LocalDateTime getCreatedAt() {

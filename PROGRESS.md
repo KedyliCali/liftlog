@@ -121,3 +121,17 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
 - Not: tarayıcı paneli gizliyken animasyon kareleri durduğu için view transition'lar takılıyor; test
   ederken panel görünür olmalı. Gerçek telefonda sorun yok.
 - Doğrulama: web 33 test, lint, tsc; telefon boyutunda kaydırma (iki uç, kart üstü, çapraz) ve 4×8 şınav denendi.
+
+## 2026-10-18 — Beslenme günlüğü (branch `feature/nutrition-log`)
+
+- PR #10 (kaydırma + toplu set) CI yeşil olunca birleştirildi.
+- **Backend V6:** `food_entries` tablosu (gün, ad, kcal, protein) ve `users` tablosuna günlük kalori/protein
+  hedefi. Uçlar: gün özeti, yemek ekle/sil, sık yenenler, hedefler. Sık yenenler ayrı tabloda tutulmuyor;
+  son 60 günün kayıtlarından `GROUP BY` ile hesaplanıyor (PR'lar gibi).
+- **Web:** yeni "Beslenme" sekmesi (alt menüde 2. sırada, kaydırmayla da açılıyor). Büyük kalori halkası ve
+  onun sağ altına binen protein halkası; hedef aşılınca kırmızı. Gün değiştirici (geleceğe gidilmiyor),
+  "Yine ye" çipleri (tek dokunuş + geri al), kaydırarak silme + geri al, hedef sayfasında kiloya göre
+  protein önerisi (1,8 g/kg).
+- Doğrulama: backend 44 test, web 41 test, lint, build; yerel Docker (V6 uygulandı) ile telefon boyutunda
+  hedef belirleme, yemek ekleme, hızlı ekleme + geri al, önceki gün, açık/koyu tema denendi.
+- Android beslenme ekranı yok.

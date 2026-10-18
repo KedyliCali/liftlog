@@ -1,7 +1,7 @@
 // Swiping left/right on a tab page moves to the neighbouring tab. Kept free of DOM code so the
 // thresholds can be unit-tested.
 
-export const TAB_PATHS = ['/', '/progress', '/profile'] as const
+export const TAB_PATHS = ['/', '/nutrition', '/progress', '/profile'] as const
 
 /** Tab index for a tab's own page; null on pages like a workout detail, where swiping does nothing. */
 export function tabIndexOf(pathname: string): number | null {
