@@ -2,7 +2,7 @@ import type { ApiErrorBody } from './types'
 
 export const API_BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080').replace(/\/$/, '')
 
-export type AppErrorKind = 'network' | 'notFound' | 'unauthorized' | 'validation' | 'conflict' | 'server' | 'unknown'
+export type AppErrorKind = 'network' | 'notFound' | 'unauthorized' | 'validation' | 'conflict' | 'server' | 'riotNoKey' | 'riotUnavailable' | 'unknown'
 
 /** Typed failure the UI knows how to explain; components never inspect HTTP details. */
 export class AppError extends Error {
@@ -26,6 +26,11 @@ function errorFromResponse(status: number, body: ApiErrorBody | null): AppError 
       return new AppError('notFound')
     case status === 409:
       return new AppError('conflict', body?.message ?? null)
+    // The League tracker marks Riot problems so the app can say "not set up yet" instead of "server error"
+    case status === 503 && body?.fieldErrors?.riot === 'NO_KEY':
+      return new AppError('riotNoKey')
+    case status === 503 && body?.fieldErrors?.riot != null:
+      return new AppError('riotUnavailable', body?.fieldErrors?.riot ?? null)
     case status >= 500:
       return new AppError('server')
     default:

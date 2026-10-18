@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { AuthResponse, CatalogFood, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, PersonalRecord, Profile, ProgressPoint, SetInput, WeeklyVolume, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types'
+import type { AuthResponse, LolPlayer, LolPlayerDetail, CatalogFood, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, PersonalRecord, Profile, ProgressPoint, SetInput, WeeklyVolume, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types'
 
 export const api = {
   register: (email: string, password: string) =>
@@ -35,6 +35,15 @@ export const api = {
   // The response is cached for a day; the app version in the URL makes each release fetch the list anew
   foods: () => request<CatalogFood[]>(`/api/v1/foods?v=${__APP_VERSION__}`),
   updateNutritionGoals: (goals: NutritionGoals) => request<NutritionGoals>('/api/v1/nutrition/goals', { method: 'PUT', body: goals }),
+
+  lolPlayers: () => request<LolPlayer[]>('/api/v1/lol/players'),
+  trackLolPlayer: (riotId: string, platform: string) =>
+    request<LolPlayer>('/api/v1/lol/players', { method: 'POST', body: { riotId, platform } }),
+  lolPlayer: (puuid: string) => request<LolPlayerDetail>(`/api/v1/lol/players/${encodeURIComponent(puuid)}`),
+  refreshLolPlayer: (puuid: string) =>
+    request<LolPlayerDetail>(`/api/v1/lol/players/${encodeURIComponent(puuid)}/refresh`, { method: 'POST' }),
+  untrackLolPlayer: (puuid: string) =>
+    request<void>(`/api/v1/lol/players/${encodeURIComponent(puuid)}`, { method: 'DELETE', responseType: 'none' }),
 
   profile: () => request<Profile>('/api/v1/profile'),
   updateProfile: (displayName: string | null, heightCm: number | null, bodyWeightKg: number | null) =>

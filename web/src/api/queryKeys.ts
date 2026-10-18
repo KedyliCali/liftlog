@@ -9,5 +9,8 @@ export const queryKeys = {
   nutritionDay: (date: string) => ['nutrition', 'day', date] as const,
   frequentFoods: ['nutrition', 'frequent'] as const,
   foods: ['foods'] as const,
+  lolPlayers: ['lol', 'players'] as const,
+  lolPlayer: (puuid: string) => ['lol', 'player', puuid] as const,
+  ddragonVersion: ['ddragon', 'version'] as const,
   avatar: (version: number) => ['avatar', version] as const,
 }

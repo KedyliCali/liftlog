@@ -3,12 +3,13 @@ import { NavLink, Outlet, useLocation } from 'react-router'
 import { t } from '../lib/i18n'
 import { setNavDirection } from '../lib/navDirection'
 import { useTabSwipe } from './useTabSwipe'
-import { ChartIcon, DumbbellIcon, PersonIcon, PlateIcon } from './Icons'
+import { ChartIcon, ControllerIcon, DumbbellIcon, PersonIcon, PlateIcon } from './Icons'
 
 const tabs = [
   { to: '/', label: t.navWorkouts, icon: <DumbbellIcon />, end: true },
   { to: '/nutrition', label: t.navNutrition, icon: <PlateIcon />, end: false },
   { to: '/progress', label: t.navProgress, icon: <ChartIcon />, end: false },
+  { to: '/game', label: t.navGame, icon: <ControllerIcon />, end: false },
   { to: '/profile', label: t.navProfile, icon: <PersonIcon />, end: false },
 ]
 

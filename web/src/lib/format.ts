@@ -41,6 +41,10 @@ export function errorMessage(error: unknown): string {
       return error.detail ?? t.errorInvalid
     case 'conflict':
       return error.detail ?? t.errorConflict
+    case 'riotNoKey':
+      return t.riotNoKey
+    case 'riotUnavailable':
+      return error.detail === 'KEY_REJECTED' ? t.riotKeyRejected : t.riotBusy
     default:
       return t.errorUnknown
   }
