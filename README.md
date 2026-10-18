@@ -26,7 +26,7 @@ the same JWT-secured Spring Boot REST API backed by PostgreSQL, packaged with Do
 - **No sign-up form:** each installation silently creates its own account (random credentials kept on the device) and authenticates with JWT. Every account sees only its own data.
 - **Profile:** name, height, body weight, BMI and a profile photo (resized to 256 px on the device before upload).
 - **In the gym:** rest timer after each set (vibration, plus a tone on iPhone), swipe a set or workout away with undo, start a new workout from a past one with its weights, confetti on a new PR.
-- **Nutrition:** search a built-in list of about 100 common Turkish dishes and basic foods (per-100 g values plus a typical serving; pick servings in halves or grams) or enter foods by hand, with calories and protein, daily goals shown as two overlapping rings (with a protein suggestion of 1.8 g per kg body weight), one-tap "eat again" for your most frequent foods, swipe to delete with undo, and a day switcher.
+- **Nutrition:** search a built-in list of 315 Turkish dishes, breakfast foods, street food and basic ingredients (per-100 g values plus a typical serving; pick servings in halves or grams) or enter foods by hand. Tracks calories, protein, carbs and fat, shows where the day's calories came from, daily goals shown as two overlapping rings (with a protein suggestion of 1.8 g per kg body weight), one-tap "eat again" for your most frequent foods, swipe to delete with undo, and a day switcher.
 - **Progress:** heaviest set and best estimated 1RM per exercise, an e1RM trend chart and weekly training volume.
 - **PR alerts:** the app celebrates when a new set beats your previous best.
 - **English and Turkish UI**, light and dark theme following the system.
