@@ -9,10 +9,16 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.test.web.servlet.MvcResult;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.UUID;
@@ -40,6 +46,7 @@ class ApiIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private JsonMapper jsonMapper;
+    @Autowired private JwtEncoder jwtEncoder;
 
     @Test
     void protectedEndpointsRequireAToken() throws Exception {
@@ -399,6 +406,119 @@ class ApiIntegrationTest {
                 .andExpect(status().isNoContent());
         mockMvc.perform(get("/api/v1/lol/players").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void changingThePasswordSignsOutEveryOtherToken() throws Exception {
+        String email = randomEmail();
+        String firstDevice = register(email, "first-password-0", null);
+        authed(post("/api/v1/workouts"), firstDevice, "{\"workoutDate\":\"2026-10-19\"}").andExpect(status().isCreated());
+        authed(post("/api/v1/lol/players"), firstDevice, "{\"riotId\":\"Recover Me#TR1\",\"platform\":\"TR1\"}")
+                .andExpect(status().isCreated());
+
+        // A second device restoring with the code is just a login with the same credentials; both stay signed in
+        String secondDevice = login(email, "first-password-0");
+        me(firstDevice).andExpect(status().isOk());
+        me(secondDevice).andExpect(status().isOk());
+
+        MvcResult changed = authed(put("/api/v1/profile/password"), firstDevice,
+                "{\"currentPassword\":\"first-password-0\",\"newPassword\":\"second-password-1\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.email").value(email))
+                .andReturn();
+        String freshToken = read(changed).get("token").asString();
+
+        me(firstDevice).andExpect(status().isUnauthorized());
+        me(secondDevice).andExpect(status().isUnauthorized());
+        me(freshToken).andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(json("{'email':'%s','password':'first-password-0'}", email)))
+                .andExpect(status().isUnauthorized());
+
+        // Same user id, so every per-user row comes back with the new code
+        String restored = login(email, "second-password-1");
+        mockMvc.perform(get("/api/v1/workouts").header(HttpHeaders.AUTHORIZATION, "Bearer " + restored))
+                .andExpect(jsonPath("$.totalElements").value(1));
+        mockMvc.perform(get("/api/v1/lol/players").header(HttpHeaders.AUTHORIZATION, "Bearer " + restored))
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void changePasswordNeedsTheCurrentPassword() throws Exception {
+        String email = randomEmail();
+        String token = register(email, "first-password-0", null);
+
+        authed(put("/api/v1/profile/password"), token, "{\"currentPassword\":\"wrong-password\",\"newPassword\":\"second-password-1\"}")
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Current password is incorrect"));
+
+        // Nothing changed: the old token and the old password still work
+        me(token).andExpect(status().isOk());
+        login(email, "first-password-0");
+    }
+
+    @Test
+    void changePasswordValidatesInputAndNeedsAToken() throws Exception {
+        String token = register(randomEmail(), "first-password-0", null);
+
+        mockMvc.perform(put("/api/v1/profile/password").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentPassword\":\"first-password-0\",\"newPassword\":\"second-password-1\"}"))
+                .andExpect(status().isUnauthorized());
+        authed(put("/api/v1/profile/password"), token, "{\"currentPassword\":\"\",\"newPassword\":\"short\"}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.currentPassword").exists())
+                .andExpect(jsonPath("$.fieldErrors.newPassword").exists());
+        authed(put("/api/v1/profile/password"), token,
+                json("{'currentPassword':'first-password-0','newPassword':'%s'}", "x".repeat(73)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void registeringAgainAfterAPasswordChangeConflicts() throws Exception {
+        // The web app reads exactly this (login 401, then register 409) as "this device was signed out"
+        String email = randomEmail();
+        String token = register(email, "first-password-0", null);
+        authed(put("/api/v1/profile/password"), token, "{\"currentPassword\":\"first-password-0\",\"newPassword\":\"second-password-1\"}")
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON)
+                        .content(json("{'email':'%s','password':'first-password-0'}", email)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void tokensAreCheckedAgainstTheTokenVersion() throws Exception {
+        String token = register(randomEmail(), "first-password-0", null);
+        String userId = read(me(token).andReturn()).get("id").asString();
+
+        // Issued before versions existed: no "ver" claim, still accepted, so the deploy signed nobody out
+        me(handMadeToken(userId, null)).andExpect(status().isOk());
+        me(handMadeToken(userId, 0)).andExpect(status().isOk());
+        me(handMadeToken(userId, 1)).andExpect(status().isUnauthorized());
+        me(handMadeToken("999999999", 0)).andExpect(status().isUnauthorized());
+    }
+
+    private String handMadeToken(String subject, Integer version) {
+        Instant now = Instant.now();
+        JwtClaimsSet.Builder claims = JwtClaimsSet.builder().issuer("liftlog").subject(subject)
+                .issuedAt(now).expiresAt(now.plusSeconds(3600));
+        if (version != null) {
+            claims.claim("ver", version);
+        }
+        return jwtEncoder.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(), claims.build()))
+                .getTokenValue();
+    }
+
+    private String login(String email, String password) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(json("{'email':'%s','password':'%s'}", email, password)))
+                .andExpect(status().isOk())
+                .andReturn();
+        return read(result).get("token").asString();
+    }
+
+    private org.springframework.test.web.servlet.ResultActions me(String token) throws Exception {
+        return mockMvc.perform(get("/api/v1/auth/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token));
     }
 
     private String register(String email, String password, String displayName) throws Exception {

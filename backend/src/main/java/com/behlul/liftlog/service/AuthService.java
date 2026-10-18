@@ -1,6 +1,7 @@
 package com.behlul.liftlog.service;
 
 import com.behlul.liftlog.dto.AuthDtos.AuthResponse;
+import com.behlul.liftlog.dto.AuthDtos.ChangePasswordRequest;
 import com.behlul.liftlog.dto.AuthDtos.LoginRequest;
 import com.behlul.liftlog.dto.AuthDtos.RegisterRequest;
 import com.behlul.liftlog.dto.AuthDtos.UserResponse;
@@ -61,6 +62,24 @@ public class AuthService {
         if (user == null || !matches) {
             throw new InvalidCredentialsException();
         }
+        return toAuthResponse(user);
+    }
+
+    /**
+     * Replaces the password and signs out every other device: the token version goes up, so all earlier
+     * tokens fail on their next request. The response carries a token with the new version for the caller.
+     */
+    @Transactional
+    public AuthResponse changePassword(ChangePasswordRequest request) {
+        Long id = currentUser.currentUserId();
+        // Row lock: if two devices change the code at once, the second waits, then fails the check below
+        // against the new hash, instead of both "succeeding" while only the last write survives
+        User user = userRepository.findByIdForUpdate(id).orElseThrow(() -> new ResourceNotFoundException("User", id));
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new InvalidCredentialsException("Current password is incorrect");
+        }
+        user.changePassword(passwordEncoder.encode(request.newPassword()));
+        // Built from the updated entity, so the token already has the new version; it is written at commit
         return toAuthResponse(user);
     }
 

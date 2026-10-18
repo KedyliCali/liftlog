@@ -1,8 +1,11 @@
 package com.behlul.liftlog.controller;
 
+import com.behlul.liftlog.dto.AuthDtos.AuthResponse;
+import com.behlul.liftlog.dto.AuthDtos.ChangePasswordRequest;
 import com.behlul.liftlog.dto.ProfileDtos.ProfileResponse;
 import com.behlul.liftlog.dto.ProfileDtos.UpdateProfileRequest;
 import com.behlul.liftlog.entity.UserAvatar;
+import com.behlul.liftlog.service.AuthService;
 import com.behlul.liftlog.service.ProfileService;
 import jakarta.validation.Valid;
 import org.springframework.http.CacheControl;
@@ -24,9 +27,11 @@ import java.time.Duration;
 public class ProfileController {
 
     private final ProfileService profileService;
+    private final AuthService authService;
 
-    public ProfileController(ProfileService profileService) {
+    public ProfileController(ProfileService profileService, AuthService authService) {
         this.profileService = profileService;
+        this.authService = authService;
     }
 
     @GetMapping
@@ -37,6 +42,15 @@ public class ProfileController {
     @PutMapping
     public ProfileResponse update(@Valid @RequestBody UpdateProfileRequest request) {
         return profileService.updateProfile(request);
+    }
+
+    /**
+     * New password, which the web app presents as "New code". Lives under /profile rather than /auth because
+     * the Android client strips the token from every /auth call except /me.
+     */
+    @PutMapping("/password")
+    public AuthResponse changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        return authService.changePassword(request);
     }
 
     /** The raw image is the request body; simpler for a mobile client than multipart. */
