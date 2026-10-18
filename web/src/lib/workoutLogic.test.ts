@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { PersonalRecord, WorkoutSet, WorkoutSummary } from '../api/types'
-import { chooseExercise, formatClock, groupByExercise, initials, pickTemplates, yDomain } from './workoutLogic'
+import type { Exercise, PersonalRecord, WorkoutDetail, WorkoutSet, WorkoutSummary } from '../api/types'
+import { chooseExercise, effectiveLoad, formatClock, groupByExercise, groupByMuscle, initials, pickTemplates, visibleVolume, weightAfterPick, yDomain } from './workoutLogic'
 
 const set = (id: number, exerciseId: number, name: string): WorkoutSet => ({
   id,
@@ -11,6 +11,7 @@ const set = (id: number, exerciseId: number, name: string): WorkoutSet => ({
   weightKg: 100,
   rpe: null,
   newPersonalRecord: false,
+  bodyweight: false,
 })
 
 const workout = (id: number, notes: string | null, setCount = 3): WorkoutSummary => ({
@@ -62,5 +63,47 @@ describe('small formatters', () => {
     expect(initials('')).toBe('?')
     expect(formatClock(90)).toBe('1:30')
     expect(formatClock(5)).toBe('0:05')
+  })
+})
+
+describe('bodyweight load', () => {
+  const pullUp = { ...set(1, 7, 'Pull-up'), reps: 8, weightKg: 0, bodyweight: true }
+  const weightedPullUp = { ...set(2, 7, 'Pull-up'), reps: 5, weightKg: 10, bodyweight: true }
+  const squat = { ...set(3, 1, 'Squat'), reps: 5, weightKg: 100 }
+
+  it('adds body weight only to bodyweight exercises', () => {
+    expect(effectiveLoad(weightedPullUp, 80)).toBe(90)
+    expect(effectiveLoad(pullUp, null)).toBe(0)
+    expect(effectiveLoad(squat, 80)).toBe(100)
+  })
+
+  it('takes hidden sets out of the server volume', () => {
+    const workout: WorkoutDetail = { id: 1, workoutDate: '2026-10-18', notes: null, totalVolumeKg: 1590, sets: [pullUp, weightedPullUp, squat] }
+    expect(visibleVolume(workout, new Set(), 80)).toBe(1590)
+    expect(visibleVolume(workout, new Set([2]), 80)).toBe(1140)
+    expect(visibleVolume(workout, new Set([1, 2, 3]), 80)).toBe(0)
+  })
+})
+
+describe('groupByMuscle', () => {
+  const exercise = (id: number, muscleGroup: string | null): Exercise => ({ id, name: `E${id}`, muscleGroup, custom: false, bodyweight: false })
+
+  it('orders sections by training order, custom groups after, ungrouped last', () => {
+    const sections = groupByMuscle([exercise(1, null), exercise(2, 'Legs'), exercise(3, 'Grip'), exercise(4, 'Chest'), exercise(5, 'Legs')])
+    expect(sections.map((s) => s.muscleGroup)).toEqual(['Chest', 'Legs', 'Grip', 'Other'])
+    expect(sections[1].exercises.map((e) => e.id)).toEqual([2, 5])
+  })
+})
+
+describe('weightAfterPick', () => {
+  it('keeps the weight within the same kind of exercise', () => {
+    expect(weightAfterPick('100', false, { bodyweight: false })).toBe('100')
+    expect(weightAfterPick('10', true, { bodyweight: true })).toBe('10')
+  })
+
+  it('resets when switching kinds', () => {
+    expect(weightAfterPick('100', false, { bodyweight: true })).toBe('0')
+    expect(weightAfterPick('0', true, { bodyweight: false })).toBe('')
+    expect(weightAfterPick('', false, { bodyweight: true })).toBe('0')
   })
 })

@@ -100,6 +100,18 @@ const en = {
   startFrom: (notes: string) => `Start from "${notes}"`,
   emptyWorkout: 'Empty workout',
   copying: 'Copying sets…',
+  addedWeightKg: 'Added weight (kg)',
+  bodyweightHint: '0 = bodyweight only. Add your body weight in Profile so it counts in your stats.',
+  bodyweightHintKnown: (kg: string) => `Your body weight (${kg} kg) is added in stats.`,
+  bodyweightOnly: 'Bodyweight',
+  bodyweightPlus: (kg: string) => `BW + ${kg} kg`,
+  calisthenics: 'Bodyweight',
+  allExercises: 'All',
+  totalLoad: (kg: string) => `${kg} kg total`,
+  bodyweightExercise: 'Bodyweight exercise',
+  bodyweightExerciseHint: 'Log only the extra load; your body weight is added in stats.',
+  prBadge: 'PR',
+  muscleGroups: { Legs: 'Legs', Back: 'Back', Chest: 'Chest', Shoulders: 'Shoulders', Arms: 'Arms', Core: 'Core', Other: 'Other' } as Record<string, string>,
 }
 
 type Strings = typeof en
@@ -204,6 +216,18 @@ const tr: Strings = {
   startFrom: (notes) => `"${notes}" ile başla`,
   emptyWorkout: 'Boş antrenman',
   copying: 'Setler kopyalanıyor…',
+  addedWeightKg: 'Ek ağırlık (kg)',
+  bodyweightHint: "0 = sadece vücut ağırlığı. Profil'e kilonu girersen istatistiklere eklenir.",
+  bodyweightHintKnown: (kg) => `Vücut ağırlığın (${kg} kg) istatistiklere eklenir.`,
+  bodyweightOnly: 'Vücut ağırlığı',
+  bodyweightPlus: (kg) => `VA + ${kg} kg`,
+  calisthenics: 'Kalistenik',
+  allExercises: 'Tümü',
+  totalLoad: (kg) => `toplam ${kg} kg`,
+  bodyweightExercise: 'Vücut ağırlığı hareketi',
+  bodyweightExerciseHint: 'Sadece ek yükü gir; vücut ağırlığın istatistiklere eklenir.',
+  prBadge: 'PR',
+  muscleGroups: { Legs: 'Bacak', Back: 'Sırt', Chest: 'Göğüs', Shoulders: 'Omuz', Arms: 'Kol', Core: 'Karın', Other: 'Diğer' },
 }
 
 export const locale = navigator.language || 'en'

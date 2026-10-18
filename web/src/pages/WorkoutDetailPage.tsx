@@ -11,9 +11,9 @@ import { ErrorState, Loading, MessageState } from '../components/StateViews'
 import { SwipeToDelete } from '../components/SwipeToDelete'
 import { useToast } from '../components/contexts'
 import { unlockAudio, vibrate } from '../lib/feedback'
-import { errorMessage, formatKg, formatLongDate } from '../lib/format'
+import { errorMessage, formatKg, formatLoad, formatLongDate } from '../lib/format'
 import { t } from '../lib/i18n'
-import { groupByExercise } from '../lib/workoutLogic'
+import { groupByExercise, visibleVolume } from '../lib/workoutLogic'
 import { SetEditorSheet, type SetEditorProps } from './SetEditorSheet'
 
 type Editor = { mode: 'add' } | { mode: 'edit'; set: WorkoutSet }
@@ -34,6 +34,7 @@ export function WorkoutDetailPage() {
   const [pendingDelete, setPendingDelete] = useState<Set<number>>(new Set())
 
   const query = useQuery({ queryKey: queryKeys.workout(id), queryFn: () => api.workout(id) })
+  const profile = useQuery({ queryKey: queryKeys.profile, queryFn: api.profile, staleTime: 5 * 60_000 })
 
   const refreshAll = async () => {
     await Promise.all([
@@ -141,7 +142,7 @@ export function WorkoutDetailPage() {
         <ErrorState error={query.error} onRetry={() => query.refetch()} />
       ) : (
         <>
-          <Summary workout={workout!} sets={visibleSets} />
+          <Summary workout={workout!} sets={visibleSets} volume={visibleVolume(workout!, pendingDelete, profile.data?.bodyWeightKg ?? null)} />
           {visibleSets.length === 0 ? (
             <MessageState icon="🏋" title={t.detailEmptyTitle} body={t.detailEmptyBody} />
           ) : (
@@ -155,7 +156,7 @@ export function WorkoutDetailPage() {
                       <SwipeToDelete key={set.id} label={`${group.exerciseName} #${i + 1}`} onDelete={() => deleteSet(set)}>
                         <button className={set.id === newSetId ? 'set-row new' : 'set-row'} onClick={() => setEditor({ mode: 'edit', set })}>
                           <span className="set-number num">#{i + 1}</span>
-                          <span className="set-weight num">{t.kg(formatKg(set.weightKg))}</span>
+                          <span className={set.bodyweight ? 'set-weight num bodyweight' : 'set-weight num'}>{formatLoad(set.weightKg, set.bodyweight)}</span>
                           <span className="set-reps num">× {set.reps}</span>
                           <span className="set-rpe">{set.rpe != null ? t.rpe(formatKg(set.rpe)) : ''}</span>
                         </button>
@@ -190,6 +191,7 @@ function editorProps(editor: Editor, sets: WorkoutSet[], saving: boolean): Omit<
     initial: {
       exerciseId: source?.exerciseId ?? null,
       exerciseName: source?.exerciseName ?? null,
+      bodyweight: source?.bodyweight ?? false,
       reps: source ? String(source.reps) : '',
       weight: source ? String(source.weightKg) : '',
       rpe: editor.mode === 'edit' && editor.set.rpe != null ? String(editor.set.rpe) : '',
@@ -198,8 +200,7 @@ function editorProps(editor: Editor, sets: WorkoutSet[], saving: boolean): Omit<
 }
 
 /** Hero block: date and notes on a card, with the volume on a raised tile overlapping its corner. */
-function Summary({ workout, sets }: { workout: WorkoutDetail; sets: WorkoutSet[] }) {
-  const volume = sets.reduce((sum, s) => sum + s.reps * s.weightKg, 0)
+function Summary({ workout, sets, volume }: { workout: WorkoutDetail; sets: WorkoutSet[]; volume: number }) {
   const exerciseCount = new Set(sets.map((s) => s.exerciseId)).size
   return (
     <div className="summary">

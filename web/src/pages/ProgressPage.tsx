@@ -5,7 +5,7 @@ import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { PersonalRecord, ProgressPoint, WeeklyVolume } from '../api/types'
 import { ErrorState, Loading, MessageState } from '../components/StateViews'
-import { formatKg, formatShortDate } from '../lib/format'
+import { formatKg, formatRecordSet, formatShortDate } from '../lib/format'
 import { t } from '../lib/i18n'
 import { chooseExercise, yDomain } from '../lib/workoutLogic'
 
@@ -94,7 +94,8 @@ export function ProgressPage() {
           <div className="record-row-main">
             <strong>{record.exerciseName}</strong>
             <div className="muted" style={{ fontSize: 13 }}>
-              {t.weightTimesReps(formatKg(record.heaviestWeightKg), record.heaviestReps)}
+              {formatRecordSet(record)}
+              {record.bodyweight && <span className="badge badge-bodyweight">{t.calisthenics}</span>}
             </div>
           </div>
           <div className="record-row-side">
@@ -113,8 +114,11 @@ function RecordHighlight({ record }: { record: PersonalRecord }) {
     <div className="record-highlight">
       <div className="stat-tile">
         <small>{t.heaviestSet}</small>
-        <strong>{t.weightTimesReps(formatKg(record.heaviestWeightKg), record.heaviestReps)}</strong>
-        <span>{formatShortDate(record.heaviestDate)}</span>
+        <strong>{formatRecordSet(record)}</strong>
+        <span>
+          {formatShortDate(record.heaviestDate)}
+          {record.bodyweight && ` · ${t.totalLoad(formatKg(record.heaviestWeightKg))}`}
+        </span>
       </div>
       <div className="stat-tile emphasized">
         <small>{t.bestE1rm}</small>

@@ -782,6 +782,81 @@
   color: var(--on-primary-container);
 }
 
+/* Calisthenics: a cool green tag so bodyweight moves stand apart from barbell lifts at a glance */
+.badge-bodyweight {
+  margin-left: 6px;
+  background: color-mix(in srgb, var(--tertiary) 18%, transparent);
+  color: var(--tertiary);
+  vertical-align: middle;
+}
+
+.exercise-section + .exercise-section {
+  margin-top: 6px;
+}
+
+/* Sticky muscle-group header with a short colored bar, so long lists keep their place while scrolling */
+.exercise-section-title {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 8px 6px;
+  background: var(--surface-low);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.exercise-section-title::before {
+  content: '';
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--muscle-color, var(--outline));
+}
+
+.field-hint {
+  margin: -4px 0 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--tertiary);
+  border-radius: 0 var(--radius-s) var(--radius-s) 0;
+  background: color-mix(in srgb, var(--tertiary) 10%, transparent);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.toggle-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px;
+  border-radius: var(--radius-m);
+  background: var(--surface-high);
+  cursor: pointer;
+}
+
+.toggle-row input {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  accent-color: var(--primary);
+}
+
+.toggle-row span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.set-weight.bodyweight {
+  color: var(--tertiary);
+}
+
 .template-item {
   display: flex;
   flex-direction: column;

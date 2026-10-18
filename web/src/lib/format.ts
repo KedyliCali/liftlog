@@ -1,4 +1,5 @@
 import { AppError } from '../api/client'
+import type { PersonalRecord } from '../api/types'
 import { locale, t } from './i18n'
 
 /** 140 -> "140", 142.5 -> "142.5", 12500 -> "12,500" (locale-aware grouping). */
@@ -43,4 +44,16 @@ export function errorMessage(error: unknown): string {
     default:
       return t.errorUnknown
   }
+}
+
+/** How a set's load reads: "100 kg", or for bodyweight exercises "Bodyweight" / "BW + 10 kg". */
+export function formatLoad(weightKg: number, bodyweight: boolean): string {
+  if (!bodyweight) return t.kg(formatKg(weightKg))
+  return weightKg === 0 ? t.bodyweightOnly : t.bodyweightPlus(formatKg(weightKg))
+}
+
+/** "100 kg × 5", or "BW + 10 kg × 5" so a weighted pull-up reads the way it was logged. */
+export function formatRecordSet(record: Pick<PersonalRecord, 'heaviestWeightKg' | 'heaviestAddedKg' | 'heaviestReps' | 'bodyweight'>): string {
+  if (!record.bodyweight) return t.weightTimesReps(formatKg(record.heaviestWeightKg), record.heaviestReps)
+  return `${formatLoad(record.heaviestAddedKg, true)} × ${record.heaviestReps}`
 }
