@@ -271,6 +271,58 @@ class ApiIntegrationTest {
                 .andExpect(jsonPath("$.content[0].totalVolumeKg").value(1090.0));
     }
 
+    @Test
+    void nutritionDayTotalsGoalsAndFrequentFoods() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        String today = LocalDate.now(ZoneOffset.UTC).toString();
+        String yesterday = LocalDate.now(ZoneOffset.UTC).minusDays(1).toString();
+        String oats = json("{'entryDate':'%s','name':' Oats ','caloriesKcal':380,'proteinG':13.5}", today);
+        String shake = json("{'entryDate':'%s','name':'Protein shake','caloriesKcal':120,'proteinG':24}", today);
+
+        authed(post("/api/v1/nutrition/entries"), token, oats).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Oats"));
+        long shakeId = read(authed(post("/api/v1/nutrition/entries"), token, shake)
+                .andExpect(status().isCreated()).andReturn()).get("id").asLong();
+        authed(post("/api/v1/nutrition/entries"), token, shake.replace(today, yesterday)).andExpect(status().isCreated());
+        authed(post("/api/v1/nutrition/entries"), token,
+                json("{'entryDate':'%s','name':'','caloriesKcal':-5,'proteinG':1}", today))
+                .andExpect(status().isBadRequest());
+
+        authed(put("/api/v1/nutrition/goals"), token, "{\"calorieGoalKcal\":2600,\"proteinGoalG\":160}")
+                .andExpect(status().isOk());
+        authed(put("/api/v1/nutrition/goals"), token, "{\"calorieGoalKcal\":100}").andExpect(status().isBadRequest());
+
+        // Only today's entries count, in the order they were logged, and the goals come along
+        mockMvc.perform(get("/api/v1/nutrition/days/" + today).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries.length()").value(2))
+                .andExpect(jsonPath("$.entries[0].name").value("Oats"))
+                .andExpect(jsonPath("$.totalCaloriesKcal").value(500))
+                .andExpect(jsonPath("$.totalProteinG").value(37.5))
+                .andExpect(jsonPath("$.goals.calorieGoalKcal").value(2600))
+                .andExpect(jsonPath("$.goals.proteinGoalG").value(160));
+
+        // The shake was eaten twice, so it leads the quick-add list
+        mockMvc.perform(get("/api/v1/nutrition/frequent").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Protein shake"))
+                .andExpect(jsonPath("$[0].timesEaten").value(2))
+                .andExpect(jsonPath("$[1].name").value("Oats"));
+
+        // Another user cannot see or delete these entries
+        String stranger = register(randomEmail(), "s3cret-pass", null);
+        mockMvc.perform(delete("/api/v1/nutrition/entries/" + shakeId).header(HttpHeaders.AUTHORIZATION, "Bearer " + stranger))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/nutrition/days/" + today).header(HttpHeaders.AUTHORIZATION, "Bearer " + stranger))
+                .andExpect(jsonPath("$.entries.length()").value(0))
+                .andExpect(jsonPath("$.totalCaloriesKcal").value(0));
+
+        mockMvc.perform(delete("/api/v1/nutrition/entries/" + shakeId).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/v1/nutrition/days/" + today).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.totalCaloriesKcal").value(380));
+    }
+
     private String register(String email, String password, String displayName) throws Exception {
         String body = displayName == null
                 ? json("{'email':'%s','password':'%s'}", email, password)
