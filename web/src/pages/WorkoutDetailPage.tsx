@@ -51,21 +51,25 @@ export function WorkoutDetailPage() {
     ])
   }
 
-  const saveSet = async (input: SetInput) => {
+  const saveSet = async (input: SetInput, count: number) => {
     if (!editor) return
     unlockAudio() // inside a tap, so iOS allows the rest timer's beep later
     setSaving(true)
     try {
       if (editor.mode === 'add') {
-        const saved = await api.addSet(id, input)
-        setNewSetId(saved.id)
+        // One request per set, in order, so set numbers and the PR check match adding them by hand.
+        // If one fails, the sets already saved stay and the list is refreshed in `finally`.
+        const saved: WorkoutSet[] = []
+        for (let i = 0; i < count; i++) saved.push(await api.addSet(id, input))
+        const records = saved.filter((s) => s.newPersonalRecord)
+        setNewSetId(saved.at(-1)!.id)
         restTimer.start()
-        if (saved.newPersonalRecord) {
-          setRecordSetIds((ids) => new Set(ids).add(saved.id))
+        if (records.length > 0) {
+          setRecordSetIds((ids) => new Set([...ids, ...records.map((s) => s.id)]))
           setCelebrate(true)
           vibrate([30, 40, 30, 40, 80])
           setTimeout(() => setCelebrate(false), 1800)
-          toast({ message: `🎉 ${t.newPr(saved.exerciseName)}`, durationMs: 4500 })
+          toast({ message: `🎉 ${t.newPr(records[0].exerciseName)}`, durationMs: 4500 })
         } else {
           vibrate(20)
         }
@@ -73,10 +77,10 @@ export function WorkoutDetailPage() {
         await api.updateSet(editor.set.id, input)
       }
       setEditor(null)
-      await refreshAll()
     } catch (error) {
       toast({ message: errorMessage(error) })
     } finally {
+      await refreshAll()
       setSaving(false)
     }
   }

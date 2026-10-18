@@ -33,6 +33,13 @@ export function validateSet(form: SetForm): { input: SetInput | null; errors: Se
   return { input, errors }
 }
 
+export const MAX_SETS_AT_ONCE = 10
+
+/** Stepper value for "add N identical sets", kept within 1…MAX_SETS_AT_ONCE. */
+export function clampSetCount(count: number): number {
+  return Math.min(MAX_SETS_AT_ONCE, Math.max(1, Math.round(count)))
+}
+
 export type ProfileField = 'height' | 'weight'
 
 /** Empty fields are allowed and clear the value. */
