@@ -43,13 +43,27 @@ export function amountInGrams(food: CatalogFood, amount: Amount): number {
   return amount.kind === 'grams' ? amount.grams : food.servingG * amount.count
 }
 
-/** Calories as whole numbers and protein to one decimal, matching what the backend stores. */
-export function nutritionFor(food: CatalogFood, amount: Amount): { caloriesKcal: number; proteinG: number } {
+/** Calories as whole numbers and grams to one decimal, matching what the backend stores. */
+export function nutritionFor(food: CatalogFood, amount: Amount): { caloriesKcal: number; proteinG: number; carbsG: number; fatG: number } {
   const grams = amountInGrams(food, amount)
+  const scale = (per100g: number) => Math.round((per100g * grams) / 10) / 10
   return {
     caloriesKcal: Math.round((food.kcalPer100g * grams) / 100),
-    proteinG: Math.round((food.proteinPer100g * grams) / 10) / 10,
+    proteinG: scale(food.proteinPer100g),
+    carbsG: scale(food.carbsPer100g),
+    fatG: scale(food.fatPer100g),
   }
+}
+
+/** Order the catalog is browsed in: a day from breakfast on, then ingredients, then extras. */
+export const CATEGORY_ORDER = ['breakfast', 'dish', 'street', 'protein', 'dairy', 'grain', 'vegetable', 'fruit', 'nut', 'sweet', 'drink']
+
+export function sortByCategory(foods: CatalogFood[]): CatalogFood[] {
+  const rank = (category: string) => {
+    const index = CATEGORY_ORDER.indexOf(category)
+    return index >= 0 ? index : CATEGORY_ORDER.length
+  }
+  return foods.map((food, index) => ({ food, index })).sort((a, b) => rank(a.food.category) - rank(b.food.category) || a.index - b.index).map((x) => x.food)
 }
 
 /** Half-serving steps from ½ to 10, enough for "1½ portions" without a free-form field. */

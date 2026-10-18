@@ -30,6 +30,12 @@ public class Food {
     @Column(name = "protein_per_100g", nullable = false)
     private BigDecimal proteinPer100g;
 
+    @Column(name = "carbs_per_100g", nullable = false)
+    private BigDecimal carbsPer100g;
+
+    @Column(name = "fat_per_100g", nullable = false)
+    private BigDecimal fatPer100g;
+
     @Column(name = "serving_g", nullable = false)
     private BigDecimal servingG;
 
@@ -64,6 +70,14 @@ public class Food {
 
     public BigDecimal getProteinPer100g() {
         return proteinPer100g;
+    }
+
+    public BigDecimal getCarbsPer100g() {
+        return carbsPer100g;
+    }
+
+    public BigDecimal getFatPer100g() {
+        return fatPer100g;
     }
 
     public BigDecimal getServingG() {

@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import type { CatalogFood } from '../api/types'
-import { entryName, foldTurkish, nutritionFor, searchFoods, stepServings } from './foodCatalog'
+import { entryName, foldTurkish, nutritionFor, searchFoods, sortByCategory, stepServings } from './foodCatalog'
 
-const food = (id: number, nameTr: string, nameEn: string, kcalPer100g = 100, proteinPer100g = 10, servingG = 100): CatalogFood => ({
+const food = (id: number, nameTr: string, nameEn: string, kcalPer100g = 100, proteinPer100g = 10, servingG = 100, category = 'dish'): CatalogFood => ({
   id,
-  category: 'dish',
+  category,
   nameTr,
   nameEn,
   kcalPer100g,
   proteinPer100g,
+  carbsPer100g: 10,
+  fatPer100g: 2,
   servingG,
   servingTr: '1 porsiyon',
   servingEn: '1 serving',
@@ -51,9 +53,16 @@ describe('searchFoods', () => {
 
 describe('nutritionFor', () => {
   it('scales per-100 g values by servings or grams', () => {
-    expect(nutritionFor(catalog[0], { kind: 'servings', count: 1 })).toEqual({ caloriesKcal: 150, proteinG: 8 })
-    expect(nutritionFor(catalog[2], { kind: 'servings', count: 1.5 })).toEqual({ caloriesKcal: 371, proteinG: 69.8 })
-    expect(nutritionFor(catalog[2], { kind: 'grams', grams: 120 })).toEqual({ caloriesKcal: 198, proteinG: 37.2 })
+    expect(nutritionFor(catalog[0], { kind: 'servings', count: 1 })).toEqual({ caloriesKcal: 150, proteinG: 8, carbsG: 25, fatG: 5 })
+    expect(nutritionFor(catalog[2], { kind: 'servings', count: 1.5 })).toMatchObject({ caloriesKcal: 371, proteinG: 69.8 })
+    expect(nutritionFor(catalog[2], { kind: 'grams', grams: 120 })).toEqual({ caloriesKcal: 198, proteinG: 37.2, carbsG: 12, fatG: 2.4 })
+  })
+})
+
+describe('sortByCategory', () => {
+  it('lists breakfast first and keeps catalog order within a category', () => {
+    const foods = [food(1, 'Kola', 'Cola', 42, 0, 330, 'drink'), food(2, 'Omlet', 'Omelette', 154, 11, 120, 'breakfast'), food(3, 'Pişi', 'Pisi', 330, 7, 60, 'breakfast')]
+    expect(sortByCategory(foods).map((f) => f.id)).toEqual([2, 3, 1])
   })
 })
 

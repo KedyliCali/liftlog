@@ -97,12 +97,15 @@ export interface Profile {
   avatarVersion: number | null
 }
 
+/** carbsG and fatG are null for entries logged without them. */
 export interface FoodEntry {
   id: number
   entryDate: string
   name: string
   caloriesKcal: number
   proteinG: number
+  carbsG: number | null
+  fatG: number | null
 }
 
 export interface FoodInput {
@@ -110,6 +113,8 @@ export interface FoodInput {
   name: string
   caloriesKcal: number
   proteinG: number
+  carbsG: number | null
+  fatG: number | null
 }
 
 export interface NutritionGoals {
@@ -122,6 +127,8 @@ export interface NutritionDay {
   entries: FoodEntry[]
   totalCaloriesKcal: number
   totalProteinG: number
+  totalCarbsG: number
+  totalFatG: number
   goals: NutritionGoals
 }
 
@@ -133,6 +140,8 @@ export interface CatalogFood {
   nameEn: string
   kcalPer100g: number
   proteinPer100g: number
+  carbsPer100g: number
+  fatPer100g: number
   servingG: number
   servingTr: string
   servingEn: string
@@ -142,6 +151,8 @@ export interface FrequentFood {
   name: string
   caloriesKcal: number
   proteinG: number
+  carbsG: number | null
+  fatG: number | null
   timesEaten: number
 }
 

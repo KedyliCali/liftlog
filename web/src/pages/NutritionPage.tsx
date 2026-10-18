@@ -13,7 +13,7 @@ import { AddFoodSheet } from './AddFoodSheet'
 import { vibrate } from '../lib/feedback'
 import { errorMessage, formatKg, formatLongDate, formatShortDate } from '../lib/format'
 import { t } from '../lib/i18n'
-import { goalProgress, shiftDay, suggestedProteinGoal, todayIso, validateGoals, type GoalField } from '../lib/nutrition'
+import { goalProgress, macroEnergySplit, shiftDay, suggestedProteinGoal, todayIso, validateGoals, type GoalField } from '../lib/nutrition'
 
 export function NutritionPage() {
   const queryClient = useQueryClient()
@@ -78,6 +78,8 @@ export function NutritionPage() {
   const totals = {
     calories: visibleEntries.reduce((sum, e) => sum + e.caloriesKcal, 0),
     protein: visibleEntries.reduce((sum, e) => sum + e.proteinG, 0),
+    carbs: visibleEntries.reduce((sum, e) => sum + (e.carbsG ?? 0), 0),
+    fat: visibleEntries.reduce((sum, e) => sum + (e.fatG ?? 0), 0),
   }
 
   return (
@@ -96,13 +98,14 @@ export function NutritionPage() {
       ) : (
         <>
           <GoalRings calories={totals.calories} protein={totals.protein} goals={day.data.goals} onEdit={() => setEditingGoals(true)} />
+          <MacroSplit protein={totals.protein} carbs={totals.carbs} fat={totals.fat} />
 
           {frequent.data && frequent.data.length > 0 && (
             <section className="quick-add">
               <h2 className="section-title">{t.quickAdd}</h2>
               <div className="chip-row">
                 {frequent.data.map((food) => (
-                  <QuickAddChip key={`${food.name}|${food.caloriesKcal}|${food.proteinG}`} food={food} onAdd={() => add(food, true)} />
+                  <QuickAddChip key={`${food.name}|${food.caloriesKcal}|${food.proteinG}`} food={food} onAdd={() => add({ name: food.name, caloriesKcal: food.caloriesKcal, proteinG: food.proteinG, carbsG: food.carbsG, fatG: food.fatG }, true)} />
                 ))}
               </div>
             </section>
@@ -115,8 +118,14 @@ export function NutritionPage() {
               {visibleEntries.map((entry, index) => (
                 <SwipeToDelete key={entry.id} label={entry.name} onDelete={() => remove(entry)}>
                   <div className="food-row" style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}>
-                    <span className="food-name">{entry.name}</span>
-                    <span className="food-protein num">{t.grams(formatKg(entry.proteinG))}</span>
+                    <span className="food-text">
+                      <span className="food-name">{entry.name}</span>
+                      <span className="food-macros num">
+                        {t.proteinShort(formatKg(entry.proteinG))}
+                        {entry.carbsG != null && ` · ${t.carbsShort(formatKg(entry.carbsG))}`}
+                        {entry.fatG != null && ` · ${t.fatShort(formatKg(entry.fatG))}`}
+                      </span>
+                    </span>
                     <span className="food-kcal num">{t.kcal(formatKg(entry.caloriesKcal))}</span>
                   </div>
                 </SwipeToDelete>
@@ -199,6 +208,33 @@ function GoalRings({ calories, protein, goals, onEdit }: { calories: number; pro
         {hasGoals ? <RemainingText calories={calories} protein={protein} goals={goals} /> : <span className="accent">{t.setGoals} ›</span>}
       </span>
     </button>
+  )
+}
+
+/** One bar split by where the day's calories came from, with gram totals underneath. */
+function MacroSplit({ protein, carbs, fat }: { protein: number; carbs: number; fat: number }) {
+  const split = macroEnergySplit(protein, carbs, fat)
+  const parts = [
+    { key: 'protein', share: split.protein, label: t.proteinShort(formatKg(Math.round(protein))) },
+    { key: 'carbs', share: split.carbs, label: t.carbsShort(formatKg(Math.round(carbs))) },
+    { key: 'fat', share: split.fat, label: t.fatShort(formatKg(Math.round(fat))) },
+  ]
+  return (
+    <div className="macro-split" aria-label={t.macroSplit}>
+      <div className="macro-bar">
+        {parts.map((p) => (
+          <span key={p.key} className={`macro-${p.key}`} style={{ flexGrow: p.share }} />
+        ))}
+      </div>
+      <div className="macro-legend num">
+        {parts.map((p) => (
+          <span key={p.key} className={`macro-${p.key}`}>
+            {p.label}
+            {p.share > 0 && <small> {Math.round(p.share * 100)}%</small>}
+          </span>
+        ))}
+      </div>
+    </div>
   )
 }
 

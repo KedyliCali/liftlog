@@ -38,18 +38,27 @@ public class FoodEntry {
     @Column(name = "protein_g", nullable = false, precision = 5, scale = 1)
     private BigDecimal proteinG;
 
+    @Column(name = "carbs_g", precision = 5, scale = 1)
+    private BigDecimal carbsG;
+
+    @Column(name = "fat_g", precision = 5, scale = 1)
+    private BigDecimal fatG;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
     protected FoodEntry() {
     }
 
-    public FoodEntry(User user, LocalDate entryDate, String name, int caloriesKcal, BigDecimal proteinG) {
+    public FoodEntry(User user, LocalDate entryDate, String name, int caloriesKcal, BigDecimal proteinG,
+                     BigDecimal carbsG, BigDecimal fatG) {
         this.user = user;
         this.entryDate = entryDate;
         this.name = name;
         this.caloriesKcal = caloriesKcal;
         this.proteinG = proteinG;
+        this.carbsG = carbsG;
+        this.fatG = fatG;
     }
 
     public Long getId() {
@@ -70,5 +79,13 @@ public class FoodEntry {
 
     public BigDecimal getProteinG() {
         return proteinG;
+    }
+
+    public BigDecimal getCarbsG() {
+        return carbsG;
+    }
+
+    public BigDecimal getFatG() {
+        return fatG;
     }
 }

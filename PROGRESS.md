@@ -147,3 +147,17 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
   hesaplanıyor. Kayıt adı miktarı içeriyor ("Mercimek çorbası (1,5 × 1 kase)"). "Elle gir" eski formu açıyor.
 - Doğrulama: backend 45 test, web 49 test, lint, build; yerel Docker (V7) ile telefon boyutunda arama,
   porsiyon/gram hesapları ve kayıt elle doğrulandı.
+
+## 2026-10-18 — Daha çok yemek + karbonhidrat/yağ (branch `feature/macros-more-foods`)
+
+- PR #12 (hazır yemek listesi) birleştirildi; canlıda arama çalışıyor, Neon'da V7 uygulandı.
+- **Backend V8:** `foods` ve `food_entries` tablolarına karbonhidrat ve yağ. Mevcut 105 yemeğe değerler
+  eklendi, 210 yeni yemek: kahvaltılıklar, ev yemekleri, sokak lezzetleri/fast food, balıklar, süt ürünleri,
+  tahıllar, sebze, meyve, kuruyemiş, tatlı/atıştırmalık, içecekler (toplam 315, 11 kategori).
+  Entegrasyon testi her yemeğin kalorisini makrolarla karşılaştırıyor (4/4/9 kcal/g, %20 tolerans).
+- **Web:** yemek satırlarında P/K/Y, halkaların altında kalorinin kaynağını gösteren çubuk, porsiyon
+  önizlemesinde K/Y, elle girişte isteğe bağlı karbonhidrat ve yağ. Eski kayıtlarda bu değerler boş kalıyor.
+- Bulunan hata: katalog 1 gün tarayıcı önbelleğinde tutulduğu için yeni yemekler görünmüyordu → istek
+  adresine uygulama sürümü eklendi (`/foods?v=1.3.0`), her sürümde liste tazeleniyor.
+- Doğrulama: backend 45 test, web 51 test, lint; yerel Docker (V8) ile telefon boyutunda arama, kokoreç
+  ekleme, makro çubuğu yüzdeleri elle doğrulandı.
