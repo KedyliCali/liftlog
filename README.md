@@ -4,7 +4,7 @@
 
 **Try it:** <https://liftlog-web.onrender.com> (on iPhone: Share → Add to Home Screen) ·
 API docs: <https://liftlog-api-evn4.onrender.com/swagger-ui.html>. Free hosting: the first request
-after a quiet period wakes the API and can take 2–3 minutes.
+after a quiet period wakes the API and takes about 50 seconds.
 
 A workout tracker with two clients: a native Android app (Kotlin, Jetpack Compose) and a web
 app you can install on an iPhone home screen (React, PWA). Log workouts, exercises and sets,
@@ -186,7 +186,8 @@ cd web && npm test                           # Vitest: validation, session handl
 **Hosted (free):** the API and the web app run on [Render](https://render.com) from `render.yaml`
 (a Docker web service built from `backend/Dockerfile`, and a static site built from `web/`). PostgreSQL runs on [Neon](https://neon.tech). Every backend change merged
 to `main` redeploys automatically. On the free plan the API sleeps after 15 idle minutes, and the
-next request waits for a cold start (about 2–3 minutes at 0.1 CPU). The app shows a
+next request waits for a cold start: about 50 seconds at 0.1 CPU, down from 3 minutes thanks to a
+class data sharing archive built into the image and C1-only JIT (measurements in docs/DEPLOY.md). The app shows a
 "waking up" hint and its timeouts cover the wait. Step-by-step setup (Turkish):
 [docs/DEPLOY.md](docs/DEPLOY.md).
 

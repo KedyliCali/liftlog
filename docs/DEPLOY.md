@@ -7,8 +7,25 @@ Amaç: API'yi internette, kart bilgisi vermeden ve yönetilecek bir sunucu olmad
   backend değişikliğinde kendiliğinden yeniden yayınlanıyor. Ayarları depodaki `render.yaml` dosyasında.
 
 **Ücretsiz planın sınırı:** 15 dakika istek gelmezse API uyuyor. Sonraki ilk istek, sunucu açılana
-kadar bekliyor. 0.1 CPU ile ölçtüğümüzde bu ~2,5 dakika sürdü. Uygulama bu süre boyunca
-"Sunucu uyanıyor…" yazıyor ve zaman aşımına düşmüyor.
+kadar bekliyor. Uygulama bu süre boyunca "Sunucu uyanıyor…" yazıyor ve zaman aşımına düşmüyor.
+
+**Açılış süresi (0.1 CPU, 512 MB; `docker run --cpus 0.1 --memory 512m` ile ölçüldü):**
+
+| Sürüm | Spring "Started in" | Sağlık kontrolü cevap verene kadar |
+|---|---|---|
+| Önce | ~162 sn | ~178 sn |
+| `-XX:TieredStopAtLevel=1` | ~87 sn | ~96 sn |
+| + sınıf veri paylaşımı (CDS arşivi) | ~45 sn | ~51 sn |
+
+- `TieredStopAtLevel=1`: sadece hızlı C1 derleyicisi; açılışta derlemeye giden CPU azalıyor.
+- CDS: imaj oluşturulurken uygulama bir kez veritabanısız "eğitim" için açılıyor
+  (`spring.context.exit=onRefresh`), yüklenen sınıflar `app.jsa` arşivine yazılıyor; gerçek açılışlar
+  sınıfları yeniden ayrıştırmak yerine bu arşivden okuyor. Ayrıntılar `backend/Dockerfile` içinde.
+- Neden uyandırma isteği (ping) yok: Render ekibi uyumayı engellemek için atılan düzenli istekleri
+  "ücretsiz planın ruhuna aykırı" buluyor; ayrıca API hiç uyumazsa Hikari'nin açık bağlantıları Neon'u da
+  uyanık tutar ve aylık 100 saatlik ücretsiz işlem süresi ay ortasında biter. Behlül açılışı hızlandırmayı
+  seçti. Hiç beklememek gerekirse seçenek Render Starter ($7/ay); o durumda `spring.datasource.hikari.minimum-idle: 0`
+  da eklenmeli ki Neon uyuyabilsin.
 
 ---
 
