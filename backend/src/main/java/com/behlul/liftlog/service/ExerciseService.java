@@ -44,7 +44,7 @@ public class ExerciseService {
         User owner = userRepository.getReferenceById(userId);
         String muscleGroup = request.muscleGroup() == null || request.muscleGroup().isBlank()
                 ? null : request.muscleGroup().trim();
-        Exercise saved = exerciseRepository.save(new Exercise(name, muscleGroup, owner));
+        Exercise saved = exerciseRepository.save(new Exercise(name, muscleGroup, Boolean.TRUE.equals(request.bodyweight()), owner));
         return ExerciseResponse.from(saved);
     }
 }
