@@ -125,6 +125,19 @@ export interface NutritionDay {
   goals: NutritionGoals
 }
 
+/** Built-in food list row; nutrition is per 100 g plus one typical serving. */
+export interface CatalogFood {
+  id: number
+  category: string
+  nameTr: string
+  nameEn: string
+  kcalPer100g: number
+  proteinPer100g: number
+  servingG: number
+  servingTr: string
+  servingEn: string
+}
+
 export interface FrequentFood {
   name: string
   caloriesKcal: number

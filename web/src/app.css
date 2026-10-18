@@ -2009,3 +2009,121 @@ body:has(.rest-timer) .set-groups {
   font-weight: 700;
   color: var(--primary);
 }
+
+/* ---------- Food search ---------- */
+.food-results {
+  max-height: 46dvh;
+  overflow-y: auto;
+  margin: 0 -4px;
+}
+
+.food-result {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--outline-variant);
+  text-align: left;
+  transition: transform 0.45s var(--ease-spring), background 0.15s;
+}
+
+.food-result:active {
+  background: var(--surface-high);
+  transform: scale(0.985);
+  transition-duration: 0.08s;
+}
+
+.food-result-name {
+  font-weight: 600;
+}
+
+.food-result-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.catalog-note {
+  margin: 0;
+  font-size: 12px;
+}
+
+[data-category='dish'] { --muscle-color: #ff922b; }
+[data-category='protein'] { --muscle-color: #ff6b6b; }
+[data-category='dairy'] { --muscle-color: #74c0fc; }
+[data-category='grain'] { --muscle-color: #fcc419; }
+[data-category='vegetable'] { --muscle-color: #69db7c; }
+[data-category='fruit'] { --muscle-color: #f783ac; }
+[data-category='nut'] { --muscle-color: #c0a080; }
+[data-category='sweet'] { --muscle-color: #b197fc; }
+[data-category='drink'] { --muscle-color: #66d9e8; }
+
+.amount-food {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.amount-food strong {
+  font-size: 20px;
+}
+
+.amount-food span {
+  font-size: 13px;
+}
+
+/* Two-option switch; the selected half is a raised pill inside the track */
+.segmented {
+  display: flex;
+  padding: 4px;
+  border-radius: var(--radius-m);
+  background: var(--surface-highest);
+}
+
+.segmented button {
+  flex: 1;
+  height: 36px;
+  border-radius: 12px;
+  font-weight: 650;
+  color: var(--text-muted);
+  transition: background 0.2s, color 0.2s;
+}
+
+.segmented button.selected {
+  background: var(--surface-low);
+  color: var(--text);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 18%);
+}
+
+.amount-preview {
+  position: relative;
+  padding: 14px 16px 18px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-l);
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+}
+
+.amount-preview div {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.amount-preview strong {
+  font-size: 26px;
+  animation: stepper-pop 0.35s var(--ease-spring);
+}
+
+.amount-preview-grams {
+  position: absolute;
+  right: 14px;
+  bottom: -10px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  background: var(--surface-highest);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}

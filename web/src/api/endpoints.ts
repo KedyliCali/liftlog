@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { AuthResponse, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, PersonalRecord, Profile, ProgressPoint, SetInput, WeeklyVolume, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types'
+import type { AuthResponse, CatalogFood, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, PersonalRecord, Profile, ProgressPoint, SetInput, WeeklyVolume, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types'
 
 export const api = {
   register: (email: string, password: string) =>
@@ -32,6 +32,7 @@ export const api = {
   addFood: (input: FoodInput) => request<FoodEntry>('/api/v1/nutrition/entries', { method: 'POST', body: input }),
   deleteFood: (id: number) => request<void>(`/api/v1/nutrition/entries/${id}`, { method: 'DELETE', responseType: 'none' }),
   frequentFoods: () => request<FrequentFood[]>('/api/v1/nutrition/frequent'),
+  foods: () => request<CatalogFood[]>('/api/v1/foods'),
   updateNutritionGoals: (goals: NutritionGoals) => request<NutritionGoals>('/api/v1/nutrition/goals', { method: 'PUT', body: goals }),
 
   profile: () => request<Profile>('/api/v1/profile'),
