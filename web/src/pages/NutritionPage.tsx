@@ -9,11 +9,11 @@ import { Sheet } from '../components/Sheet'
 import { NutritionSkeleton } from '../components/Skeletons'
 import { ErrorState, MessageState } from '../components/StateViews'
 import { SwipeToDelete } from '../components/SwipeToDelete'
+import { AddFoodSheet } from './AddFoodSheet'
 import { vibrate } from '../lib/feedback'
 import { errorMessage, formatKg, formatLongDate, formatShortDate } from '../lib/format'
 import { t } from '../lib/i18n'
-import { goalProgress, shiftDay, suggestedProteinGoal, todayIso, validateFood, validateGoals, type FoodField, type FoodForm, type GoalField } from '../lib/nutrition'
-import { sanitizeDecimal } from '../lib/validation'
+import { goalProgress, shiftDay, suggestedProteinGoal, todayIso, validateGoals, type GoalField } from '../lib/nutrition'
 
 export function NutritionPage() {
   const queryClient = useQueryClient()
@@ -250,65 +250,6 @@ function QuickAddChip({ food, onAdd }: { food: FrequentFood; onAdd: () => Promis
         {food.proteinG > 0 && ` · ${t.grams(formatKg(food.proteinG))}`}
       </span>
     </button>
-  )
-}
-
-function AddFoodSheet({ onSave, onClose }: { onSave: (input: Omit<FoodInput, 'entryDate'>) => Promise<void>; onClose: () => void }) {
-  const [form, setForm] = useState<FoodForm>({ name: '', calories: '', protein: '' })
-  const [errors, setErrors] = useState<Set<FoodField>>(new Set())
-  const [saving, setSaving] = useState(false)
-
-  const update = (patch: Partial<FoodForm>, field: FoodField) => {
-    setForm((f) => ({ ...f, ...patch }))
-    setErrors((e) => {
-      const next = new Set(e)
-      next.delete(field)
-      return next
-    })
-  }
-
-  const submit = async () => {
-    const result = validateFood(form)
-    if (!result.input) {
-      setErrors(result.errors)
-      return
-    }
-    setSaving(true)
-    await onSave(result.input)
-    setSaving(false)
-  }
-
-  return (
-    <Sheet title={t.addFood} onClose={onClose}>
-      <form
-        className="stack"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void submit()
-        }}
-      >
-        <div className={errors.has('name') ? 'field invalid' : 'field'}>
-          <label htmlFor="food-name">{t.foodName}</label>
-          <input id="food-name" value={form.name} maxLength={100} placeholder={t.foodNamePlaceholder} autoComplete="off" onChange={(e) => update({ name: e.target.value }, 'name')} />
-          {errors.has('name') && <span className="field-error">{t.errorFoodName}</span>}
-        </div>
-        <div className="row">
-          <div className={errors.has('calories') ? 'field invalid' : 'field'}>
-            <label htmlFor="food-kcal">{t.caloriesKcal}</label>
-            <input id="food-kcal" inputMode="numeric" autoComplete="off" value={form.calories} onChange={(e) => update({ calories: e.target.value.replace(/\D/g, '').slice(0, 5) }, 'calories')} />
-            {errors.has('calories') && <span className="field-error">{t.errorCalories}</span>}
-          </div>
-          <div className={errors.has('protein') ? 'field invalid' : 'field'}>
-            <label htmlFor="food-protein">{t.proteinOptional}</label>
-            <input id="food-protein" inputMode="decimal" autoComplete="off" value={form.protein} onChange={(e) => update({ protein: sanitizeDecimal(e.target.value, 6) }, 'protein')} />
-            {errors.has('protein') && <span className="field-error">{t.errorProtein}</span>}
-          </div>
-        </div>
-        <button type="submit" className="btn btn-primary btn-block" disabled={saving} data-testid="save-food">
-          {saving ? <span className="spinner small" /> : t.save}
-        </button>
-      </form>
-    </Sheet>
   )
 }
 

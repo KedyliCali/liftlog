@@ -2,6 +2,7 @@ package com.behlul.liftlog.service;
 
 import com.behlul.liftlog.dto.NutritionDtos.FoodEntryRequest;
 import com.behlul.liftlog.dto.NutritionDtos.FoodEntryResponse;
+import com.behlul.liftlog.dto.NutritionDtos.FoodResponse;
 import com.behlul.liftlog.dto.NutritionDtos.FrequentFoodResponse;
 import com.behlul.liftlog.dto.NutritionDtos.NutritionDayResponse;
 import com.behlul.liftlog.dto.NutritionDtos.NutritionGoals;
@@ -9,6 +10,7 @@ import com.behlul.liftlog.entity.FoodEntry;
 import com.behlul.liftlog.entity.User;
 import com.behlul.liftlog.exception.ResourceNotFoundException;
 import com.behlul.liftlog.repository.FoodEntryRepository;
+import com.behlul.liftlog.repository.FoodRepository;
 import com.behlul.liftlog.repository.UserRepository;
 import com.behlul.liftlog.security.CurrentUserProvider;
 import org.springframework.data.domain.PageRequest;
@@ -28,13 +30,15 @@ public class NutritionService {
     static final int MAX_FREQUENT = 12;
 
     private final FoodEntryRepository entryRepository;
+    private final FoodRepository foodRepository;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUser;
     private final Clock clock;
 
-    public NutritionService(FoodEntryRepository entryRepository, UserRepository userRepository,
-                            CurrentUserProvider currentUser, Clock clock) {
+    public NutritionService(FoodEntryRepository entryRepository, FoodRepository foodRepository,
+                            UserRepository userRepository, CurrentUserProvider currentUser, Clock clock) {
         this.entryRepository = entryRepository;
+        this.foodRepository = foodRepository;
         this.userRepository = userRepository;
         this.currentUser = currentUser;
         this.clock = clock;
@@ -71,6 +75,11 @@ public class NutritionService {
                 .stream()
                 .map(f -> new FrequentFoodResponse(f.name(), f.caloriesKcal(), f.proteinG(), f.timesEaten()))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<FoodResponse> foodCatalog() {
+        return foodRepository.findAllByOrderByIdAsc().stream().map(FoodResponse::from).toList();
     }
 
     @Transactional
