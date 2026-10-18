@@ -65,14 +65,17 @@ her kararın nedenini ve mülakat cevaplarını anlatıyor. **Sıradaki ilk iş 
 - Behlül'de kalan: Neon projesi (Frankfurt, yalnızca Postgres açık) → Render Blueprint. Adımlar `docs/DEPLOY.md`'de.
   Neon'dan **sunucu adı + kullanıcı adı** gelecek (şifre değil), sonra Render'daki 3 alan doldurulacak.
 
-**Cila** (branch `feature/app-polish`, henüz PR yok):
-- [x] Otomatik cihaz hesabı: giriş ekranı kaldırıldı (emülatörde doğrulandı, 21 Android testi geçti)
-- [x] Profil backend'i: isim, boy, kilo, fotoğraf (V4, `/api/v1/profile`, 40 backend testi geçti)
-- [ ] Profil Android ekranı: fotoğraf seç/kırp/küçült (256 px JPEG), isim/boy/kilo düzenleme
-- [ ] Dinlenme zamanlayıcısı (set kaydedince geri sayım + titreşim)
-- [ ] Kaydırarak silme + geri al (antrenman ve set)
-- [ ] Animasyon, titreşim, PR konfetisi
-- [ ] Antrenman şablonları + son ağırlıkları önerme (backend V5 + Android)
-- [ ] README'yi güncelle: "email + password" yerine cihaz hesabı, yeni ekran görüntüleri
+**Cila + iPhone** (branch `feature/app-polish`):
+- [x] Otomatik cihaz hesabı: giriş ekranı yok (Android + web)
+- [x] Profil: isim, boy, kilo, VKİ, fotoğraf (backend V4, Android ekranı, web sayfası)
+- [x] **iPhone için web uygulaması (PWA)**, `web/`: React + TypeScript + Vite. Safari → Ana Ekrana Ekle
+- [x] Dinlenme zamanlayıcısı, kaydırarak silme + geri al, şablon (eski antrenmanı tekrarla), PR konfetisi (web)
+- [x] Backend CORS (`CORS_ALLOWED_ORIGINS`), Render statik sitesi (`render.yaml`), CI'da web işi
+- Doğrulama: backend 41 test, Android 21 test, web 17 test geçti; web tarayıcıda telefon boyutunda
+  uçtan uca denendi (oluşturma, set, PR, zamanlayıcı, kaydırma/geri al, şablon, profil, fotoğraf).
+  Android profil düzenleme emülatörde denendi; Android'de fotoğraf seçici denenmedi.
+- Android'e zamanlayıcı/kaydırma/şablon **eklenmedi** (iPhone kullanıldığı için web'e öncelik verildi).
+- Not: Docker Desktop açılışta çöküyordu (kalmış soket dosyaları). `%LOCALAPPDATA%\Dockerun` ve
+  `docker-secrets-engine` klasörlerinin adı `.bozuk*` yapılarak çözüldü; bu klasörler silinebilir.
 
-**Sıradaki adım:** Profil Android ekranı → kalan cila maddeleri → tek PR → Render'a yayın.
+**Sıradaki adım:** PR'ı birleştir → Neon projesi → Render Blueprint (`docs/DEPLOY.md`) → iPhone'a ekle.
