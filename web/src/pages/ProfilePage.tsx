@@ -5,6 +5,7 @@ import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { Profile } from '../api/types'
 import { Sheet } from '../components/Sheet'
+import { RecoveryCodeCard } from '../components/RecoveryCard'
 import { ProfileSkeleton } from '../components/Skeletons'
 import { ErrorState } from '../components/StateViews'
 import { useToast } from '../components/contexts'
@@ -12,12 +13,9 @@ import { errorMessage, formatKg } from '../lib/format'
 import { locale, t } from '../lib/i18n'
 import { toAvatarJpeg } from '../lib/image'
 import { initials } from '../lib/workoutLogic'
+import { isStandalone } from '../lib/platform'
 import { bmi, sanitizeDecimal, validateProfile, type ProfileField } from '../lib/validation'
 import { CameraIcon, PencilIcon } from '../components/Icons'
-
-/** True when running from the home screen rather than a browser tab (iOS standalone mode). */
-const isStandalone = () =>
-  window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true
 
 export function ProfilePage() {
   const queryClient = useQueryClient()
@@ -121,6 +119,8 @@ export function ProfilePage() {
         <BodyStat label={t.bodyWeight} value={data.bodyWeightKg != null ? t.kg(formatKg(data.bodyWeightKg)) : null} />
         <BodyStat label={t.bmi} value={bodyMassIndex != null ? bodyMassIndex.toLocaleString(locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 }) : null} emphasized />
       </div>
+
+      <RecoveryCodeCard />
 
       <div className="info-card">
         <div className="info-row">

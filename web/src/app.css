@@ -2642,3 +2642,188 @@ body:has(.rest-timer) .set-groups {
   border-radius: var(--radius-m);
   background: var(--surface-high);
 }
+
+/* ---------- Recovery code ---------- */
+.recovery-screen {
+  min-height: 100dvh;
+  padding-top: calc(var(--safe-top) + 24px);
+}
+
+.recovery-back {
+  padding: 0;
+  margin-bottom: 12px;
+}
+
+.recovery-screen .page-title {
+  margin-bottom: 16px;
+}
+
+.recovery-actions {
+  width: 100%;
+  max-width: 320px;
+  margin-top: 8px;
+}
+
+.recovery-footnote {
+  max-width: 320px;
+  margin: 8px auto 0;
+  font-size: 13px;
+  text-align: center;
+}
+
+.recovery-fresh {
+  display: block;
+  margin: 16px auto 0;
+}
+
+.code-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-m);
+  background: var(--surface-high);
+  /* 16px or more: iOS zooms the page into smaller inputs */
+  font: 16px/1.4 ui-monospace, 'SF Mono', Menlo, monospace;
+  resize: none;
+  word-break: break-all;
+}
+
+.restore-confirm-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  text-transform: uppercase;
+}
+
+.recovery-card {
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  scroll-margin-top: 16px;
+}
+
+.recovery-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.recovery-card-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+  text-transform: uppercase;
+}
+
+/* Icon on a small tile with a second tile peeking out behind it */
+.recovery-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-m);
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: 4px 4px 0 var(--primary-container);
+}
+
+.recovery-text {
+  margin: 10px 0 0;
+  font-size: 13px;
+}
+
+.recovery-warning {
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--error);
+}
+
+/* The code box sits on an offset plate, with a lime strip on its left edge */
+.recovery-code-wrap {
+  position: relative;
+  margin: 14px 8px 18px 0;
+}
+
+.recovery-code-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 8px -8px -8px 8px;
+  z-index: 0;
+  border-radius: var(--radius-m);
+  background: var(--surface-highest);
+}
+
+.recovery-code {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  padding: 14px 14px 14px 18px;
+  border: 1px solid var(--outline);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-m);
+  background: var(--surface-high);
+  font: 15px/1.5 ui-monospace, 'SF Mono', Menlo, monospace;
+  letter-spacing: 1px;
+  text-align: left;
+  word-break: break-all;
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+.recovery-code:not(.revealed) {
+  color: var(--text-muted);
+  letter-spacing: 4px;
+}
+
+.recovery-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.recovery-buttons .btn {
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.recovery-new {
+  margin-left: auto;
+}
+
+.recovery-switch {
+  display: block;
+  margin-top: 12px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--outline-variant);
+  width: 100%;
+  text-align: left;
+  border-radius: 0;
+}
+
+.recovery-nudge {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--outline-variant);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+}
+
+.recovery-nudge p {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.recovery-nudge .row {
+  justify-content: flex-start;
+}
+
+.recovery-nudge .btn {
+  flex: none;
+  min-height: 38px;
+}

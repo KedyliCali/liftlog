@@ -4,6 +4,7 @@ import { Link, useViewTransitionState } from 'react-router'
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { WorkoutSummary } from '../api/types'
+import { RecoveryNudge } from '../components/RecoveryNudge'
 import { WorkoutListSkeleton } from '../components/Skeletons'
 import { ErrorState, MessageState } from '../components/StateViews'
 import { SwipeToDelete } from '../components/SwipeToDelete'
@@ -77,15 +78,18 @@ export function WorkoutsPage() {
       ) : workouts.length === 0 ? (
         <MessageState icon={<DumbbellIcon size={32} />} title={t.workoutsEmptyTitle} body={t.workoutsEmptyBody} />
       ) : (
-        <div className="workout-list">
-          {workouts.map((workout, index) => (
-            <SwipeToDelete key={workout.id} label={workout.notes ?? t.untitledWorkout} onDelete={() => removeWorkout(workout)}>
-              <WorkoutCard workout={workout} index={index} />
-            </SwipeToDelete>
-          ))}
-          <div ref={sentinel} />
-          {isFetchingNextPage && <div className="spinner small" style={{ margin: '0 auto' }} />}
-        </div>
+        <>
+          <RecoveryNudge />
+          <div className="workout-list">
+            {workouts.map((workout, index) => (
+              <SwipeToDelete key={workout.id} label={workout.notes ?? t.untitledWorkout} onDelete={() => removeWorkout(workout)}>
+                <WorkoutCard workout={workout} index={index} />
+              </SwipeToDelete>
+            ))}
+            <div ref={sentinel} />
+            {isFetchingNextPage && <div className="spinner small" style={{ margin: '0 auto' }} />}
+          </div>
+        </>
       )}
 
       <button className="fab" onClick={() => setCreating(true)} data-testid="fab-new-workout">

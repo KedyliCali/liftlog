@@ -2,7 +2,7 @@ import type { ApiErrorBody } from './types'
 
 export const API_BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080').replace(/\/$/, '')
 
-export type AppErrorKind = 'network' | 'notFound' | 'unauthorized' | 'validation' | 'conflict' | 'server' | 'riotNoKey' | 'riotUnavailable' | 'unknown'
+export type AppErrorKind = 'network' | 'notFound' | 'unauthorized' | 'validation' | 'conflict' | 'server' | 'riotNoKey' | 'riotUnavailable' | 'signedOut' | 'unknown'
 
 /** Typed failure the UI knows how to explain; components never inspect HTTP details. */
 export class AppError extends Error {
@@ -40,8 +40,8 @@ function errorFromResponse(status: number, body: ApiErrorBody | null): AppError 
 
 type TokenSource = {
   getToken: () => string | null
-  /** Called when an authenticated request gets 401 (token expired or revoked). */
-  onUnauthorized: () => void
+  /** Called with the token that got a 401 (expired or revoked), which may no longer be the current one. */
+  onUnauthorized: (rejectedToken: string) => void
 }
 
 let tokenSource: TokenSource = { getToken: () => null, onUnauthorized: () => {} }
@@ -81,7 +81,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
 
   if (!response.ok) {
-    if (response.status === 401 && token) tokenSource.onUnauthorized()
+    if (response.status === 401 && token) tokenSource.onUnauthorized(token)
     const errorBody = (await response.json().catch(() => null)) as ApiErrorBody | null
     throw errorFromResponse(response.status, errorBody)
   }

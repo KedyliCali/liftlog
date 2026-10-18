@@ -41,6 +41,8 @@ export function errorMessage(error: unknown): string {
       return error.detail ?? t.errorInvalid
     case 'conflict':
       return error.detail ?? t.errorConflict
+    case 'signedOut':
+      return t.signedOutTitle
     case 'riotNoKey':
       return t.riotNoKey
     case 'riotUnavailable':

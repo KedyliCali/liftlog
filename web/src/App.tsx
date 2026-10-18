@@ -1,13 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from 'react'
+import { lazy, Suspense } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { AppError } from './api/client'
-import { session, signInDevice } from './api/session'
 import { Layout } from './components/Layout'
 import { RestTimerProvider } from './components/RestTimer'
 import { ProgressSkeleton } from './components/Skeletons'
-import { ErrorState, Loading } from './components/StateViews'
 import { ToastProvider } from './components/Toast'
+import { SessionGate } from './SessionGate'
 import { t } from './lib/i18n'
 import { GamePage } from './pages/GamePage'
 import { LolPlayerPage } from './pages/LolPlayerPage'
@@ -66,31 +65,14 @@ const router = createBrowserRouter([
   },
 ])
 
-/** Root gate: without a token, sign in with this browser's hidden account before showing anything. */
-function SessionGate() {
-  const token = useSyncExternalStore(session.subscribe, session.getToken)
-  const [error, setError] = useState<unknown>(null)
-
-  useEffect(() => {
-    if (!token) signInDevice().catch(setError)
-  }, [token])
-
-  const retry = () => {
-    setError(null)
-    signInDevice().catch(setError)
-  }
-
-  if (token) return <RouterProvider router={router} />
-  if (error) return <ErrorState error={error} onRetry={retry} />
-  return <Loading />
-}
-
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <RestTimerProvider>
-          <SessionGate />
+          <SessionGate>
+            <RouterProvider router={router} />
+          </SessionGate>
         </RestTimerProvider>
       </ToastProvider>
     </QueryClientProvider>
