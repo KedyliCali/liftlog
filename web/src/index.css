@@ -1,29 +1,33 @@
-/* Design tokens mirror the Android theme (ui/theme/Theme.kt) so both clients feel like one product. */
+/*
+ * "Training equipment" look: near-black, one lime signal color, condensed type for titles and numbers,
+ * hairline borders and tight corners. Flat on purpose: no glows or gradients, so numbers carry the screen.
+ */
 :root {
   color-scheme: dark;
-  --primary: #ff6b2c;
-  --on-primary: #1a0a02;
-  --primary-container: #4a2210;
-  --on-primary-container: #ffa476;
-  --secondary-container: #2c313b;
-  --on-secondary-container: #dde1e8;
-  --tertiary: #7fd1ae;
-  --bg: #15171c;
-  --surface-low: #1b1e24;
-  --surface: #1f2229;
-  --surface-high: #262a32;
-  --surface-highest: #30343d;
-  --text: #e8eaee;
-  --text-muted: #aeb4c0;
-  --outline: #4a505c;
-  --outline-variant: #353a44;
-  --error: #ff8a80;
-  --scrim: rgb(0 0 0 / 55%);
+  --primary: #c8ff2e;
+  --on-primary: #0a0a0b;
+  --primary-container: #232d0c;
+  --on-primary-container: #c8ff2e;
+  --secondary-container: #232327;
+  --on-secondary-container: #e4e4e7;
+  --tertiary: #38d3ff;
+  --bg: #0a0a0b;
+  --surface-low: #111113;
+  --surface: #161618;
+  --surface-high: #1e1e21;
+  --surface-highest: #29292d;
+  --text: #f4f4f5;
+  --text-muted: #8b8b94;
+  --outline: #3a3a40;
+  --outline-variant: #242428;
+  --error: #ff5a4e;
+  --scrim: rgb(0 0 0 / 65%);
 
-  --radius-s: 8px;
-  --radius-m: 16px;
-  --radius-l: 20px;
-  --radius-xl: 24px;
+  --radius-s: 4px;
+  --radius-m: 8px;
+  --radius-l: 10px;
+  --radius-xl: 12px;
+  --font-display: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
   --nav-height: 64px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -31,7 +35,7 @@
   /* Overshooting curve for things that should feel physical (nav pill, pressed buttons) */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: 'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -41,23 +45,24 @@
 @media (prefers-color-scheme: light) {
   :root {
     color-scheme: light;
-    --primary: #b8400f;
+    /* Lime cannot carry text on white, so light mode darkens it to an olive with the same hue */
+    --primary: #4d7c00;
     --on-primary: #ffffff;
-    --primary-container: #ffdbcb;
-    --on-primary-container: #3a1100;
-    --secondary-container: #dde1e8;
-    --on-secondary-container: #1b1e24;
-    --tertiary: #1e7a57;
-    --bg: #f7f7f9;
-    --surface-low: #f0f1f4;
-    --surface: #eaecef;
-    --surface-high: #e3e5e9;
-    --surface-highest: #dcdfe4;
-    --text: #1b1e24;
-    --text-muted: #4a505c;
-    --outline: #9aa0ab;
-    --outline-variant: #cdd1d8;
-    --error: #ba1a1a;
+    --primary-container: #e6f5c4;
+    --on-primary-container: #2a4400;
+    --secondary-container: #e7e7e3;
+    --on-secondary-container: #0a0a0b;
+    --tertiary: #0077a8;
+    --bg: #f3f3f0;
+    --surface-low: #fafaf8;
+    --surface: #ffffff;
+    --surface-high: #ededea;
+    --surface-highest: #e2e2de;
+    --text: #0a0a0b;
+    --text-muted: #5c5c63;
+    --outline: #b5b5ae;
+    --outline-variant: #dcdcd6;
+    --error: #c62828;
     --scrim: rgb(0 0 0 / 35%);
   }
 }
@@ -97,9 +102,12 @@ select {
   color: inherit;
 }
 
+/* Numbers are the point of the app: condensed, tabular, slightly heavier than the text around them */
 .num {
+  font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
+  letter-spacing: 0.2px;
 }
 
 .muted {

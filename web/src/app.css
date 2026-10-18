@@ -29,28 +29,33 @@
   padding: 24px 4px 12px;
 }
 
+/* Short signal-colored rule above the title, offset left of the text like a section marker */
 .page-header::before {
-  /* small accent block offset behind the title, like the Android header */
   content: '';
   display: block;
-  width: 44px;
-  height: 10px;
-  border-radius: 3px;
+  width: 28px;
+  height: 3px;
+  margin-bottom: 10px;
   background: var(--primary);
-  margin-bottom: 4px;
 }
 
 .page-title {
   margin: 0;
-  font-size: 40px;
-  font-weight: 900;
-  letter-spacing: -1px;
-  line-height: 1.1;
+  font-family: var(--font-display);
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  line-height: 0.95;
+  text-transform: uppercase;
 }
 
 .page-subtitle {
-  margin: 2px 0 0;
+  margin: 6px 0 0;
   color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
 }
 
 .top-bar {
@@ -62,14 +67,18 @@
 
 .top-bar h1 {
   margin: 0;
-  font-size: 22px;
   flex: 1;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 .icon-btn {
   width: 44px;
   height: 44px;
-  border-radius: 50%;
+  border-radius: var(--radius-m);
   display: grid;
   place-items: center;
   font-size: 22px;
@@ -123,8 +132,18 @@
   transition: background 0.2s;
 }
 
+.nav-item {
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-size: 11px;
+}
+
 .nav-item.active {
   color: var(--text);
+}
+
+.nav-item.active .nav-icon {
+  color: var(--primary);
 }
 
 /* Sliding pill behind the active tab; it sits under the icon row of each equal-width tab */
@@ -147,11 +166,11 @@
   content: '';
   position: absolute;
   left: 50%;
-  width: 56px;
-  height: 100%;
-  margin-left: -28px;
-  border-radius: 15px;
-  background: var(--secondary-container);
+  top: -8px;
+  width: 32px;
+  height: 3px;
+  margin-left: -16px;
+  background: var(--primary);
 }
 
 .nav-item .nav-icon {
@@ -262,7 +281,7 @@
   gap: 8px;
   min-height: 44px;
   padding: 0 20px;
-  border-radius: 22px;
+  border-radius: var(--radius-m);
   font-weight: 600;
   transition: transform 0.12s, filter 0.12s;
 }
@@ -278,6 +297,11 @@
 .btn-primary {
   background: var(--primary);
   color: var(--on-primary);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
 }
 
 .btn-tonal {
@@ -298,7 +322,6 @@
 .btn-block {
   width: 100%;
   min-height: 52px;
-  border-radius: 26px;
 }
 
 .fab {
@@ -306,16 +329,20 @@
   right: max(16px, calc((100vw - 560px) / 2 + 16px));
   bottom: calc(var(--nav-height) + var(--safe-bottom) + 16px);
   z-index: 15;
-  height: 56px;
-  padding: 0 20px;
-  border-radius: 18px;
-  background: var(--primary-container);
-  color: var(--on-primary-container);
+  height: 52px;
+  padding: 0 18px;
+  border-radius: var(--radius-m);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-family: var(--font-display);
+  font-size: 18px;
   font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
   display: flex;
   align-items: center;
   gap: 10px;
-  box-shadow: 0 6px 18px rgb(0 0 0 / 30%);
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--primary) 35%, var(--bg));
   transition: transform 0.15s;
 }
 
@@ -404,7 +431,11 @@
 
 .state-title {
   margin: 8px 0 0;
-  font-size: 18px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 .state-body,
@@ -445,13 +476,13 @@
   position: absolute;
   width: 72px;
   height: 72px;
-  border-radius: 22px;
+  border-radius: var(--radius-m);
 }
 
 .layered-tile-back {
   left: 30px;
   top: 6px;
-  background: var(--primary-container);
+  border: 2px solid var(--primary);
 }
 
 .layered-tile-front {
@@ -466,11 +497,10 @@
 
 .layered-tile-dot {
   position: absolute;
-  left: 74px;
-  top: 82px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
+  left: 76px;
+  top: 84px;
+  width: 10px;
+  height: 10px;
   background: var(--primary);
 }
 
@@ -501,6 +531,7 @@
   margin-left: 18px;
   min-height: 112px;
   padding: 16px 16px 16px 76px;
+  border: 1px solid var(--outline-variant);
   border-radius: var(--radius-l);
   background: var(--surface);
   transition: background 0.15s;
@@ -512,8 +543,11 @@
 
 .workout-card-title {
   margin: 0;
-  font-size: 17px;
-  font-weight: 650;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -527,9 +561,11 @@
 }
 
 .chip {
-  font-size: 13px;
-  font-weight: 600;
-  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 3px 7px;
   border-radius: var(--radius-s);
   background: var(--secondary-container);
   color: var(--on-secondary-container);
@@ -540,7 +576,7 @@
   font-weight: 700;
 }
 
-/* Date block overhanging the card's left edge, with a darker tile peeking out below */
+/* Date block overhanging the card's left edge: a flat tile with a lime strip offset behind it */
 .date-block {
   position: absolute;
   left: 0;
@@ -556,16 +592,16 @@
   top: 8px;
   width: 64px;
   height: 76px;
-  border-radius: 16px;
-  background: var(--primary-container);
+  border-radius: var(--radius-m);
+  background: var(--primary);
 }
 
 .date-block-front {
   position: absolute;
   inset: 0 6px 8px 0;
-  border-radius: 16px;
-  background: var(--primary);
-  color: var(--on-primary);
+  border-radius: var(--radius-m);
+  background: var(--surface-highest);
+  color: var(--text);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -581,7 +617,9 @@
 }
 
 .date-block-front strong {
-  font-size: 28px;
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
 
@@ -594,20 +632,27 @@
 .summary-card {
   margin-right: 28px;
   padding: 20px 20px 36px;
+  border: 1px solid var(--outline-variant);
   border-radius: var(--radius-xl);
-  background: var(--surface-high);
+  background: var(--surface);
 }
 
 .summary-date {
   color: var(--primary);
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
 }
 
 .summary-title {
   margin: 4px 0 16px;
-  font-size: 28px;
+  font-family: var(--font-display);
+  font-size: 34px;
   font-weight: 800;
+  letter-spacing: 0.3px;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .summary-stats {
@@ -616,11 +661,15 @@
 }
 
 .stat-value {
-  font-size: 22px;
+  font-size: 30px;
+  line-height: 1;
 }
 
 .stat-label {
-  font-size: 13px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 
@@ -629,11 +678,10 @@
   right: 0;
   bottom: -14px;
   padding: 10px 16px;
-  border-radius: 18px;
+  border-radius: var(--radius-m);
   background: var(--primary);
   color: var(--on-primary);
   text-align: right;
-  box-shadow: 0 6px 16px rgb(0 0 0 / 25%);
 }
 
 .volume-badge small {
@@ -645,7 +693,9 @@
 }
 
 .volume-badge strong {
-  font-size: 22px;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1011,10 +1061,12 @@
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  border-radius: 12px;
-  background: var(--text);
-  color: var(--bg);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 30%);
+  border: 1px solid var(--outline);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-m);
+  background: var(--surface-highest);
+  color: var(--text);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 40%);
   animation: toast-in 0.25s var(--ease-out);
 }
 
@@ -1032,7 +1084,8 @@
 .toast-action {
   color: var(--primary);
   font-weight: 700;
-  filter: brightness(1.2);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 /* ---------- Rest timer ---------- */
@@ -1209,7 +1262,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.stat-tile span {
+.stat-tile > span {
   font-size: 12px;
   opacity: 0.7;
 }
@@ -1220,15 +1273,17 @@
   top: 0;
   width: 34px;
   height: 34px;
-  border-radius: 12px;
+  border-radius: var(--radius-m);
   display: grid;
   place-items: center;
-  background: var(--tertiary);
+  background: var(--primary);
+  color: var(--on-primary);
   font-size: 18px;
 }
 
 .chart-card {
   padding: 20px;
+  border: 1px solid var(--outline-variant);
   border-radius: var(--radius-xl);
   background: var(--surface);
   margin-bottom: 16px;
@@ -1281,8 +1336,12 @@
 }
 
 .section-title {
-  font-size: 20px;
   margin: 8px 4px 12px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 /* ---------- Profile ---------- */
@@ -1317,15 +1376,16 @@
 .avatar-circle {
   width: 112px;
   height: 112px;
-  border-radius: 50%;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   border: 4px solid var(--bg);
   background: var(--primary);
   color: var(--on-primary);
   display: grid;
   place-items: center;
-  font-size: 40px;
-  font-weight: 900;
+  font-family: var(--font-display);
+  font-size: 46px;
+  font-weight: 800;
   position: relative;
 }
 
@@ -1349,9 +1409,10 @@
   top: 78px;
   width: 38px;
   height: 38px;
-  border-radius: 50%;
+  border-radius: var(--radius-m);
   border: 4px solid var(--bg);
-  background: var(--tertiary);
+  background: var(--primary);
+  color: var(--on-primary);
   display: grid;
   place-items: center;
   font-size: 15px;
@@ -1585,20 +1646,6 @@ body:has(.rest-timer) .toast {
   }
 }
 
-/* Soft glow of the accent color behind each page title; offset to the left so it reads as light
-   falling on the header rather than a centered blob */
-.page-header::after {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  left: -60px;
-  top: -40px;
-  width: 260px;
-  height: 180px;
-  background: radial-gradient(closest-side, color-mix(in srgb, var(--primary) 22%, transparent), transparent);
-  pointer-events: none;
-}
-
 /* ---------- Micro-interactions ---------- */
 /* Press in quickly, spring back out: the release uses the slower overshooting curve */
 .btn,
@@ -1651,9 +1698,9 @@ body:has(.rest-timer) .toast {
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.04em;
-  color: #2b1600;
-  background: linear-gradient(135deg, #ffd43b, #ff922b);
-  box-shadow: 0 0 0 0 rgb(255 169 77 / 50%);
+  color: var(--on-primary);
+  background: var(--primary);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 50%, transparent);
   animation: pr-glow 2.4s ease-in-out infinite;
 }
 
@@ -1668,7 +1715,7 @@ body:has(.rest-timer) .toast {
 
 @keyframes pr-glow {
   50% {
-    box-shadow: 0 0 10px 1px rgb(255 169 77 / 45%);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 30%, transparent);
   }
 }
 
@@ -1878,8 +1925,9 @@ body:has(.rest-timer) .set-groups {
 }
 
 .ring-label strong {
-  font-size: 34px;
-  font-weight: 850;
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 800;
 }
 
 .ring-protein .ring-label strong {
@@ -2205,4 +2253,66 @@ body:has(.rest-timer) .set-groups {
   font-size: 13px;
   font-weight: 650;
   opacity: 0.85;
+}
+
+/* ---------- Sport style: shared panel outline ---------- */
+.exercise-group,
+.stat-tile,
+.food-row,
+.quick-chip,
+.record-row,
+.selector {
+  border: 1px solid var(--outline-variant);
+}
+
+.stat-tile strong,
+.record-row-side .accent {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.exercise-group-title,
+.sheet-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.sheet-title {
+  font-size: 26px;
+}
+
+.exercise-group-title {
+  font-size: 19px;
+}
+
+.stat-tile small,
+.ring-label small,
+.field label,
+.field-label,
+.selector-label {
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.filter-chip {
+  border-radius: var(--radius-s);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-size: 13px;
+}
+
+.filter-chip.selected {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.food-kcal,
+.set-weight {
+  font-size: 19px;
 }
