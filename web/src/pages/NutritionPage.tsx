@@ -14,6 +14,7 @@ import { vibrate } from '../lib/feedback'
 import { errorMessage, formatKg, formatLongDate, formatShortDate } from '../lib/format'
 import { t } from '../lib/i18n'
 import { goalProgress, macroEnergySplit, shiftDay, suggestedProteinGoal, todayIso, validateGoals, type GoalField } from '../lib/nutrition'
+import { PlateIcon } from '../components/Icons'
 
 export function NutritionPage() {
   const queryClient = useQueryClient()
@@ -112,7 +113,7 @@ export function NutritionPage() {
           )}
 
           {visibleEntries.length === 0 ? (
-            <MessageState icon="🍽" title={t.noFoodTitle} body={t.noFoodBody} />
+            <MessageState icon={<PlateIcon size={32} />} title={t.noFoodTitle} body={t.noFoodBody} />
           ) : (
             <div className="food-list">
               {visibleEntries.map((entry, index) => (

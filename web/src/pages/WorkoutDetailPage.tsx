@@ -17,6 +17,7 @@ import { errorMessage, formatKg, formatLoad, formatLongDate } from '../lib/forma
 import { t } from '../lib/i18n'
 import { groupByExercise, visibleVolume } from '../lib/workoutLogic'
 import { SetEditorSheet, type SetEditorProps } from './SetEditorSheet'
+import { DumbbellIcon } from '../components/Icons'
 
 type Editor = { mode: 'add' } | { mode: 'edit'; set: WorkoutSet }
 
@@ -69,7 +70,7 @@ export function WorkoutDetailPage() {
           setCelebrate(true)
           vibrate([30, 40, 30, 40, 80])
           setTimeout(() => setCelebrate(false), 1800)
-          toast({ message: `🎉 ${t.newPr(records[0].exerciseName)}`, durationMs: 4500 })
+          toast({ message: t.newPr(records[0].exerciseName), durationMs: 4500 })
         } else {
           vibrate(20)
         }
@@ -171,7 +172,7 @@ export function WorkoutDetailPage() {
             volume={visibleVolume(workout!, pendingDelete, profile.data?.bodyWeightKg ?? null)}
           />
           {visibleSets.length === 0 ? (
-            <MessageState icon="🏋" title={t.detailEmptyTitle} body={t.detailEmptyBody} />
+            <MessageState icon={<DumbbellIcon size={32} />} title={t.detailEmptyTitle} body={t.detailEmptyBody} />
           ) : (
             <div className="set-groups">
               {groupByExercise(visibleSets).map((group, index) => (

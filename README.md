@@ -30,6 +30,7 @@ the same JWT-secured Spring Boot REST API backed by PostgreSQL, packaged with Do
 - **Progress:** heaviest set and best estimated 1RM per exercise, an e1RM trend chart and weekly training volume.
 - **PR alerts:** the app celebrates when a new set beats your previous best.
 - **English and Turkish UI**, light and dark theme following the system.
+- **Look:** a flat "training equipment" style: near-black panels with hairline borders, one lime signal color (olive in light mode), Barlow Condensed for titles and numbers, one drawn SVG icon set instead of emoji. Fonts are self-hosted so the installed app works offline.
 - **Motion:** View Transitions (the tapped workout card morphs into the detail page), a spring-animated nav pill, skeleton loaders shaped like the real cards, count-up totals and a glowing PR tag.
 
 ## Tech stack

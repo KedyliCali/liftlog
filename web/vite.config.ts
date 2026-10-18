@@ -36,6 +36,9 @@ export default defineConfig({
       workbox: {
         // Only the app shell is cached; API data always comes from the server so it is never stale
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // The font packages ship every script; only Latin (with Turkish letters in latin-ext) is ever shown.
+        // Other subsets still load from the server through unicode-range if a name ever needs them.
+        globIgnores: ['**/*-vietnamese-*.woff2', '**/*-cyrillic*.woff2', '**/*-greek*.woff2'],
         navigateFallback: '/index.html',
       },
     }),

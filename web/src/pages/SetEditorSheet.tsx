@@ -9,6 +9,7 @@ import { errorMessage, formatKg } from '../lib/format'
 import { t } from '../lib/i18n'
 import { clampSetCount, MAX_SETS_AT_ONCE, sanitizeDecimal, validateSet, type SetField, type SetForm } from '../lib/validation'
 import { groupByMuscle, weightAfterPick } from '../lib/workoutLogic'
+import { BodyweightIcon } from '../components/Icons'
 
 export interface SetEditorProps {
   initial: SetForm & { exerciseName: string | null; bodyweight: boolean }
@@ -204,7 +205,7 @@ function ExercisePicker({ onPick, onBack }: { onPick: (exercise: Exercise) => vo
           {t.allExercises}
         </button>
         <button className={onlyBodyweight ? 'filter-chip selected' : 'filter-chip'} onClick={() => setOnlyBodyweight(true)}>
-          🤸 {t.calisthenics}
+          <BodyweightIcon /> {t.calisthenics}
         </button>
         <button className="btn btn-text" style={{ marginLeft: 'auto' }} onClick={() => setCreating(true)}>
           + {t.newExercise}

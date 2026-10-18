@@ -1,5 +1,6 @@
 import { useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import { vibrate } from '../lib/feedback'
+import { TrashIcon } from './Icons'
 
 const DELETE_THRESHOLD_PX = 96
 
@@ -59,7 +60,7 @@ export function SwipeToDelete({ onDelete, label, children }: { onDelete: () => v
   return (
     <div className="swipe">
       <div className={offset < -DELETE_THRESHOLD_PX ? 'swipe-bg armed' : 'swipe-bg'} aria-hidden>
-        <span>🗑</span>
+        <TrashIcon />
       </div>
       <div
         className={offset === 0 || leaving ? 'swipe-content settle' : 'swipe-content'}

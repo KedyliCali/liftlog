@@ -10,6 +10,7 @@ import { ErrorState, MessageState } from '../components/StateViews'
 import { formatKg, formatRecordSet, formatShortDate } from '../lib/format'
 import { t } from '../lib/i18n'
 import { chooseExercise, yDomain } from '../lib/workoutLogic'
+import { ChartIcon, TrophyIcon } from '../components/Icons'
 
 const WEEKS = 8
 
@@ -40,7 +41,7 @@ export function ProgressPage() {
     return (
       <div className="page">
         {header}
-        <MessageState icon="📈" title={t.progressEmptyTitle} body={t.progressEmptyBody} />
+        <MessageState icon={<ChartIcon size={32} />} title={t.progressEmptyTitle} body={t.progressEmptyBody} />
       </div>
     )
   }
@@ -134,7 +135,7 @@ function RecordHighlight({ record }: { record: PersonalRecord }) {
         <span>{formatShortDate(record.bestEstimated1RmDate)}</span>
       </div>
       <span className="trophy" aria-hidden>
-        🏆
+        <TrophyIcon size={18} />
       </span>
     </div>
   )

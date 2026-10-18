@@ -10,6 +10,7 @@ import { formatKg } from '../lib/format'
 import { locale, t } from '../lib/i18n'
 import { validateFood, type FoodField, type FoodForm } from '../lib/nutrition'
 import { sanitizeDecimal } from '../lib/validation'
+import { PencilIcon } from '../components/Icons'
 
 type FoodDraft = Omit<FoodInput, 'entryDate'>
 
@@ -44,7 +45,7 @@ function FoodSearch({ query, onQuery, onPick, onManual }: { query: string; onQue
         <input autoFocus placeholder={t.searchFoods} value={query} onChange={(e) => onQuery(e.target.value)} aria-label={t.searchFoods} />
       </div>
       <button className="btn btn-text" style={{ alignSelf: 'flex-start', padding: 0 }} onClick={onManual}>
-        ✎ {t.enterManually}
+        <PencilIcon /> {t.enterManually}
       </button>
       {catalog.isPending ? (
         <div className="spinner" style={{ margin: '24px auto' }} />

@@ -161,3 +161,19 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
   adresine uygulama sürümü eklendi (`/foods?v=1.3.0`), her sürümde liste tazeleniyor.
 - Doğrulama: backend 45 test, web 51 test, lint; yerel Docker (V8) ile telefon boyutunda arama, kokoreç
   ekleme, makro çubuğu yüzdeleri elle doğrulandı.
+
+## 2026-10-18 — Yeni stil: "spor ekipmanı" (branch `feature/sport-style`, #13'ün üstünde)
+
+- Behlül "AI gibi durmasın" dedi; seçenekler arasından öneri istedi → Strava/Whoop tarzı önerildi ve yapıldı.
+- Neredeyse siyah zemin, tek sinyal rengi lime (#C8FF2E; açık temada okunması için zeytin yeşili),
+  ince çerçeveli düz paneller, köşeler 4–12 px, başlık ve sayılarda Barlow Condensed (büyük harf),
+  gövdede Barlow. Fontlar npm paketiyle uygulamaya gömülü (PWA çevrimdışı çalışsın, Google'a istek gitmesin);
+  kullanılmayan kalınlıklar ve Latin dışı alt kümeler önbelleğe alınmıyor.
+- Kaldırılanlar: başlık arkasındaki parıltı, turuncu blok, sıcak gradyanlı PR etiketi, tüm emojiler
+  (yerine tek tip çizgi SVG ikon seti `components/Icons.tsx`).
+- Alt menüde aktif sekmeyi gösteren hap yerine üst kenarda kayan lime çizgi. Avatar yuvarlatılmış kare.
+- Düzeltilen iki stil hatası: `.ring-label span` ve `.stat-tile span` kuralları CountUp sayısını da
+  küçültüyordu → doğrudan çocukla sınırlandı.
+- Doğrulama: web 51 test, lint, build; telefon boyutunda dört sekme + detay, açık ve koyu tema ekran
+  görüntüsüyle kontrol edildi.
+- Not: Android uygulamasının teması hâlâ eski turuncu tasarımda.
