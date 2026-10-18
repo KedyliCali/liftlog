@@ -99,3 +99,17 @@ data class ProgressPoint(
 )
 
 data class WeeklyVolume(val weekStart: LocalDate, val volumeKg: Double, val setCount: Int)
+
+data class Profile(
+    val displayName: String?,
+    val heightCm: Double?,
+    val bodyWeightKg: Double?,
+    val avatarVersion: Long?,
+) {
+    /** Body mass index, only when both height and weight are known. */
+    val bmi: Double?
+        get() {
+            val heightM = (heightCm ?: return null) / 100
+            return (bodyWeightKg ?: return null) / (heightM * heightM)
+        }
+}

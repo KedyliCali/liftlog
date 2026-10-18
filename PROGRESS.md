@@ -57,3 +57,25 @@ her kararın nedenini ve mülakat cevaplarını anlatıyor. **Sıradaki ilk iş 
 - v1.3 (dinlenme zamanlayıcısı, şablonlar) ve v2.0 (Room) başlanmadı.
 
 **Sıradaki adım:** WALKTHROUGH.md'yi oku → PR'ları sırayla incele ve birleştir → sunucu seçimi.
+
+## 2026-10-17 (akşam) — Yayın ve cila (yarım kaldı)
+
+**Yayın:** Oracle kartı reddetti → **Render + Neon** (kart yok) seçildi.
+- `render.yaml`, PORT/512 MB uyumu, uyanma ipucu ve uzun zaman aşımı → PR [#6](https://github.com/KedyliCali/liftlog/pull/6) **birleşti**.
+- Behlül'de kalan: Neon projesi (Frankfurt, yalnızca Postgres açık) → Render Blueprint. Adımlar `docs/DEPLOY.md`'de.
+  Neon'dan **sunucu adı + kullanıcı adı** gelecek (şifre değil), sonra Render'daki 3 alan doldurulacak.
+
+**Cila + iPhone** (branch `feature/app-polish`):
+- [x] Otomatik cihaz hesabı: giriş ekranı yok (Android + web)
+- [x] Profil: isim, boy, kilo, VKİ, fotoğraf (backend V4, Android ekranı, web sayfası)
+- [x] **iPhone için web uygulaması (PWA)**, `web/`: React + TypeScript + Vite. Safari → Ana Ekrana Ekle
+- [x] Dinlenme zamanlayıcısı, kaydırarak silme + geri al, şablon (eski antrenmanı tekrarla), PR konfetisi (web)
+- [x] Backend CORS (`CORS_ALLOWED_ORIGINS`), Render statik sitesi (`render.yaml`), CI'da web işi
+- Doğrulama: backend 41 test, Android 21 test, web 17 test geçti; web tarayıcıda telefon boyutunda
+  uçtan uca denendi (oluşturma, set, PR, zamanlayıcı, kaydırma/geri al, şablon, profil, fotoğraf).
+  Android profil düzenleme emülatörde denendi; Android'de fotoğraf seçici denenmedi.
+- Android'e zamanlayıcı/kaydırma/şablon **eklenmedi** (iPhone kullanıldığı için web'e öncelik verildi).
+- Not: Docker Desktop açılışta çöküyordu (kalmış soket dosyaları). `%LOCALAPPDATA%\Docker\run` ve
+  `docker-secrets-engine` klasörlerinin adı `.bozuk*` yapılarak çözüldü; bu klasörler silinebilir.
+
+**Sıradaki adım:** PR'ı birleştir → Neon projesi → Render Blueprint (`docs/DEPLOY.md`) → iPhone'a ekle.

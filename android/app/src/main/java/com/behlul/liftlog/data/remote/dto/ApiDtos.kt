@@ -113,3 +113,20 @@ data class ProgressPointDto(
 
 @Serializable
 data class WeeklyVolumeDto(val weekStart: String, val volumeKg: Double, val setCount: Int)
+
+@Serializable
+data class ProfileDto(
+    val id: Long,
+    val displayName: String? = null,
+    val heightCm: Double? = null,
+    val bodyWeightKg: Double? = null,
+    val avatarVersion: Long? = null,
+)
+
+/** Full replacement: null clears a field. explicitNulls=false omits nulls, which the server also reads as null. */
+@Serializable
+data class UpdateProfileRequestDto(
+    val displayName: String? = null,
+    val heightCm: Double? = null,
+    val bodyWeightKg: Double? = null,
+)

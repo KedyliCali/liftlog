@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">
+  <!-- Same layered barbell as the Android launcher icon -->
+  <rect width="108" height="108" rx="24" fill="#15171C"/>
+  <rect x="24" y="52.5" width="60" height="3" fill="#C9CED8"/>
+  <rect x="24" y="51" width="8" height="6" fill="#8E96A6"/>
+  <rect x="76" y="51" width="8" height="6" fill="#8E96A6"/>
+  <rect x="31.5" y="38" width="9" height="32" rx="1.5" fill="#FF6B2C"/>
+  <rect x="67.5" y="38" width="9" height="32" rx="1.5" fill="#FF6B2C"/>
+  <rect x="33" y="40" width="1.6" height="28" fill="#FFA476"/>
+  <rect x="73.4" y="40" width="1.6" height="28" fill="#FFA476"/>
+  <rect x="40.5" y="43.5" width="5.5" height="21" rx="1" fill="#F2F3F5"/>
+  <rect x="62" y="43.5" width="5.5" height="21" rx="1" fill="#F2F3F5"/>
+  <rect x="46.5" y="49.5" width="2.5" height="9" fill="#8E96A6"/>
+  <rect x="59" y="49.5" width="2.5" height="9" fill="#8E96A6"/>
+  <rect x="51.5" y="52.5" width="1" height="3" fill="#5C6372"/>
+  <rect x="55.5" y="52.5" width="1" height="3" fill="#5C6372"/>
+</svg>

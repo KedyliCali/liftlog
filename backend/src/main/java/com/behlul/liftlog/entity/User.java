@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -28,6 +29,12 @@ public class User {
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "height_cm", precision = 4, scale = 1)
+    private BigDecimal heightCm;
+
+    @Column(name = "body_weight_kg", precision = 5, scale = 2)
+    private BigDecimal bodyWeightKg;
 
     protected User() {
     }
@@ -56,6 +63,26 @@ public class User {
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public BigDecimal getHeightCm() {
+        return heightCm;
+    }
+
+    public void setHeightCm(BigDecimal heightCm) {
+        this.heightCm = heightCm;
+    }
+
+    public BigDecimal getBodyWeightKg() {
+        return bodyWeightKg;
+    }
+
+    public void setBodyWeightKg(BigDecimal bodyWeightKg) {
+        this.bodyWeightKg = bodyWeightKg;
     }
 
     public LocalDateTime getCreatedAt() {

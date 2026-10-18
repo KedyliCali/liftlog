@@ -2,9 +2,10 @@
 
 [![CI](https://github.com/KedyliCali/liftlog/actions/workflows/ci.yml/badge.svg)](https://github.com/KedyliCali/liftlog/actions/workflows/ci.yml)
 
-A workout tracker for Android. Log workouts, exercises and sets, then follow your personal
-records and estimated one-rep max over time. The Kotlin/Jetpack Compose app talks to a
-JWT-secured Spring Boot REST API backed by PostgreSQL, packaged with Docker.
+A workout tracker with two clients: a native Android app (Kotlin, Jetpack Compose) and a web
+app you can install on an iPhone home screen (React, PWA). Log workouts, exercises and sets,
+then follow your personal records and estimated one-rep max over time. Both clients talk to
+the same JWT-secured Spring Boot REST API backed by PostgreSQL, packaged with Docker.
 
 <p>
   <img src="docs/screenshots/workouts.png" width="200" alt="Workout list">
@@ -17,7 +18,9 @@ JWT-secured Spring Boot REST API backed by PostgreSQL, packaged with Docker.
 
 - **Workouts and sets:** create, edit and delete workouts. Add sets with reps, weight and optional RPE. The next set is pre-filled from the previous one.
 - **Exercises:** 16 built-in lifts plus your own custom exercises, with search.
-- **Accounts:** email and password sign-up with JWT. Every user sees only their own data.
+- **No sign-up form:** each installation silently creates its own account (random credentials kept on the device) and authenticates with JWT. Every account sees only its own data.
+- **Profile:** name, height, body weight, BMI and a profile photo (resized to 256 px on the device before upload).
+- **In the gym:** rest timer after each set (vibration, plus a tone on iPhone), swipe a set or workout away with undo, start a new workout from a past one with its weights, confetti on a new PR.
 - **Progress:** heaviest set and best estimated 1RM per exercise, an e1RM trend chart and weekly training volume.
 - **PR alerts:** the app celebrates when a new set beats your previous best.
 - **English and Turkish UI**, light and dark theme following the system.
@@ -26,6 +29,7 @@ JWT-secured Spring Boot REST API backed by PostgreSQL, packaged with Docker.
 
 | Layer | Technology |
 | --- | --- |
+| Web (iPhone) | React 19, TypeScript, Vite, TanStack Query, React Router, Recharts, PWA (vite-plugin-pwa) |
 | Android | Kotlin, Jetpack Compose (Material 3), MVVM + `StateFlow`, Hilt, Retrofit + kotlinx.serialization, Navigation Compose, DataStore, Vico charts |
 | Backend | Java 21, Spring Boot 4, Spring Web MVC, Spring Data JPA (Hibernate 7), Spring Security (OAuth2 resource server, HS256 JWT), Bean Validation, springdoc-openapi |
 | Database | PostgreSQL 17, schema versioned with Flyway |
@@ -89,6 +93,10 @@ cd backend && ./mvnw spring-boot:run
 - Health check: <http://localhost:8080/api/v1/health>
 - Swagger UI: <http://localhost:8080/swagger-ui.html>
 
+**Web:** `cd web && npm install && npm run dev`, then open <http://localhost:5173>. It calls
+`http://localhost:8080` unless `VITE_API_URL` says otherwise. The dev server is also reachable
+from a phone on the same Wi-Fi.
+
 **Android:** open `android/` in Android Studio and run on an emulator. Debug builds call
 `http://10.0.2.2:8080/`, which is the host machine as seen from the emulator.
 
@@ -131,10 +139,12 @@ Errors always use the same shape:
 ```bash
 cd backend && ./mvnw verify                  # unit tests + Testcontainers integration tests (needs Docker)
 cd android && ./gradlew testDebugUnitTest    # ViewModel tests with fake repositories
+cd web && npm test                           # Vitest: validation, session handling, page logic
 ```
 
 - **Backend:** service unit tests (Mockito), MVC slice tests for validation and the error format, and integration tests that run the real security chain, Flyway schema and PostgreSQL in a container. These cover 401s, registration rules, per-user isolation, PR detection and the SQL weekly-volume query.
-- **Android:** ViewModel tests for loading and error states, paging, refresh on resume, set validation, auth and progress selection.
+- **Android:** ViewModel tests for loading and error states, paging, refresh on resume, set validation, automatic sign-in and progress selection.
+- **Web:** unit tests for form validation, the device-account sign-in (first visit, return visit, server reset, 401 handling) and page logic such as templates and chart ranges.
 - **CI:** GitHub Actions runs both suites, Android lint and a Docker image build on every push and pull request.
 
 ## Design decisions
@@ -146,12 +156,14 @@ cd android && ./gradlew testDebugUnitTest    # ViewModel tests with fake reposit
 - **`CurrentUserProvider` interface:** the MVP used a demo user, and adding JWT meant swapping a single implementation. Services did not change.
 - **JWT with Spring's resource server:** tokens are issued with Nimbus and validated by Spring Security's own filter, so no hand-written filter or extra JWT library is needed.
 - **Login gives no hints:** login returns the same error for an unknown email and a wrong password, and runs a dummy BCrypt check so response timing does not reveal registered emails.
-- **The session drives the UI:** the root composable switches between sign-in and the app based only on the stored session. Logout or an expired token (401) needs no navigation code.
+- **Device accounts instead of a login form:** for a personal tracker a sign-up form is friction. Each client generates a random email and a 256-bit password once, stores them locally and signs in silently. A 401 drops the token and the same credentials sign in again; if the server lost the account, it is recreated.
+- **Photos live in PostgreSQL:** Render's free disk is wiped on every restart, so avatars are stored as `BYTEA` in their own table (never loaded with the user), capped at 512 KB, and their type is detected from the file's magic bytes rather than trusted from the request.
+- **Undo instead of "Are you sure?":** a swiped-away set is hidden at once and only deleted on the server when the 5-second undo window closes.
 
 ## Deployment
 
-**Hosted (free):** the API runs on [Render](https://render.com) from `render.yaml`, which builds
-`backend/Dockerfile`. PostgreSQL runs on [Neon](https://neon.tech). Every backend change merged
+**Hosted (free):** the API and the web app run on [Render](https://render.com) from `render.yaml`
+(a Docker web service built from `backend/Dockerfile`, and a static site built from `web/`). PostgreSQL runs on [Neon](https://neon.tech). Every backend change merged
 to `main` redeploys automatically. On the free plan the API sleeps after 15 idle minutes, and the
 next request waits for a cold start (about 2–3 minutes at 0.1 CPU). The app shows a
 "waking up" hint and its timeouts cover the wait. Step-by-step setup (Turkish):

@@ -14,26 +14,14 @@ import java.time.LocalDate
 
 class FakeAuthRepository : AuthRepository {
     override val session = MutableStateFlow<SessionState>(SessionState.LoggedOut)
-    var failWith: AppError? = null
-    val calls = mutableListOf<String>()
+    /** Results handed out by successive signInDevice() calls; when empty, sign-in succeeds. */
+    val failures = ArrayDeque<AppError>()
+    var signInCalls = 0
 
-    override suspend fun login(email: String, password: String): Result<Unit> {
-        calls += "login:$email"
-        return complete(email, null)
-    }
-
-    override suspend fun register(email: String, password: String, displayName: String?): Result<Unit> {
-        calls += "register:$email:$displayName"
-        return complete(email, displayName)
-    }
-
-    override suspend fun logout() {
-        session.value = SessionState.LoggedOut
-    }
-
-    private fun complete(email: String, displayName: String?): Result<Unit> {
-        failWith?.let { return Result.failure(AppException(it)) }
-        session.value = SessionState.LoggedIn(Session("token", 1, email, displayName))
+    override suspend fun signInDevice(): Result<Unit> {
+        signInCalls++
+        failures.removeFirstOrNull()?.let { return Result.failure(AppException(it)) }
+        session.value = SessionState.LoggedIn(Session("token", 42, "device@liftlog.device", null))
         return Result.success(Unit)
     }
 }

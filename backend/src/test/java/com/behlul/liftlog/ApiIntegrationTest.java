@@ -18,9 +18,13 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -45,6 +49,21 @@ class ApiIntegrationTest {
 
         mockMvc.perform(get("/api/v1/workouts").header(HttpHeaders.AUTHORIZATION, "Bearer not-a-jwt"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void corsAllowsOnlyTheConfiguredWebOrigin() throws Exception {
+        mockMvc.perform(options("/api/v1/workouts")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:5173")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "authorization,content-type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173"));
+
+        mockMvc.perform(options("/api/v1/workouts")
+                        .header(HttpHeaders.ORIGIN, "https://evil.example")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST"))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -165,6 +184,52 @@ class ApiIntegrationTest {
         MvcResult othersList = mockMvc.perform(get("/api/v1/exercises").header(HttpHeaders.AUTHORIZATION, "Bearer " + other))
                 .andExpect(status().isOk()).andReturn();
         assertThat(othersList.getResponse().getContentAsString()).doesNotContain(name);
+    }
+
+    @Test
+    void profileCanBeEditedAndHasAPrivatePhoto() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        String other = register(randomEmail(), "s3cret-pass", null);
+
+        authed(put("/api/v1/profile"), token, "{\"displayName\":\" Behlul \",\"heightCm\":181.5,\"bodyWeightKg\":82.4}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.displayName").value("Behlul"))
+                .andExpect(jsonPath("$.heightCm").value(181.5))
+                .andExpect(jsonPath("$.avatarVersion").doesNotExist());
+
+        authed(put("/api/v1/profile"), token, "{\"heightCm\":20}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.heightCm").exists());
+
+        byte[] jpeg = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 1, 2, 3};
+        mockMvc.perform(put("/api/v1/profile/avatar").header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.IMAGE_JPEG).content(jpeg))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.avatarVersion").isNumber());
+
+        mockMvc.perform(get("/api/v1/profile/avatar").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.IMAGE_JPEG))
+                .andExpect(content().bytes(jpeg));
+
+        // Another user never sees it
+        mockMvc.perform(get("/api/v1/profile/avatar").header(HttpHeaders.AUTHORIZATION, "Bearer " + other))
+                .andExpect(status().isNotFound());
+
+        // Claims to be a PNG but is not an image at all
+        mockMvc.perform(put("/api/v1/profile/avatar").header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.IMAGE_PNG).content("not an image".getBytes()))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(put("/api/v1/profile/avatar").header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.TEXT_PLAIN).content("hello"))
+                .andExpect(status().isUnsupportedMediaType());
+
+        mockMvc.perform(delete("/api/v1/profile/avatar").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/v1/profile").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.avatarVersion").doesNotExist())
+                .andExpect(jsonPath("$.bodyWeightKg").value(82.4));
     }
 
     private String register(String email, String password, String displayName) throws Exception {
