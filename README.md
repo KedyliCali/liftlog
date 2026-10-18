@@ -26,7 +26,7 @@ the same JWT-secured Spring Boot REST API backed by PostgreSQL, packaged with Do
 - **No sign-up form:** each installation silently creates its own account (random credentials kept on the device) and authenticates with JWT. Every account sees only its own data.
 - **Profile:** name, height, body weight, BMI and a profile photo (resized to 256 px on the device before upload).
 - **In the gym:** rest timer after each set (vibration, plus a tone on iPhone), swipe a set or workout away with undo, start a new workout from a past one with its weights, confetti on a new PR.
-- **Nutrition:** log foods with calories and protein, daily goals shown as two overlapping rings (with a protein suggestion of 1.8 g per kg body weight), one-tap "eat again" for your most frequent foods, swipe to delete with undo, and a day switcher.
+- **Nutrition:** search a built-in list of about 100 common Turkish dishes and basic foods (per-100 g values plus a typical serving; pick servings in halves or grams) or enter foods by hand, with calories and protein, daily goals shown as two overlapping rings (with a protein suggestion of 1.8 g per kg body weight), one-tap "eat again" for your most frequent foods, swipe to delete with undo, and a day switcher.
 - **Progress:** heaviest set and best estimated 1RM per exercise, an e1RM trend chart and weekly training volume.
 - **PR alerts:** the app celebrates when a new set beats your previous best.
 - **English and Turkish UI**, light and dark theme following the system.
@@ -137,6 +137,7 @@ All endpoints are under `/api/v1`. Everything except `auth/register`, `auth/logi
 | POST / DELETE | `/nutrition/entries`, `/nutrition/entries/{id}` | Log / remove a food |
 | GET | `/nutrition/frequent` | Most eaten foods of the last 60 days, for quick add |
 | PUT | `/nutrition/goals` | Daily calorie and protein goals (null clears) |
+| GET | `/foods` | Built-in food catalog (Turkish and English names, per 100 g and per serving) |
 
 Errors always use the same shape:
 
@@ -170,6 +171,7 @@ cd web && npm test                           # Vitest: validation, session handl
 - **Device accounts instead of a login form:** for a personal tracker a sign-up form is friction. Each client generates a random email and a 256-bit password once, stores them locally and signs in silently. A 401 drops the token and the same credentials sign in again; if the server lost the account, it is recreated.
 - **Photos live in PostgreSQL:** Render's free disk is wiped on every restart, so avatars are stored as `BYTEA` in their own table (never loaded with the user), capped at 512 KB, and their type is detected from the file's magic bytes rather than trusted from the request.
 - **Bodyweight load = body weight + added weight, computed in SQL:** sets store only the added load, and queries add `users.body_weight_kg` for exercises flagged `bodyweight`. Changing body weight later re-scores old sets with the new value; that is a deliberate simplification instead of versioning weight history.
+- **Food catalog searched on the phone:** the ~100-row list is sent once and cached for a day; searching locally gives instant results and folds Turkish letters ("corba" finds "çorba"). Entries copy the calculated kcal and protein, so correcting the catalog never rewrites past days.
 - **Frequent foods are computed, not stored:** like PRs, the quick-add list is a `GROUP BY` over the last 60 days of entries, so there is no favorites table to keep in sync. The client sends its own calendar date, so "today" follows the phone's time zone.
 - **Undo instead of "Are you sure?":** a swiped-away set is hidden at once and only deleted on the server when the 5-second undo window closes.
 

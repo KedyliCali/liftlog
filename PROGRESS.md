@@ -135,3 +135,15 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
 - Doğrulama: backend 44 test, web 41 test, lint, build; yerel Docker (V6 uygulandı) ile telefon boyutunda
   hedef belirleme, yemek ekleme, hızlı ekleme + geri al, önceki gün, açık/koyu tema denendi.
 - Android beslenme ekranı yok.
+
+## 2026-10-18 — Hazır yemek listesi (branch `feature/food-catalog`)
+
+- PR #11 (beslenme günlüğü) CI yeşil olunca birleştirildi; canlıda Beslenme sekmesi açıldı, Neon'da V6 uygulandı.
+- **Backend V7:** `foods` tablosu, 105 yaygın Türk yemeği ve temel besin (9 kategori). Her biri için 100 g
+  başına kcal/protein ve tipik porsiyon (örn. "1 kase = 250 g"). Değerler yaklaşık; yaygın besin tablolarından
+  yuvarlandı. `GET /api/v1/foods` hepsini döndürüyor (1 gün önbellek).
+- **Web:** "Yemek ekle" artık önce arama: Türkçe harf duyarsız ("corba" → "çorba"), İngilizce adla da
+  bulunuyor, boş aramada kategorilere göre liste. Seçince porsiyon (½ adım) veya gram; kcal/protein canlı
+  hesaplanıyor. Kayıt adı miktarı içeriyor ("Mercimek çorbası (1,5 × 1 kase)"). "Elle gir" eski formu açıyor.
+- Doğrulama: backend 45 test, web 49 test, lint, build; yerel Docker (V7) ile telefon boyutunda arama,
+  porsiyon/gram hesapları ve kayıt elle doğrulandı.
