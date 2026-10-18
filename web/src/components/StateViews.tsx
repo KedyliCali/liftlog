@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { errorMessage } from '../lib/format'
 import { t } from '../lib/i18n'
+import { AlertIcon } from './Icons'
 
 const WAKE_UP_HINT_DELAY_MS = 4000
 
@@ -25,7 +26,7 @@ export function WakeUpHint() {
 
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => void }) {
   return (
-    <MessageState icon="⚠" title={errorMessage(error)}>
+    <MessageState icon={<AlertIcon size={32} />} title={errorMessage(error)}>
       <button className="btn btn-tonal" onClick={onRetry}>
         {t.retry}
       </button>

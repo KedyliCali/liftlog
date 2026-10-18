@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 
-const COLORS = ['var(--primary)', 'var(--tertiary)', '#ffd166', 'var(--on-primary-container)', '#f2f3f5']
+const COLORS = ['var(--primary)', 'var(--tertiary)', 'var(--text)', 'var(--primary)', 'var(--text-muted)']
 
 /** A one-off burst of falling pieces; pure CSS animation, removed by the parent after ~1.6 s. */
 function makePieces() {

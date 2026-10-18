@@ -11,6 +11,7 @@ import { useToast } from '../components/contexts'
 import { formatKg, monthShort, parseDate, weekdayShort } from '../lib/format'
 import { t } from '../lib/i18n'
 import { NewWorkoutSheet } from './NewWorkoutSheet'
+import { DumbbellIcon } from '../components/Icons'
 
 export function WorkoutsPage() {
   const queryClient = useQueryClient()
@@ -74,7 +75,7 @@ export function WorkoutsPage() {
       ) : query.isError ? (
         <ErrorState error={query.error} onRetry={() => query.refetch()} />
       ) : workouts.length === 0 ? (
-        <MessageState icon="🏋" title={t.workoutsEmptyTitle} body={t.workoutsEmptyBody} />
+        <MessageState icon={<DumbbellIcon size={32} />} title={t.workoutsEmptyTitle} body={t.workoutsEmptyBody} />
       ) : (
         <div className="workout-list">
           {workouts.map((workout, index) => (

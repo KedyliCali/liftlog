@@ -13,6 +13,7 @@ import { locale, t } from '../lib/i18n'
 import { toAvatarJpeg } from '../lib/image'
 import { initials } from '../lib/workoutLogic'
 import { bmi, sanitizeDecimal, validateProfile, type ProfileField } from '../lib/validation'
+import { CameraIcon, PencilIcon } from '../components/Icons'
 
 /** True when running from the home screen rather than a browser tab (iOS standalone mode). */
 const isStandalone = () =>
@@ -89,7 +90,7 @@ export function ProfilePage() {
           </h2>
           <div className="row" style={{ justifyContent: 'flex-start', alignItems: 'center' }}>
             <button className="btn btn-tonal" style={{ flex: 'none' }} onClick={() => setEditing(true)} data-testid="edit-profile">
-              ✎ {t.editProfile}
+              <PencilIcon /> {t.editProfile}
             </button>
             {version !== null && (
               <button className="btn btn-text" style={{ flex: 'none' }} onClick={removePhoto}>
@@ -109,7 +110,7 @@ export function ProfilePage() {
             )}
           </span>
           <span className="avatar-badge" aria-hidden>
-            📷
+            <CameraIcon />
           </span>
         </button>
         <input ref={fileInput} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
