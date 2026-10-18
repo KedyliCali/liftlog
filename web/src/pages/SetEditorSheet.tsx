@@ -7,14 +7,15 @@ import { Sheet } from '../components/Sheet'
 import { ErrorState } from '../components/StateViews'
 import { errorMessage, formatKg } from '../lib/format'
 import { t } from '../lib/i18n'
-import { sanitizeDecimal, validateSet, type SetField, type SetForm } from '../lib/validation'
+import { clampSetCount, MAX_SETS_AT_ONCE, sanitizeDecimal, validateSet, type SetField, type SetForm } from '../lib/validation'
 import { groupByMuscle, weightAfterPick } from '../lib/workoutLogic'
 
 export interface SetEditorProps {
   initial: SetForm & { exerciseName: string | null; bodyweight: boolean }
   isEditing: boolean
   isSaving: boolean
-  onSave: (input: SetInput) => void
+  /** count > 1 adds that many identical sets (add mode only) */
+  onSave: (input: SetInput, count: number) => void
   onDelete?: () => void
   onClose: () => void
 }
@@ -25,6 +26,7 @@ export function SetEditorSheet({ initial, isEditing, isSaving, onSave, onDelete,
   const [bodyweight, setBodyweight] = useState(initial.bodyweight)
   const [errors, setErrors] = useState<Set<SetField>>(new Set())
   const [picking, setPicking] = useState(initial.exerciseId === null)
+  const [setCount, setSetCount] = useState(1)
 
   const update = (patch: Partial<SetForm>, cleared: SetField) => {
     setForm((f) => ({ ...f, ...patch }))
@@ -41,7 +43,7 @@ export function SetEditorSheet({ initial, isEditing, isSaving, onSave, onDelete,
       setErrors(result.errors)
       return
     }
-    onSave(result.input)
+    onSave(result.input, isEditing ? 1 : setCount)
   }
 
   if (picking) {
@@ -98,14 +100,17 @@ export function SetEditorSheet({ initial, isEditing, isSaving, onSave, onDelete,
           />
         </div>
         {bodyweight && <BodyweightHint />}
-        <NumberField
-          id="rpe"
-          label={t.rpeOptional}
-          value={form.rpe}
-          error={errors.has('rpe') ? t.errorRpe : null}
-          inputMode="decimal"
-          onChange={(value) => update({ rpe: sanitizeDecimal(value, 4) }, 'rpe')}
-        />
+        <div className="row">
+          <NumberField
+            id="rpe"
+            label={t.rpeOptional}
+            value={form.rpe}
+            error={errors.has('rpe') ? t.errorRpe : null}
+            inputMode="decimal"
+            onChange={(value) => update({ rpe: sanitizeDecimal(value, 4) }, 'rpe')}
+          />
+          {!isEditing && <SetCountStepper value={setCount} onChange={setSetCount} />}
+        </div>
         <div className="row" style={{ alignItems: 'center' }}>
           {isEditing && onDelete && (
             <button type="button" className="btn btn-danger" style={{ flex: 'none' }} onClick={onDelete} disabled={isSaving}>
@@ -113,11 +118,33 @@ export function SetEditorSheet({ initial, isEditing, isSaving, onSave, onDelete,
             </button>
           )}
           <button type="submit" className="btn btn-primary btn-block" disabled={isSaving} data-testid="save-set">
-            {isSaving ? <span className="spinner small" /> : t.save}
+            {isSaving ? <span className="spinner small" /> : setCount > 1 && !isEditing ? t.saveSets(setCount) : t.save}
           </button>
         </div>
       </form>
     </Sheet>
+  )
+}
+
+/** "4 sets × 8 reps" in one go: the same weight and reps are saved as that many sets. */
+function SetCountStepper({ value, onChange }: { value: number; onChange: (count: number) => void }) {
+  return (
+    <div className="field">
+      <span className="field-label" id="set-count-label">
+        {t.setCount}
+      </span>
+      <div className="stepper" role="group" aria-labelledby="set-count-label">
+        <button type="button" onClick={() => onChange(clampSetCount(value - 1))} disabled={value <= 1} aria-label={t.fewerSets}>
+          −
+        </button>
+        <span className="stepper-value num" aria-live="polite" key={value}>
+          {value}
+        </span>
+        <button type="button" onClick={() => onChange(clampSetCount(value + 1))} disabled={value >= MAX_SETS_AT_ONCE} aria-label={t.moreSets}>
+          +
+        </button>
+      </div>
+    </div>
   )
 }
 

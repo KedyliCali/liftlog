@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bmi, sanitizeDecimal, validateProfile, validateSet } from './validation'
+import { clampSetCount, bmi, sanitizeDecimal, validateProfile, validateSet } from './validation'
 
 describe('sanitizeDecimal', () => {
   it('accepts a comma and keeps a single separator', () => {
@@ -41,5 +41,14 @@ describe('bmi', () => {
   it('needs both height and weight', () => {
     expect(bmi(180, null)).toBeNull()
     expect(bmi(180, 81)).toBeCloseTo(25, 5)
+  })
+})
+
+describe('clampSetCount', () => {
+  it('keeps the stepper between 1 and 10 whole sets', () => {
+    expect(clampSetCount(0)).toBe(1)
+    expect(clampSetCount(4)).toBe(4)
+    expect(clampSetCount(11)).toBe(10)
+    expect(clampSetCount(2.6)).toBe(3)
   })
 })

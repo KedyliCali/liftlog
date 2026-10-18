@@ -110,3 +110,14 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
   boyutunda uçtan uca denendi (ağırlıklı barfiks, hacim 1.279,5 → 2.815,5 kg elle doğrulandı, PR, iskeletler,
   açık/koyu tema).
 - Android bu alanları yok sayıyor (bilinmeyen JSON alanları); vücut ağırlığı gösterimi Android'e eklenmedi.
+
+## 2026-10-18 — Sekmeler arası kaydırma + toplu set (branch `feature/tab-swipe`)
+
+- Sekme sayfalarında sola/sağa kaydırınca yan sekmeye geçiliyor; geçiş yön bilgili kayma animasyonu
+  (menüye dokununca da aynı). Kaydırarak silme satırları, çip satırları, grafikler, formlar ve açık
+  sayfalar hareketi kendisi kullanıyor, sekme değiştirmiyor. Eşik mantığı `lib/tabSwipe.ts` (testli).
+- Set ekle sayfasında "Set sayısı" (1–10): aynı ağırlık ve tekrarla N set tek seferde kaydediliyor
+  (sırayla N istek; PR kontrolü elle eklemekle aynı).
+- Not: tarayıcı paneli gizliyken animasyon kareleri durduğu için view transition'lar takılıyor; test
+  ederken panel görünür olmalı. Gerçek telefonda sorun yok.
+- Doğrulama: web 33 test, lint, tsc; telefon boyutunda kaydırma (iki uç, kart üstü, çapraz) ve 4×8 şınav denendi.
