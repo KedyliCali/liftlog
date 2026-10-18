@@ -12,10 +12,11 @@
   animation: page-in 0.25s var(--ease-out);
 }
 
+/* Opacity only: a transform on .page would make its position:fixed children (FAB, toasts) jump
+   to the page box while the animation runs */
 @keyframes page-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
   }
 }
 
@@ -1082,11 +1083,13 @@
 .profile-card-wrap {
   position: relative;
   margin-top: 8px;
+  /* padding, not the card's margin: a child's top margin would collapse through this box and
+     push the absolutely positioned avatar down onto the name */
+  padding-top: 56px;
 }
 
 .profile-card {
-  margin-top: 56px;
-  padding: 72px 20px 16px;
+  padding: 76px 20px 16px;
   border-radius: var(--radius-xl);
   background: var(--surface-high);
 }
@@ -1234,4 +1237,18 @@
 
 .menu button.danger {
   color: var(--error);
+}
+
+/* While the rest timer is showing, lift the FAB and toasts above it instead of hiding them */
+body:has(.rest-timer) .fab {
+  bottom: calc(var(--nav-height) + var(--safe-bottom) + 96px);
+}
+
+body:has(.rest-timer) .toast {
+  bottom: calc(var(--nav-height) + var(--safe-bottom) + 168px);
+}
+
+.fab,
+.toast {
+  transition: bottom 0.25s var(--ease-out), transform 0.15s;
 }
