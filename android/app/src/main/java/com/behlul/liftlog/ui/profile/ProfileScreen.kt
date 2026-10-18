@@ -54,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -139,6 +140,8 @@ private fun ProfileBody(
     onEdit: () -> Unit,
 ) {
     val name = profile.displayName ?: stringResource(R.string.profile_default_name)
+    // Observable locale: the screen recomposes if the user switches the phone's language
+    val locale = LocalConfiguration.current.locales[0]
     Column(
         Modifier
             .fillMaxSize()
@@ -192,7 +195,7 @@ private fun ProfileBody(
             )
             BodyStatTile(
                 label = stringResource(R.string.profile_bmi),
-                value = profile.bmi?.let { String.format(Locale.getDefault(), "%.1f", it) },
+                value = profile.bmi?.let { String.format(locale, "%.1f", it) },
                 emphasized = true,
                 modifier = Modifier.weight(1f),
             )

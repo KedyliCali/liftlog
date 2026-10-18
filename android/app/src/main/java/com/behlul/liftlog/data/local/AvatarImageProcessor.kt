@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
+import androidx.core.graphics.scale
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -31,7 +32,7 @@ class AvatarImageProcessor @Inject constructor(
     override suspend fun toAvatarJpeg(uri: Uri): ByteArray = withContext(Dispatchers.Default) {
         val decoded = decodeDownsampled(uri)
         val square = centerCropSquare(decoded)
-        val scaled = Bitmap.createScaledBitmap(square, AVATAR_SIZE_PX, AVATAR_SIZE_PX, true)
+        val scaled = square.scale(AVATAR_SIZE_PX, AVATAR_SIZE_PX)
         ByteArrayOutputStream().use { out ->
             scaled.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
             out.toByteArray()
