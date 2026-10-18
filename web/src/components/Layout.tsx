@@ -1,6 +1,8 @@
 import type { CSSProperties } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { t } from '../lib/i18n'
+import { setNavDirection } from '../lib/navDirection'
+import { useTabSwipe } from './useTabSwipe'
 
 const tabs = [
   { to: '/', label: t.navWorkouts, icon: <DumbbellIcon />, end: true },
@@ -16,15 +18,23 @@ function activeTabIndex(pathname: string): number {
 
 export function Layout() {
   const { pathname } = useLocation()
+  useTabSwipe()
+  const activeIndex = activeTabIndex(pathname)
   return (
     <div className="app">
       <Outlet />
       <nav className="bottom-nav" aria-label="Main">
-        <div className="bottom-nav-inner" style={{ '--active-tab': activeTabIndex(pathname), '--tab-count': tabs.length } as CSSProperties}>
+        <div className="bottom-nav-inner" style={{ '--active-tab': activeIndex, '--tab-count': tabs.length } as CSSProperties}>
           {/* One pill slides between tabs instead of each tab fading its own background */}
           <span className="nav-indicator" aria-hidden />
-          {tabs.map((tab) => (
-            <NavLink key={tab.to} to={tab.to} end={tab.end} viewTransition className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
+          {tabs.map((tab, index) => (
+            <NavLink
+              key={tab.to}
+              to={tab.to}
+              end={tab.end}
+              viewTransition
+              onClick={() => index !== activeIndex && setNavDirection(index > activeIndex ? 'forward' : 'back')}
+              className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
               <span className="nav-icon">{tab.icon}</span>
               {tab.label}
             </NavLink>

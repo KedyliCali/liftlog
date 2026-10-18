@@ -204,6 +204,51 @@
   }
 }
 
+/* Switching tabs (tap or swipe) slides pages sideways, in the order the tabs sit in the nav */
+:root[data-nav-direction='forward']::view-transition-old(root) {
+  animation: vt-slide-out-left 0.28s var(--ease-out) both;
+}
+
+:root[data-nav-direction='forward']::view-transition-new(root) {
+  animation: vt-slide-in-right 0.34s var(--ease-out) both;
+}
+
+:root[data-nav-direction='back']::view-transition-old(root) {
+  animation: vt-slide-out-right 0.28s var(--ease-out) both;
+}
+
+:root[data-nav-direction='back']::view-transition-new(root) {
+  animation: vt-slide-in-left 0.34s var(--ease-out) both;
+}
+
+@keyframes vt-slide-out-left {
+  to {
+    opacity: 0;
+    transform: translateX(-30%);
+  }
+}
+
+@keyframes vt-slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(40%);
+  }
+}
+
+@keyframes vt-slide-out-right {
+  to {
+    opacity: 0;
+    transform: translateX(30%);
+  }
+}
+
+@keyframes vt-slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-40%);
+  }
+}
+
 /* The page's own fade would run a second time inside the transition */
 :root:active-view-transition .page {
   animation: none;
