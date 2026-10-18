@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { goalProgress, shiftDay, suggestedProteinGoal, todayIso, validateFood, validateGoals } from './nutrition'
+import { goalProgress, macroEnergySplit, shiftDay, suggestedProteinGoal, todayIso, validateFood, validateGoals } from './nutrition'
 
 describe('goalProgress', () => {
   it('caps the ring at a full circle and flags going over', () => {
@@ -32,14 +32,23 @@ describe('dates', () => {
 
 describe('validateFood', () => {
   it('trims the name, treats empty protein as 0 and rounds to one decimal', () => {
-    expect(validateFood({ name: ' Oats ', calories: '380', protein: '' }).input).toEqual({ name: 'Oats', caloriesKcal: 380, proteinG: 0 })
-    expect(validateFood({ name: 'Egg', calories: '78', protein: '6.27' }).input?.proteinG).toBe(6.3)
+    expect(validateFood({ name: ' Oats ', calories: '380', protein: '', carbs: '', fat: '' }).input).toEqual({ name: 'Oats', caloriesKcal: 380, proteinG: 0, carbsG: null, fatG: null })
+    expect(validateFood({ name: 'Egg', calories: '78', protein: '6.27', carbs: '0.56', fat: '5' }).input).toMatchObject({ proteinG: 6.3, carbsG: 0.6, fatG: 5 })
   })
 
   it('rejects a missing name and impossible numbers', () => {
-    const { input, errors } = validateFood({ name: ' ', calories: '12.5', protein: '-1' })
+    const { input, errors } = validateFood({ name: ' ', calories: '12.5', protein: '-1', carbs: '2000', fat: '1' })
     expect(input).toBeNull()
-    expect([...errors].sort()).toEqual(['calories', 'name', 'protein'])
+    expect([...errors].sort()).toEqual(['calories', 'carbs', 'name', 'protein'])
+  })
+})
+
+describe('macroEnergySplit', () => {
+  it('weights fat at 9 kcal per gram', () => {
+    expect(macroEnergySplit(25, 25, 0)).toEqual({ protein: 0.5, carbs: 0.5, fat: 0 })
+    const split = macroEnergySplit(10, 10, 10) // 40 + 40 + 90 kcal
+    expect(split.fat).toBeCloseTo(90 / 170)
+    expect(macroEnergySplit(0, 0, 0)).toEqual({ protein: 0, carbs: 0, fat: 0 })
   })
 })
 

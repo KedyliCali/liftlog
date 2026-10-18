@@ -32,21 +32,55 @@ export interface FoodForm {
   name: string
   calories: string
   protein: string
+  carbs: string
+  fat: string
 }
 
-export type FoodField = 'name' | 'calories' | 'protein'
+export type FoodField = 'name' | 'calories' | 'protein' | 'carbs' | 'fat'
 
-/** Same limits as the backend's FoodEntryRequest. An empty protein field means 0 g. */
-export function validateFood(form: FoodForm): { input: { name: string; caloriesKcal: number; proteinG: number } | null; errors: Set<FoodField> } {
+export interface ValidFood {
+  name: string
+  caloriesKcal: number
+  proteinG: number
+  carbsG: number | null
+  fatG: number | null
+}
+
+/** Grams to one decimal, 0–1000; empty is `empty` (0 for protein, unknown for carbs and fat). */
+function parseGrams(text: string, empty: number | null): number | null | undefined {
+  if (text === '') return empty
+  const value = Number(text)
+  return Number.isNaN(value) || value < 0 || value > 1000 ? undefined : Math.round(value * 10) / 10
+}
+
+/**
+ * Same limits as the backend's FoodEntryRequest. Empty protein means 0 g; empty carbs or fat mean
+ * "not known" rather than zero, so the day total does not pretend to be exact.
+ */
+export function validateFood(form: FoodForm): { input: ValidFood | null; errors: Set<FoodField> } {
   const errors = new Set<FoodField>()
   const name = form.name.trim()
   if (name === '' || name.length > 100) errors.add('name')
   const calories = Number(form.calories)
   if (form.calories === '' || !Number.isInteger(calories) || calories < 0 || calories > 10000) errors.add('calories')
-  const protein = form.protein === '' ? 0 : Number(form.protein)
-  if (Number.isNaN(protein) || protein < 0 || protein > 1000) errors.add('protein')
-  const input = errors.size === 0 ? { name, caloriesKcal: calories, proteinG: Math.round(protein * 10) / 10 } : null
+  const protein = parseGrams(form.protein, 0)
+  if (protein === undefined) errors.add('protein')
+  const carbs = parseGrams(form.carbs, null)
+  if (carbs === undefined) errors.add('carbs')
+  const fat = parseGrams(form.fat, null)
+  if (fat === undefined) errors.add('fat')
+  const input = errors.size === 0 ? { name, caloriesKcal: calories, proteinG: protein ?? 0, carbsG: carbs ?? null, fatG: fat ?? null } : null
   return { input, errors }
+}
+
+/** Share of the day's calories from each macro (4 / 4 / 9 kcal per gram); all zero before anything is logged. */
+export function macroEnergySplit(proteinG: number, carbsG: number, fatG: number): { protein: number; carbs: number; fat: number } {
+  const protein = proteinG * 4
+  const carbs = carbsG * 4
+  const fat = fatG * 9
+  const total = protein + carbs + fat
+  if (total === 0) return { protein: 0, carbs: 0, fat: 0 }
+  return { protein: protein / total, carbs: carbs / total, fat: fat / total }
 }
 
 export type GoalField = 'calories' | 'protein'

@@ -5,7 +5,7 @@ import { queryKeys } from '../api/queryKeys'
 import type { CatalogFood, FoodInput } from '../api/types'
 import { Sheet } from '../components/Sheet'
 import { ErrorState } from '../components/StateViews'
-import { amountInGrams, entryName, nutritionFor, searchFoods, stepServings, type Amount } from '../lib/foodCatalog'
+import { amountInGrams, entryName, nutritionFor, searchFoods, sortByCategory, stepServings, type Amount } from '../lib/foodCatalog'
 import { formatKg } from '../lib/format'
 import { locale, t } from '../lib/i18n'
 import { validateFood, type FoodField, type FoodForm } from '../lib/nutrition'
@@ -36,7 +36,7 @@ export function AddFoodSheet({ onSave, onClose }: { onSave: (input: FoodDraft) =
 function FoodSearch({ query, onQuery, onPick, onManual }: { query: string; onQuery: (q: string) => void; onPick: (food: CatalogFood) => void; onManual: () => void }) {
   // The list only changes with a backend release
   const catalog = useQuery({ queryKey: queryKeys.foods, queryFn: api.foods, staleTime: 24 * 60 * 60_000 })
-  const results = catalog.data ? (query.trim() ? searchFoods(catalog.data, query) : catalog.data) : []
+  const results = catalog.data ? (query.trim() ? searchFoods(catalog.data, query) : sortByCategory(catalog.data)) : []
 
   return (
     <div className="stack">
@@ -151,6 +151,10 @@ function AmountStep({ food, onBack, onSave }: { food: CatalogFood; onBack: () =>
           </strong>
           <span className="num">{t.proteinAmount(formatKg(values.proteinG))}</span>
         </div>
+        <div className="amount-preview-macros num">
+          <span>{t.carbsShort(formatKg(values.carbsG))}</span>
+          <span>{t.fatShort(formatKg(values.fatG))}</span>
+        </div>
         <span className="amount-preview-grams num">{formatKg(Math.round(amountInGrams(food, amount)))} g</span>
       </div>
 
@@ -162,7 +166,7 @@ function AmountStep({ food, onBack, onSave }: { food: CatalogFood; onBack: () =>
 }
 
 function ManualFoodForm({ initialName, onBack, onSave }: { initialName: string; onBack: () => void; onSave: (input: FoodDraft) => Promise<void> }) {
-  const [form, setForm] = useState<FoodForm>({ name: initialName, calories: '', protein: '' })
+  const [form, setForm] = useState<FoodForm>({ name: initialName, calories: '', protein: '', carbs: '', fat: '' })
   const [errors, setErrors] = useState<Set<FoodField>>(new Set())
   const [saving, setSaving] = useState(false)
 
@@ -212,6 +216,18 @@ function ManualFoodForm({ initialName, onBack, onSave }: { initialName: string; 
           <label htmlFor="food-protein">{t.proteinOptional}</label>
           <input id="food-protein" inputMode="decimal" autoComplete="off" value={form.protein} onChange={(e) => update({ protein: sanitizeDecimal(e.target.value, 6) }, 'protein')} />
           {errors.has('protein') && <span className="field-error">{t.errorProtein}</span>}
+        </div>
+      </div>
+      <div className="row">
+        <div className={errors.has('carbs') ? 'field invalid' : 'field'}>
+          <label htmlFor="food-carbs">{t.carbsOptional}</label>
+          <input id="food-carbs" inputMode="decimal" autoComplete="off" value={form.carbs} onChange={(e) => update({ carbs: sanitizeDecimal(e.target.value, 6) }, 'carbs')} />
+          {errors.has('carbs') && <span className="field-error">{t.errorProtein}</span>}
+        </div>
+        <div className={errors.has('fat') ? 'field invalid' : 'field'}>
+          <label htmlFor="food-fat">{t.fatOptional}</label>
+          <input id="food-fat" inputMode="decimal" autoComplete="off" value={form.fat} onChange={(e) => update({ fat: sanitizeDecimal(e.target.value, 6) }, 'fat')} />
+          {errors.has('fat') && <span className="field-error">{t.errorProtein}</span>}
         </div>
       </div>
       <button type="submit" className="btn btn-primary btn-block" disabled={saving} data-testid="save-food">
