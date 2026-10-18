@@ -5,6 +5,7 @@ import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { Page, SetInput, WorkoutDetail, WorkoutSet, WorkoutSummary } from '../api/types'
 import { Confetti } from '../components/Confetti'
+import { CountUp } from '../components/CountUp'
 import { useRestTimer } from '../components/contexts'
 import { Sheet } from '../components/Sheet'
 import { DetailSkeleton, SetListSkeleton } from '../components/Skeletons'
@@ -36,6 +37,9 @@ export function WorkoutDetailPage() {
 
   const query = useQuery({ queryKey: queryKeys.workout(id), queryFn: () => api.workout(id) })
   const profile = useQuery({ queryKey: queryKeys.profile, queryFn: api.profile, staleTime: 5 * 60_000 })
+  // Sets do not carry the muscle group; the exercise catalog (shared with the picker) does
+  const exercises = useQuery({ queryKey: queryKeys.exercises, queryFn: api.exercises, staleTime: 5 * 60_000 })
+  const muscleOf = (exerciseId: number) => exercises.data?.find((e) => e.id === exerciseId)?.muscleGroup ?? null
 
   const refreshAll = async () => {
     await Promise.all([
@@ -164,10 +168,18 @@ export function WorkoutDetailPage() {
           ) : (
             <div style={{ paddingBottom: 96 }}>
               {groupByExercise(visibleSets).map((group, index) => (
-                <section key={group.exerciseId} className="exercise-group" style={{ animationDelay: `${index * 40}ms` }}>
+                <section
+                  key={group.exerciseId}
+                  className="exercise-group"
+                  data-muscle={muscleOf(group.exerciseId) ?? undefined}
+                  style={{ animationDelay: `${index * 40}ms` }}
+                >
                   <div className="exercise-rail" aria-hidden />
                   <div className="exercise-group-body">
-                    <h3 className="exercise-group-title">{group.exerciseName}</h3>
+                    <h3 className="exercise-group-title">
+                      {group.exerciseName}
+                      {muscleOf(group.exerciseId) && <span className="muscle-tag">{t.muscleGroups[muscleOf(group.exerciseId)!] ?? muscleOf(group.exerciseId)}</span>}
+                    </h3>
                     {group.sets.map((set, i) => (
                       <SwipeToDelete key={set.id} label={`${group.exerciseName} #${i + 1}`} onDelete={() => deleteSet(set)}>
                         <button className={set.id === newSetId ? 'set-row new' : 'set-row'} onClick={() => setEditor({ mode: 'edit', set })}>
@@ -236,18 +248,24 @@ function Summary({ date, notes, setCount, exerciseCount, volume }: SummaryProps)
         <h2 className="summary-title">{notes ?? t.untitledWorkout}</h2>
         <div className="summary-stats">
           <div>
-            <div className="stat-value num">{setCount}</div>
+            <div className="stat-value">
+              <CountUp value={setCount} format={String} durationMs={500} />
+            </div>
             <div className="stat-label">{t.labelSets}</div>
           </div>
           <div>
-            <div className="stat-value num">{exerciseCount}</div>
+            <div className="stat-value">
+              <CountUp value={exerciseCount} format={String} durationMs={500} />
+            </div>
             <div className="stat-label">{t.labelExercises}</div>
           </div>
         </div>
       </div>
       <div className="volume-badge">
         <small>{t.totalVolume}</small>
-        <strong>{t.kg(formatKg(volume))}</strong>
+        <strong>
+          <CountUp value={volume} format={(n) => t.kg(formatKg(n))} />
+        </strong>
       </div>
     </div>
   )

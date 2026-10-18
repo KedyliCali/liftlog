@@ -4,6 +4,7 @@ import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Too
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { PersonalRecord, ProgressPoint, WeeklyVolume } from '../api/types'
+import { CountUp } from '../components/CountUp'
 import { ProgressSkeleton } from '../components/Skeletons'
 import { ErrorState, MessageState } from '../components/StateViews'
 import { formatKg, formatRecordSet, formatShortDate } from '../lib/format'
@@ -127,7 +128,9 @@ function RecordHighlight({ record }: { record: PersonalRecord }) {
       </div>
       <div className="stat-tile emphasized">
         <small>{t.bestE1rm}</small>
-        <strong>{t.kg(formatKg(record.bestEstimated1RmKg))}</strong>
+        <strong>
+          <CountUp value={record.bestEstimated1RmKg} format={(n) => t.kg(formatKg(n))} />
+        </strong>
         <span>{formatShortDate(record.bestEstimated1RmDate)}</span>
       </div>
       <span className="trophy" aria-hidden>
