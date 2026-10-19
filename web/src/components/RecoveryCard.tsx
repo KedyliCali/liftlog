@@ -1,11 +1,13 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { AppError } from '../api/client'
-import { currentRecoveryCode, hasPendingPassword, NUDGE_KEY, regenerateRecoveryCode } from '../api/session'
+import { queryKeys } from '../api/queryKeys'
+import { currentRecoveryCode, hasPendingPassword, NUDGE_KEY, regenerateRecoveryCode, restoredWithPasskey } from '../api/session'
 import { errorMessage } from '../lib/format'
 import { t } from '../lib/i18n'
 import { shareText } from '../lib/recoveryCode'
 import { useToast } from './contexts'
-import { KeyIcon } from './Icons'
+import { ChevronIcon, KeyIcon } from './Icons'
 import { RestoreForm } from './Recovery'
 import { Sheet } from './Sheet'
 
@@ -19,24 +21,34 @@ function markSaved() {
   }
 }
 
-/** Profile card: show, copy or share this device's code, make a new one, or switch to another log. */
-export function RecoveryCodeCard() {
+/**
+ * Profile card: show, copy or share this device's code, make a new one, or switch to another log.
+ * Under the passkey backup it is the backup's backup, so it starts folded into one row (collapsible).
+ */
+export function RecoveryCodeCard({ collapsible = false }: { collapsible?: boolean }) {
   const toast = useToast()
+  const queryClient = useQueryClient()
   const [code, setCode] = useState(currentRecoveryCode)
+  // Came back with Face ID: the stored password is a device secret, which must not pass for the code
+  const [viaPasskey, setViaPasskey] = useState(restoredWithPasskey)
   const [revealed, setRevealed] = useState(false)
   const [saving, setSaving] = useState(false)
   const [restoring, setRestoring] = useState(false)
   const [pending, setPending] = useState(hasPendingPassword)
   const card = useRef<HTMLElement>(null)
+  // Arriving from the reminder banner (#recovery) or with a new code still waiting opens it at once
+  const [expanded, setExpanded] = useState(() => !collapsible || window.location.hash === '#recovery' || hasPendingPassword())
 
   // Profile#recovery (from the reminder banner) scrolls straight to this card
   useEffect(() => {
     if (window.location.hash === '#recovery') card.current?.scrollIntoView({ block: 'start' })
   }, [])
 
-  if (!code) return null
+  if (!code && !viaPasskey) return null
+  const showCode = !pending && !viaPasskey && code !== null
 
   const copy = async () => {
+    if (!code) return
     try {
       await navigator.clipboard.writeText(code)
       markSaved()
@@ -48,6 +60,7 @@ export function RecoveryCodeCard() {
   }
 
   const share = async () => {
+    if (!code) return
     try {
       await navigator.share({ text: shareText(t.recoveryShareLabel, code) })
       markSaved()
@@ -64,6 +77,9 @@ export function RecoveryCodeCard() {
       setCode(await regenerateRecoveryCode())
       setRevealed(true)
       setPending(false)
+      setViaPasskey(false)
+      // The server deleted every passkey with the old code; the backup card and banner offer it again
+      void queryClient.invalidateQueries({ queryKey: queryKeys.passkeys })
       try {
         localStorage.removeItem(NUDGE_KEY)
       } catch {
@@ -80,18 +96,50 @@ export function RecoveryCodeCard() {
     }
   }
 
+  if (!expanded) {
+    return (
+      <section className="recovery-card folded" id="recovery" ref={card}>
+        <button className="recovery-fold" onClick={() => setExpanded(true)} aria-expanded={false} data-testid="recovery-fold">
+          <span className="recovery-icon small" aria-hidden>
+            <KeyIcon size={16} />
+          </span>
+          <span className="recovery-fold-label">{t.recoveryBackupOfBackup}</span>
+          <ChevronIcon />
+        </button>
+      </section>
+    )
+  }
+
   return (
     <section className="recovery-card" id="recovery" ref={card}>
-      <div className="recovery-card-head">
-        <span className="recovery-icon" aria-hidden>
-          <KeyIcon />
-        </span>
-        <h2>{t.recoveryTitle}</h2>
-      </div>
-      <p className="muted recovery-text">{t.recoveryExplain}</p>
-      <p className="recovery-warning">{t.recoveryWarning}</p>
+      {collapsible ? (
+        <button className="recovery-card-head recovery-fold-open" onClick={() => setExpanded(false)} aria-expanded data-testid="recovery-fold">
+          <span className="recovery-icon" aria-hidden>
+            <KeyIcon />
+          </span>
+          <h2>{t.recoveryTitle}</h2>
+          <ChevronIcon />
+        </button>
+      ) : (
+        <div className="recovery-card-head">
+          <span className="recovery-icon" aria-hidden>
+            <KeyIcon />
+          </span>
+          <h2>{t.recoveryTitle}</h2>
+        </div>
+      )}
+      {viaPasskey && !pending ? (
+        <p className="recovery-pending" data-testid="recovery-via-passkey">
+          {t.recoveryViaPasskey}
+        </p>
+      ) : (
+        <>
+          <p className="muted recovery-text">{t.recoveryExplain}</p>
+          <p className="recovery-warning">{t.recoveryWarning}</p>
+        </>
+      )}
 
-      {pending ? (
+      {viaPasskey && !pending ? null : pending ? (
         // The old code may already be dead (the server can have taken the new one without our hearing
         // back), so it is not offered for saving until New code settles which one is real
         <p className="recovery-pending">{t.pendingCode}</p>
@@ -110,7 +158,7 @@ export function RecoveryCodeCard() {
       )}
 
       <div className="recovery-buttons">
-        {!pending && (
+        {showCode && (
           <>
             <button className="btn btn-tonal" onClick={() => setRevealed((r) => !r)}>
               {revealed ? t.hideCode : t.showCode}
@@ -125,7 +173,7 @@ export function RecoveryCodeCard() {
             )}
           </>
         )}
-        <button className={pending ? 'btn btn-primary' : 'btn btn-text recovery-new'} onClick={regenerate} disabled={saving}>
+        <button className={showCode ? 'btn btn-text recovery-new' : 'btn btn-primary'} onClick={regenerate} disabled={saving} data-testid="new-code">
           {saving ? <span className="spinner small" /> : t.newCode}
         </button>
       </div>

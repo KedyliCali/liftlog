@@ -119,6 +119,32 @@ export function KeyIcon({ size = 20 }: { size?: number }) {
   )
 }
 
+/** Face scan frame: four corners around eyes, nose and smile, like the system Face ID glyph. */
+export function FaceIdIcon({ size = 20 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3" />
+      <path d="M9 9v1M15 9v1M12 9v4h-1M9 16a4 4 0 0 0 6 0" />
+    </Icon>
+  )
+}
+
+export function CheckIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </Icon>
+  )
+}
+
+export function ChevronIcon({ size = 18 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M9 6l6 6-6 6" />
+    </Icon>
+  )
+}
+
 export function ShareIcon({ size = 18 }: { size?: number }) {
   return (
     <Icon size={size}>

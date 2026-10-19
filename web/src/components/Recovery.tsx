@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { AppError } from '../api/client'
 import { api } from '../api/endpoints'
-import { commitRestore, currentRecoveryCode, isThisDevicesCode, verifyRecoveryCode } from '../api/session'
+import { commitRestore, currentRecoveryCode, isThisDevicesCode, verifyRecoveryCode, watchPasskeyRequest } from '../api/session'
 import type { AuthResponse } from '../api/types'
 import { errorMessage } from '../lib/format'
 import { t } from '../lib/i18n'
 import { parseRecoveryCode, type Credentials } from '../lib/recoveryCode'
+import { passkeysSupported } from '../lib/webauthn'
 import { DumbbellIcon, KeyIcon } from './Icons'
+import { PasskeyRestoreButton } from './Passkey'
 import { MessageState, WakeUpHint } from './StateViews'
 
 // Screens shown before the router exists (no router hooks here): first visit, restore, signed out.
@@ -15,9 +17,21 @@ import { MessageState, WakeUpHint } from './StateViews'
 export function WelcomeScreen({ onStart, onRestored }: { onStart: () => void; onRestored: () => void }) {
   const [restoring, setRestoring] = useState(false)
 
-  // Starts waking a sleeping server while the user reads or pastes; the answer does not matter
+  // Starts waking a sleeping server while the user reads or pastes; the answer does not matter. Once it is
+  // awake, the Face ID options are fetched, so they are ready before the tap.
   useEffect(() => {
-    api.health().catch(() => {})
+    let left = false
+    let unwatch: (() => void) | undefined
+    api
+      .health()
+      .catch(() => {})
+      .finally(() => {
+        if (!left && passkeysSupported()) unwatch = watchPasskeyRequest()
+      })
+    return () => {
+      left = true
+      unwatch?.()
+    }
   }, [])
 
   if (restoring) {
@@ -39,6 +53,7 @@ export function WelcomeScreen({ onStart, onRestored }: { onStart: () => void; on
           <button className="btn btn-primary btn-block" onClick={onStart} data-testid="welcome-start">
             {t.welcomeStart}
           </button>
+          {passkeysSupported() && <PasskeyRestoreButton onRestored={onRestored} prefetch={false} />}
           <button className="btn btn-tonal btn-block" onClick={() => setRestoring(true)}>
             <KeyIcon size={18} /> {t.haveRecoveryCode}
           </button>
@@ -54,6 +69,12 @@ export function SignedOutScreen({ onRestored, onStartFresh }: { onRestored: () =
   return (
     <div className="page recovery-screen">
       <MessageState icon={<KeyIcon size={32} />} title={t.signedOutTitle} body={t.signedOutBody} />
+      {passkeysSupported() && (
+        <>
+          <PasskeyRestoreButton onRestored={onRestored} />
+          <p className="recovery-divider">{t.orWithCode}</p>
+        </>
+      )}
       {/* The stored credentials are known to be dead here, so pasting them must read as "not recognized" */}
       <RestoreForm needsConfirm={false} checkSameDevice={false} onRestored={onRestored} />
       <button
