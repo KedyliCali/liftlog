@@ -4,6 +4,7 @@ import { t } from '../lib/i18n'
 import { setNavDirection } from '../lib/navDirection'
 import { CODE_CHANGED_KEY, RESTORED_KEY } from '../api/session'
 import { useToast } from './contexts'
+import { SyncStatus } from './SyncStatus'
 import { useTabSwipe } from './useTabSwipe'
 import { ChartIcon, ControllerIcon, DumbbellIcon, PersonIcon, PlateIcon } from './Icons'
 
@@ -41,6 +42,7 @@ export function Layout() {
   const activeIndex = activeTabIndex(pathname)
   return (
     <div className="app">
+      <SyncStatus />
       <Outlet />
       <nav className="bottom-nav" aria-label="Main">
         <div className="bottom-nav-inner" style={{ '--active-tab': activeIndex, '--tab-count': tabs.length } as CSSProperties}>

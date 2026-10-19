@@ -5,7 +5,7 @@ import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { Routine } from '../api/types'
 import { useToast } from '../components/contexts'
-import { errorMessage } from '../lib/format'
+import { startWorkoutErrorMessage } from '../lib/format'
 import { todayIso } from '../lib/nutrition'
 
 /** One tap on a routine: the server creates the linked workout, then its page opens in workout mode. */
@@ -29,7 +29,7 @@ export function useStartRoutine(onStarted?: () => void) {
       onStarted?.()
       navigate(`/workouts/${workout.id}`, { viewTransition: true })
     } catch (error) {
-      toast({ message: errorMessage(error) })
+      toast({ message: startWorkoutErrorMessage(error) })
       busy.current = false
       setStartingId(null)
     }

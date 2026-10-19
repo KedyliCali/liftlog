@@ -202,3 +202,23 @@ export function StreakIcon({ size = 18 }: { size?: number }) {
     </Icon>
   )
 }
+
+/** Cloud with an arrow up: a change waiting to be sent */
+export function CloudUploadIcon({ size }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5a4 4 0 0 1-1 7.9" />
+      <path d="M12 20v-7M9 15.5l3-3 3 3" />
+    </Icon>
+  )
+}
+
+/** Crossed-out cloud: no connection */
+export function CloudOffIcon({ size }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M8 8.3a6 6 0 0 0-1.6.74A4.5 4.5 0 0 0 7 18h10M18 9.5a6 6 0 0 0-7.5-4.3M18 9.5a4 4 0 0 1 2.6 6.7" />
+      <path d="M3 3l18 18" />
+    </Icon>
+  )
+}
