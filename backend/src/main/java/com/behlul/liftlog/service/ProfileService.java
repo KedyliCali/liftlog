@@ -12,6 +12,7 @@ import com.behlul.liftlog.security.CurrentUserProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -25,13 +26,15 @@ public class ProfileService {
     private final UserRepository userRepository;
     private final UserAvatarRepository avatarRepository;
     private final CurrentUserProvider currentUser;
+    private final WeightService weightService;
     private final Clock clock;
 
     public ProfileService(UserRepository userRepository, UserAvatarRepository avatarRepository,
-                          CurrentUserProvider currentUser, Clock clock) {
+                          CurrentUserProvider currentUser, WeightService weightService, Clock clock) {
         this.userRepository = userRepository;
         this.avatarRepository = avatarRepository;
         this.currentUser = currentUser;
+        this.weightService = weightService;
         this.clock = clock;
     }
 
@@ -47,7 +50,13 @@ public class ProfileService {
                 ? null : request.displayName().trim();
         user.setDisplayName(name);
         user.setHeightCm(request.heightCm());
-        user.setBodyWeightKg(request.bodyWeightKg());
+        BigDecimal newWeight = request.bodyWeightKg();
+        if (newWeight != null && !sameWeight(newWeight, user.getBodyWeightKg())
+                && newWeight.compareTo(WeightService.MAX_LOGGED_KG) <= 0) {
+            // Only a changed weight is logged, so saving the name does not overwrite today's weigh-in
+            weightService.recordFromProfile(user.getId(), newWeight);
+        }
+        user.setBodyWeightKg(newWeight);
         return toResponse(user);
     }
 
@@ -78,6 +87,10 @@ public class ProfileService {
     @Transactional
     public void deleteAvatar() {
         avatarRepository.deleteById(currentUser.currentUserId());
+    }
+
+    private static boolean sameWeight(BigDecimal a, BigDecimal b) {
+        return b != null && a.compareTo(b) == 0;
     }
 
     private User loadUser() {
