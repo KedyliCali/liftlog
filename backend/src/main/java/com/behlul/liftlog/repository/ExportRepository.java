@@ -37,7 +37,7 @@ public interface ExportRepository extends Repository<WorkoutSet, Long> {
             @QueryHint(name = HINT_READ_ONLY, value = "true")})
     @Query("""
             select new com.behlul.liftlog.repository.ExportedFoodEntry(
-                       f.entryDate, f.name, f.caloriesKcal, f.proteinG, f.carbsG, f.fatG)
+                       f.entryDate, f.name, f.grams, f.caloriesKcal, f.proteinG, f.carbsG, f.fatG)
             from FoodEntry f
             where f.user.id = :userId
             order by f.entryDate, f.id

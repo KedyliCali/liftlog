@@ -62,7 +62,7 @@ public class NutritionService {
     public FoodEntryResponse addEntry(FoodEntryRequest request) {
         FoodEntry entry = new FoodEntry(userRepository.getReferenceById(currentUser.currentUserId()),
                 request.entryDate(), request.name().trim(), request.caloriesKcal(), request.proteinG(),
-                request.carbsG(), request.fatG());
+                request.carbsG(), request.fatG(), request.grams());
         return FoodEntryResponse.from(entryRepository.save(entry));
     }
 
@@ -81,7 +81,7 @@ public class NutritionService {
         List<FoodEntry> copies = entryRepository.findByUserIdAndEntryDateOrderByIdAsc(userId, sourceDate)
                 .stream()
                 .map(source -> new FoodEntry(user, targetDate, source.getName(), source.getCaloriesKcal(),
-                        source.getProteinG(), source.getCarbsG(), source.getFatG()))
+                        source.getProteinG(), source.getCarbsG(), source.getFatG(), source.getGrams()))
                 .toList();
         return entryRepository.saveAll(copies).stream().map(FoodEntryResponse::from).toList();
     }

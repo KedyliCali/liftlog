@@ -2386,6 +2386,11 @@ body:has(.rest-timer) .set-groups {
   color: var(--text-muted);
 }
 
+/* The portion leads the macro line, a shade stronger so it reads as "how much" before "what's in it" */
+.food-portion {
+  font-weight: 650;
+}
+
 .amount-preview-macros {
   display: flex;
   gap: 12px;

@@ -1078,6 +1078,41 @@ class ApiIntegrationTest {
     }
 
     @Test
+    void foodEntriesKeepTheirPortionInGramsAndCopiesCarryIt() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        String today = LocalDate.now(ZoneOffset.UTC).toString();
+        String yesterday = LocalDate.now(ZoneOffset.UTC).minusDays(1).toString();
+
+        // A catalog food with a chosen amount stores it; a hand-typed entry leaves it unknown
+        authed(post("/api/v1/nutrition/entries"), token,
+                json("{'entryDate':'%s','name':'Oats (150 g)','caloriesKcal':570,'proteinG':19.5,'grams':150}", yesterday))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.grams").value(150.0));
+        authed(post("/api/v1/nutrition/entries"), token,
+                json("{'entryDate':'%s','name':'Protein shake','caloriesKcal':120,'proteinG':24}", yesterday))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.grams").doesNotExist());
+
+        mockMvc.perform(get("/api/v1/nutrition/days/" + yesterday).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.entries[0].grams").value(150.0))
+                .andExpect(jsonPath("$.entries[1].grams").doesNotExist());
+
+        authed(post("/api/v1/nutrition/days/" + today + "/copy-from/" + yesterday), token, "")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$[0].grams").value(150.0))
+                .andExpect(jsonPath("$[1].grams").doesNotExist());
+        mockMvc.perform(get("/api/v1/nutrition/days/" + today).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.entries[0].grams").value(150.0));
+
+        // Zero, negative, too large or more than one decimal are rejected like the other amounts
+        for (String bad : new String[]{"0", "-5", "50000.1", "12.25"}) {
+            authed(post("/api/v1/nutrition/entries"), token,
+                    json("{'entryDate':'%s','name':'Rice','caloriesKcal':130,'proteinG':2.7,'grams':%s}", today, bad))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Test
     void foodCatalogListsSeededFoodsInBothLanguages() throws Exception {
         String token = register(randomEmail(), "s3cret-pass", null);
         MvcResult result = mockMvc.perform(get("/api/v1/foods").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))

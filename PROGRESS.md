@@ -490,3 +490,23 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
 **Sıradaki adımlar:**
 1. PR aç; iPhone'da mobil veriyle ilk açılışı ve çevrimdışı açılışı dene.
 2. Passkey testindeki tarih hesabını yerel tarihe çevir.
+
+## 2026-10-20 — Yemek kaydında gram (`feature/food-grams`)
+
+- **Backend:** `V22__food_entry_grams.sql`: `food_entries.grams NUMERIC(7,1)`, boş bırakılabilir, `0 < grams <= 50000`.
+  Eski kayıtlar NULL kalıyor (tahmin yok). `FoodEntryRequest`/`FoodEntryResponse` artık `grams` taşıyor (0,1–50000,
+  bir ondalık). "Dünü kopyala" gramı da kopyalıyor.
+- **Gram nerede saklanıyor:** katalogdan veya barkoddan (Open Food Facts) eklenen yemek: gram modunda girilen miktar,
+  porsiyon modunda `porsiyon sayısı × porsiyon gramı`. **NULL kalan:** elle girilen yemek ve hızlı ekle çipleri
+  (sık yenenler gram bilmiyor; eski kayıtlarla çift çip olmasın diye gruplamaya gram eklenmedi). Düzenleme uç noktası yok.
+- **CSV:** `nutrition.csv` ve ZIP'teki `beslenme.csv` yemek adının yanında `Miktar (g)` sütunu: ondalık virgül,
+  bilinmiyorsa boş. "Beslenme CSV'sinde gram sütunu yok" notu kapandı.
+- **Web:** gün listesinde makro satırının başında "180 g"; ad zaten "(150 g)" içeriyorsa tekrar yazılmıyor
+  (`portionLabel`).
+- Doğrulama: backend 285 test (`mvnw verify`), web 453 test, tsc, lint, build.
+  Not: `Passkey.test.tsx` "Later hides it for 30 days" testi yerel saat 00:00–03:00 arasında (UTC tarihi bir gün geride)
+  kırılıyor; bu değişiklikle ilgisiz, `TZ=UTC` ile hepsi geçiyor.
+
+**Sıradaki adımlar:**
+1. PR aç; canlıda V22'yi kontrol et.
+2. Android'de yemek eklerken `grams` gönder (alan isteğe bağlı, eski istemciler etkilenmez).

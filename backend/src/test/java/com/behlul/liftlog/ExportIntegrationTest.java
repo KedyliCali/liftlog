@@ -84,7 +84,9 @@ class ExportIntegrationTest {
     void nutritionCsvHasTheCallersEntriesWithDecimalCommas() throws Exception {
         String token = register(null);
         String intruder = register(null);
-        addFood(token, "2026-03-02", "Mercimek çorbası; büyük kase", 260, "13.5", "36.2", null);
+        addFood(token, "2026-03-02", "Mercimek çorbası; büyük kase", 260, "13.5", "36.2", null, "312.5");
+        addFood(token, "2026-03-02", "Yulaf (150 g)", 570, "19.5", "99", "10.5", "150");
+        // Hand-typed: no portion, so the grams cell stays empty rather than 0
         addFood(token, "2026-03-01", "=1+1", 100, "0", null, "2.5");
         addFood(intruder, "2026-03-01", "Intruder food", 999, "99", null, null);
 
@@ -95,9 +97,10 @@ class ExportIntegrationTest {
                 .andReturn();
 
         assertThat(result.getResponse().getContentAsString(StandardCharsets.UTF_8)).isEqualTo(BOM
-                + "Tarih;Yemek;Kalori (kcal);Protein (g);Karbonhidrat (g);Yağ (g)\r\n"
-                + "2026-03-01;'=1+1;100;0;;2,5\r\n"
-                + "2026-03-02;\"Mercimek çorbası; büyük kase\";260;13,5;36,2;\r\n");
+                + "Tarih;Yemek;Miktar (g);Kalori (kcal);Protein (g);Karbonhidrat (g);Yağ (g)\r\n"
+                + "2026-03-01;'=1+1;;100;0;;2,5\r\n"
+                + "2026-03-02;\"Mercimek çorbası; büyük kase\";312,5;260;13,5;36,2;\r\n"
+                + "2026-03-02;Yulaf (150 g);150;570;19,5;99;10,5\r\n");
     }
 
     @Test
@@ -105,7 +108,8 @@ class ExportIntegrationTest {
         String email = randomEmail();
         String token = register(email, "Behlül");
         seedWorkouts(token);
-        addFood(token, "2026-03-02", "Yulaf", 380, "13", null, null);
+        addFood(token, "2026-03-02", "Yulaf", 380, "13", null, null, "100");
+        addFood(token, "2026-03-02", "Shake", 120, "24", null, null);
         authed(put("/api/v1/nutrition/goals"), token, "{\"calorieGoalKcal\":2500,\"proteinGoalG\":160}")
                 .andExpect(status().isOk());
 
@@ -119,7 +123,10 @@ class ExportIntegrationTest {
         Map<String, String> entries = unzip(result.getResponse().getContentAsByteArray());
         assertThat(entries).containsOnlyKeys("antrenman.csv", "beslenme.csv", "profile.json");
         assertThat(entries.get("antrenman.csv")).startsWith(BOM + "Tarih;Antrenman notu;").contains("Pull-up;2;10;6");
-        assertThat(entries.get("beslenme.csv")).startsWith(BOM + "Tarih;Yemek;").contains("2026-03-02;Yulaf;380;13;;");
+        // Same writer as nutrition.csv: the grams column with a value, and empty when unknown
+        assertThat(entries.get("beslenme.csv")).startsWith(BOM + "Tarih;Yemek;Miktar (g);")
+                .contains("2026-03-02;Yulaf;100;380;13;;\r\n")
+                .contains("2026-03-02;Shake;;120;24;;\r\n");
 
         JsonNode profile = jsonMapper.readTree(entries.get("profile.json"));
         assertThat(profile.get("displayName").asString()).isEqualTo("Behlül");
@@ -193,7 +200,15 @@ class ExportIntegrationTest {
 
     private void addFood(String token, String date, String name, int kcal, String protein, String carbs, String fat)
             throws Exception {
+        addFood(token, date, name, kcal, protein, carbs, fat, null);
+    }
+
+    private void addFood(String token, String date, String name, int kcal, String protein, String carbs, String fat,
+                         String grams) throws Exception {
         Map<String, Object> body = new LinkedHashMap<>();
+        if (grams != null) {
+            body.put("grams", grams);
+        }
         body.put("entryDate", date);
         body.put("name", name);
         body.put("caloriesKcal", kcal);

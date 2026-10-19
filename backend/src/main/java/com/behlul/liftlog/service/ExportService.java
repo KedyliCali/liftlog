@@ -85,10 +85,11 @@ public class ExportService {
     }
 
     private void writeNutrition(Long userId, OutputStream out) {
-        CsvWriter csv = CsvWriter.start(out, "Tarih", "Yemek", "Kalori (kcal)", "Protein (g)",
+        // "Miktar (g)" sits next to the name it describes; empty when the portion is unknown
+        CsvWriter csv = CsvWriter.start(out, "Tarih", "Yemek", "Miktar (g)", "Kalori (kcal)", "Protein (g)",
                 "Karbonhidrat (g)", "Yağ (g)");
         try (Stream<ExportedFoodEntry> entries = exportRepository.streamFoodEntries(userId)) {
-            entries.forEach(entry -> csv.row(entry.entryDate(), entry.name(), entry.caloriesKcal(),
+            entries.forEach(entry -> csv.row(entry.entryDate(), entry.name(), entry.grams(), entry.caloriesKcal(),
                     entry.proteinG(), entry.carbsG(), entry.fatG()));
         }
         csv.flush();

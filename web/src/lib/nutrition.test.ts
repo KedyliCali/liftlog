@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { goalProgress, macroEnergySplit, shiftDay, suggestedProteinGoal, todayIso, validateFood, validateGoals } from './nutrition'
+import { goalProgress, macroEnergySplit, portionLabel, shiftDay, suggestedProteinGoal, todayIso, validateFood, validateGoals } from './nutrition'
+
+describe('portionLabel', () => {
+  const format = (n: number) => String(n).replace('.', ',')
+
+  it('labels a known portion', () => {
+    expect(portionLabel({ name: 'Rice (1 bowl)', grams: 180 }, format)).toBe('180 g')
+    expect(portionLabel({ name: 'Rice', grams: 112.5 }, format)).toBe('112,5 g')
+  })
+
+  it('stays quiet when the name already has it or the portion is unknown', () => {
+    expect(portionLabel({ name: 'Yogurt (150 g)', grams: 150 }, format)).toBeNull()
+    expect(portionLabel({ name: 'Shake', grams: null }, format)).toBeNull()
+    expect(portionLabel({ name: 'Shake' }, format)).toBeNull()
+  })
+})
 
 describe('goalProgress', () => {
   it('caps the ring at a full circle and flags going over', () => {
