@@ -469,3 +469,24 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
 
 **Sıradaki adımlar:**
 1. PR aç; gerçek telefonda kaydırarak silmeyi dene.
+
+## 2026-10-20 — Kod bölme, hızlı ilk açılış (`feature/code-splitting`, sadece web)
+
+- Antrenman listesi (başlangıç sayfası) giriş paketinde kaldı; diğer tüm sayfalar (`Nutrition`, `Progress`, `Game`,
+  oyuncu ve maç sayfası, `Profile`, antrenman detayı) `React.lazy` + `Suspense` ile ayrı parçalarda.
+  Bekleme ekranı sayfanın kendi başlığı + kendi iskeleti (`src/routing/LazyPages.tsx`), boş ekran yanıp sönmüyor.
+- İlk ekrandan sonra boşta (`requestIdleCallback`, Safari'de 1,5 sn gecikme) sayfalar sırayla önceden yükleniyor:
+  önce alt sekmeler, sonra detay sayfaları (`src/routing/pageLoaders.ts`). Sekme değiştirme/kaydırma anında açılıyor.
+- `WEIGHT_CARD_ID` `lib/weight.ts`'e taşındı; Beslenme sayfası artık grafik kütüphanesini (recharts) çekmiyor.
+- React, router ve React Query ayrı `react-vendor` parçasında; yeni deploy'da sadece uygulama kodu yeniden iniyor.
+- Boyutlar (ilk yüklemede inen JS): önce `index` 1.013 kB (gzip 300 kB) → şimdi `index` 145 kB (gzip 44,7 kB)
+  + `react-vendor` 346 kB (gzip 108 kB). Toplam ilk yük gzip 300 → 153 kB. "500 kB" uyarısı yok.
+  recharts (342 kB) ve barkod okuyucu @zxing (477 kB) sadece kullanan sayfalarda.
+- PWA: `globPatterns` js içeriyor; 20 JS parçasının hepsi `sw.js` önbellek listesinde, çevrimdışı çalışma aynı.
+- Doğrulama: web 449 test (446 → 449), tsc, lint, build, `vite preview` ile sayfa ve parçalar 200.
+  `Passkey.test.tsx` "Later hides it for 30 days" testi gece 00:00–03:00 arası (yerel tarih ≠ UTC tarih) düşüyor;
+  bu değişiklikten bağımsız, eski bir test hatası.
+
+**Sıradaki adımlar:**
+1. PR aç; iPhone'da mobil veriyle ilk açılışı ve çevrimdışı açılışı dene.
+2. Passkey testindeki tarih hesabını yerel tarihe çevir.
