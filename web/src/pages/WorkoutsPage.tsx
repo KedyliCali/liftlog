@@ -7,6 +7,7 @@ import type { Routine, WorkoutSummary } from '../api/types'
 import { RecoveryNudge } from '../components/RecoveryNudge'
 import { WorkoutListSkeleton } from '../components/Skeletons'
 import { ErrorState, MessageState } from '../components/StateViews'
+import { StreakChip } from '../components/StreakChip'
 import { SwipeToDelete } from '../components/SwipeToDelete'
 import { useToast } from '../components/contexts'
 import { formatKg, monthShort, parseDate, weekdayShort } from '../lib/format'
@@ -24,6 +25,8 @@ export function WorkoutsPage() {
   const [managingRoutines, setManagingRoutines] = useState(false)
   // An older server has no routines endpoint: the error just hides the strip
   const routines = useQuery({ queryKey: queryKeys.routines, queryFn: api.routines, retry: false })
+  // Same for the streak: no chip on a server without the endpoint, and none before the first week counts
+  const streak = useQuery({ queryKey: queryKeys.streak, queryFn: api.streak, retry: false })
   // Hidden while their undo window is open; the server delete happens when the toast expires
   const [pendingDelete, setPendingDelete] = useState<Set<number>>(new Set())
 
@@ -75,6 +78,9 @@ export function WorkoutsPage() {
       <header className="page-header">
         <h1 className="page-title">{t.workoutsTitle}</h1>
         <p className="page-subtitle">{t.workoutsSubtitle}</p>
+        {streak.data && streak.data.weeks > 0 && (
+          <StreakChip weeks={streak.data.weeks} thisWeekWorkouts={streak.data.thisWeekWorkouts} className="header-streak" />
+        )}
         {routines.isSuccess && (
           <button className="routines-btn" onClick={() => setManagingRoutines(true)} data-testid="manage-routines">
             {t.routines}

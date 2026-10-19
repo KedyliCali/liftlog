@@ -165,3 +165,13 @@ export function SettingsIcon({ size = 20 }: { size?: number }) {
     </Icon>
   )
 }
+
+/** Flame outline with an inner tongue: the weekly streak, drawn in the app's stroke style instead of an emoji. */
+export function StreakIcon({ size = 18 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M12 3c.8 3.4 5 5.6 5 10.2A5 5 0 0 1 12 18.5a5 5 0 0 1-5-5.3c0-2.4 1.3-3.9 2.6-5 .2 1.7 1 2.7 2.2 3-.6-2.8-.4-5.6.2-8.2z" />
+      <path d="M12 18.5c-1.2 0-2-.9-2-2 0-1.2.9-1.9 2-3 1.1 1.1 2 1.8 2 3 0 1.1-.8 2-2 2z" />
+    </Icon>
+  )
+}
