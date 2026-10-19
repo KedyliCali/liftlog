@@ -80,6 +80,37 @@ public interface StatsRepository extends Repository<WorkoutSet, Long> {
     @Query("select w.workoutDate from Workout w where w.user.id = :userId")
     List<LocalDate> findWorkoutDates(@Param("userId") Long userId);
 
+    /** Dates of all workouts of the given users (empty workouts included), for streaks and workout counts. */
+    @Query("""
+            select new com.behlul.liftlog.repository.UserWorkoutDate(w.user.id, w.workoutDate)
+            from Workout w where w.user.id in :userIds
+            """)
+    List<UserWorkoutDate> findWorkoutDatesOf(@Param("userIds") java.util.Collection<Long> userIds);
+
+    /** Per user: sets and volume in workouts dated {@code from}..{@code to}; users without sets have no row. */
+    @Query("""
+            select new com.behlul.liftlog.repository.UserSetTotals(u.id, count(s.id),
+                sum(s.reps * (s.weightKg + case when e.bodyweight = true then coalesce(u.bodyWeightKg, 0) else 0 end)))
+            from WorkoutSet s join s.workout w join w.user u join s.exercise e
+            where u.id in :userIds and w.workoutDate between :from and :to
+            group by u.id
+            """)
+    List<UserSetTotals> findSetTotalsOf(@Param("userIds") java.util.Collection<Long> userIds,
+                                        @Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /**
+     * Every set of the named built-in exercises done by the given users. Built-in only, so a custom exercise
+     * someone calls "Bench Press" cannot enter the group comparison.
+     */
+    @Query("""
+            select new com.behlul.liftlog.repository.UserLiftSet(u.id, e.name, s.reps,
+                s.weightKg + case when e.bodyweight = true then coalesce(u.bodyWeightKg, 0) else 0 end)
+            from WorkoutSet s join s.workout w join w.user u join s.exercise e
+            where u.id in :userIds and e.owner is null and e.name in :names
+            """)
+    List<UserLiftSet> findLiftSetsOf(@Param("userIds") java.util.Collection<Long> userIds,
+                                     @Param("names") java.util.Collection<String> names);
+
     /**
      * Weekly volume computed in PostgreSQL; date_trunc('week') starts weeks on Monday (ISO 8601).
      * Returns only weeks that have sets; the service fills the gaps with zeros. Bodyweight exercises

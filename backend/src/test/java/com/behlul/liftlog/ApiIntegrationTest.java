@@ -1246,6 +1246,98 @@ class ApiIntegrationTest {
         asUser(get("/api/v1/lol/players/" + onlyInTwo), memberTwo).andExpect(status().isOk());
     }
 
+    /** A fixed "today" (a Friday), so the 7-day window and the streak do not depend on when the test runs. */
+    private static final String TRAINING = "/api/v1/group/training?today=2026-10-16&days=";
+
+    @Test
+    void groupTrainingShowsOnlyMembersWhoOptedIn() throws Exception {
+        Account ali = newAccount("Ali");
+        Account ece = newAccount("Ece");
+        Account outsider = newAccount("Out");
+
+        asUser(get(TRAINING + 7), ali).andExpect(status().isNoContent());
+        joinGroup(ece, createGroup(ali, "Gym")).andExpect(status().isOk());
+        createGroup(outsider, "Other");
+        authed(put("/api/v1/profile/share-training"), outsider.token(), "{\"enabled\":true}").andExpect(status().isOk());
+
+        long squat = exerciseId(ali.token(), "Squat");
+        long bench = exerciseId(ali.token(), "Bench Press");
+        long deadlift = exerciseId(ali.token(), "Deadlift");
+        long today = createWorkout(ali.token(), "2026-10-16", "private note");
+        addSet(ali.token(), today, squat, 5, "100");     // e1RM 116.67
+        addSet(ali.token(), today, bench, 8, "80");      // e1RM 101.33
+        long lastWeek = createWorkout(ali.token(), "2026-10-06", null);
+        addSet(ali.token(), lastWeek, deadlift, 1, "200");
+        long eceWorkout = createWorkout(ece.token(), "2026-10-16", null);
+        addSet(ece.token(), eceWorkout, bench, 1, "150");
+        long outsiderWorkout = createWorkout(outsider.token(), "2026-10-16", null);
+        addSet(outsider.token(), outsiderWorkout, bench, 1, "300");
+
+        // Nobody opted in yet: each sees their own numbers and the other one by name only
+        asUser(get(TRAINING + 7), ali)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.days").value(7))
+                .andExpect(jsonPath("$.from").value("2026-10-10"))
+                .andExpect(jsonPath("$.members.length()").value(2))
+                .andExpect(jsonPath("$.members[0].you").value(true))
+                .andExpect(jsonPath("$.members[0].shares").value(false))
+                .andExpect(jsonPath("$.members[0].workouts").value(1))
+                .andExpect(jsonPath("$.members[1].displayName").value("Ece"))
+                .andExpect(jsonPath("$.members[1].shares").value(false))
+                .andExpect(jsonPath("$.members[1].userId").doesNotExist())
+                .andExpect(jsonPath("$.members[1].workouts").doesNotExist())
+                .andExpect(jsonPath("$.members[1].best").doesNotExist());
+        asUser(get(TRAINING + 7), ece)
+                .andExpect(jsonPath("$.members[0].displayName").value("Ali"))
+                .andExpect(jsonPath("$.members[0].workouts").doesNotExist())
+                .andExpect(jsonPath("$.members[1].you").value(true))
+                .andExpect(jsonPath("$.members[1].best[0].exercise").value("Bench Press"))
+                .andExpect(jsonPath("$.members[1].best[0].estimated1rmKg").value(150.0));
+
+        authed(put("/api/v1/profile/share-training"), ali.token(), "{}").andExpect(status().isBadRequest());
+        authed(put("/api/v1/profile/share-training"), ali.token(), "{\"enabled\":true}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.shareTraining").value(true));
+        asUser(get("/api/v1/profile"), ali).andExpect(jsonPath("$.shareTraining").value(true));
+
+        // Ali opted in: Ece sees his numbers, and only those of this group (the outsider shares too)
+        MvcResult week = asUser(get(TRAINING + 7), ece)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.members.length()").value(2))
+                .andExpect(jsonPath("$.members[0].userId").value(ali.id()))
+                .andExpect(jsonPath("$.members[0].you").value(false))
+                .andExpect(jsonPath("$.members[0].shares").value(true))
+                .andExpect(jsonPath("$.members[0].workouts").value(1))
+                .andExpect(jsonPath("$.members[0].sets").value(2))
+                .andExpect(jsonPath("$.members[0].totalVolumeKg").value(1140.0))
+                .andExpect(jsonPath("$.members[0].weekStreak").value(2))
+                .andExpect(jsonPath("$.members[0].best[0].estimated1rmKg").value(101.33))
+                .andExpect(jsonPath("$.members[0].best[1].estimated1rmKg").value(116.67))
+                // Best lifts are all time, so last week's deadlift counts even in the 7-day window
+                .andExpect(jsonPath("$.members[0].best[2].estimated1rmKg").value(200.0))
+                .andExpect(jsonPath("$.members[0].best[3].exercise").value("Overhead Press"))
+                .andExpect(jsonPath("$.members[0].best[3].estimated1rmKg").value(nullValue()))
+                .andExpect(jsonPath("$.members[1].shares").value(false))
+                .andReturn();
+        // Numbers only: workout notes and body data never leave the owner's account
+        assertThat(week.getResponse().getContentAsString()).doesNotContain("private note", "bodyWeight", "notes");
+
+        asUser(get(TRAINING + 30), ece)
+                .andExpect(jsonPath("$.members[0].workouts").value(2))
+                .andExpect(jsonPath("$.members[0].sets").value(3))
+                .andExpect(jsonPath("$.members[0].totalVolumeKg").value(1340.0));
+        asUser(get(TRAINING + 14), ece).andExpect(status().isBadRequest());
+
+        // Opting out hides the numbers again
+        authed(put("/api/v1/profile/share-training"), ali.token(), "{\"enabled\":false}").andExpect(status().isOk());
+        asUser(get(TRAINING + 7), ece).andExpect(jsonPath("$.members[0].workouts").doesNotExist());
+
+        // Leaving the group ends the comparison
+        asUser(delete(GROUP + "/me"), ece).andExpect(status().isNoContent());
+        asUser(get(TRAINING + 7), ece).andExpect(status().isNoContent());
+        asUser(get(TRAINING + 7), ali).andExpect(jsonPath("$.members.length()").value(1));
+    }
+
     @Test
     void groupRowLockMakesJoinsWaitTheirTurn() throws Exception {
         String code = createGroup(newAccount("Locker"), "Locked");
