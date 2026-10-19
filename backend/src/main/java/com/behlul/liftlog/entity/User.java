@@ -46,6 +46,10 @@ public class User {
     @Column(name = "protein_goal_g")
     private Integer proteinGoalG;
 
+    /** The WebAuthn user handle inside every passkey of this account; null until the first passkey. */
+    @Column(name = "passkey_handle", unique = true)
+    private byte[] passkeyHandle;
+
     protected User() {
     }
 
@@ -119,5 +123,17 @@ public class User {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public byte[] getPasskeyHandle() {
+        return passkeyHandle;
+    }
+
+    /** Set once: every passkey already made carries the handle, so changing it would orphan them. */
+    public void assignPasskeyHandle(byte[] handle) {
+        if (passkeyHandle != null) {
+            throw new IllegalStateException("Passkey handle is already set");
+        }
+        this.passkeyHandle = handle;
     }
 }

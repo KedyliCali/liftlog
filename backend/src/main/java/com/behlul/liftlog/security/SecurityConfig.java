@@ -45,6 +45,8 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_PATHS = {
             "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/health",
+            // Passkey sign-in: the device asking has lost its account, so it has no token to send
+            "/api/v1/auth/passkey", "/api/v1/auth/passkey/**",
             "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/error",
     };
 

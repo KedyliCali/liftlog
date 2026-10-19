@@ -83,6 +83,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, "Validation failed", request, fieldErrors);
     }
 
+    @ExceptionHandler(InvalidPasskeyException.class)
+    ResponseEntity<ApiError> handleInvalidPasskey(InvalidPasskeyException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request, null);
+    }
+
     @ExceptionHandler(InvalidImageException.class)
     ResponseEntity<ApiError> handleInvalidImage(InvalidImageException ex, HttpServletRequest request) {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request, null);
