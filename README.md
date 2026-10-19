@@ -24,6 +24,7 @@ the same JWT-secured Spring Boot REST API backed by PostgreSQL, packaged with Do
 - **Exercises:** 16 built-in lifts and 16 calisthenics moves (pull-up, dip, muscle-up, pistol squat… and weighted versions), plus your own. The picker is grouped by muscle group with a bodyweight filter.
 - **Calisthenics:** bodyweight sets log only the extra load ("BW + 10 kg"); volume, PRs and e1RM add your profile body weight, so a weighted pull-up and a plain one compare fairly.
 - **No sign-up form:** each installation silently creates its own account (random credentials kept on the device) and authenticates with JWT. Every account sees only its own data.
+- **Face ID backup (passkey):** one tap stores a passkey in iCloud Keychain; after a new phone or cleared Safari data, "Come back with Face ID" restores the log, and the device then signs in silently with its own secret. The recovery code stays as the backup of the backup.
 - **Recovery code:** the web app's hidden account can be carried to a new phone or back after Safari data is cleared: Profile shows, copies and shares a code, a new device restores with it, and "New code" signs every other device out.
 - **Profile:** name, height, body weight, BMI and a profile photo (resized to 256 px on the device before upload).
 - **In the gym:** rest timer after each set (vibration, plus a tone on iPhone), swipe a set or workout away with undo, start a new workout from a past one with its weights, confetti on a new PR.
@@ -148,7 +149,9 @@ All endpoints are under `/api/v1`. Everything except `auth/register`, `auth/logi
 | POST | `/lol/group/join`, `/lol/group/invite-code` | Join with an invite code / issue a new code (owner) |
 | PUT / DELETE | `/lol/group/me/account`, `/lol/group/me` | Link your own Riot account / leave the group |
 | DELETE | `/lol/group/members/{userId}` | Remove a member (owner); the invite code changes |
-| PUT | `/profile/password` | Change the password (the web app's "New code"); every older token stops working |
+| PUT | `/profile/password` | Change the password (the web app's "New code"); every older token, device secret and passkey stops working |
+| GET / POST | `/profile/passkeys`, `/profile/passkeys/options` | The account's passkeys / start and finish adding one (WebAuthn) |
+| POST | `/auth/passkey/options`, `/auth/passkey` | Sign in with a passkey (anonymous); the device sends a fresh secret for later silent logins |
 | GET | `/foods` | Built-in food catalog (Turkish and English names, per 100 g and per serving) |
 
 Errors always use the same shape:

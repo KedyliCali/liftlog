@@ -26,6 +26,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.filter.CorsFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import tools.jackson.databind.json.JsonMapper;
@@ -45,16 +46,21 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_PATHS = {
             "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/health",
+            // Passkey sign-in: the device asking has lost its account, so it has no token to send
+            "/api/v1/auth/passkey", "/api/v1/auth/passkey/**",
             "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/error",
     };
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, JsonMapper jsonMapper) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, JsonMapper jsonMapper, AuthRateLimiter authRateLimiter)
+            throws Exception {
         return http
                 // Stateless token API: no cookies, so CSRF protection and sessions are unnecessary
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // After CORS, so a 429 still carries the CORS headers and the web app can read it
+                .addFilterAfter(new AuthRateLimitFilter(authRateLimiter, jsonMapper), CorsFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(PUBLIC_PATHS).permitAll()

@@ -1,5 +1,6 @@
+import type { CreationOptionsJson, CredentialJson, RequestOptionsJson } from '../lib/webauthn'
 import { request } from './client'
-import type { AuthResponse, LolGroup, LolPlayer, LolPlayerDetail, LolRankPoint, CatalogFood, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, PersonalRecord, Profile, ProgressPoint, SetInput, WeeklyVolume, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types'
+import type { AuthResponse, LolGroup, LolPlayer, LolPlayerDetail, LolRankPoint, CatalogFood, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, Passkey, PasskeyCeremony, PersonalRecord, Profile, ProgressPoint, SetInput, WeeklyVolume, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types'
 
 export const api = {
   register: (email: string, password: string) =>
@@ -62,6 +63,17 @@ export const api = {
   /** The recovery code's "New code": the web app generates both passwords itself */
   changePassword: (currentPassword: string, newPassword: string) =>
     request<AuthResponse>('/api/v1/profile/password', { method: 'PUT', body: { currentPassword, newPassword } }),
+  /** Passkey backup: start a registration, then send the phone's answer back with the same ceremony id */
+  passkeyCreationOptions: () =>
+    request<PasskeyCeremony<CreationOptionsJson>>('/api/v1/profile/passkeys/options', { method: 'POST' }),
+  registerPasskey: (ceremonyId: string, credential: CredentialJson) =>
+    request<Pick<Passkey, 'id' | 'createdAt'>>('/api/v1/profile/passkeys', { method: 'POST', body: { ceremonyId, credential } }),
+  passkeys: () => request<Passkey[]>('/api/v1/profile/passkeys'),
+  /** Anonymous: the passkey itself names the account, and deviceSecret becomes this device's own password */
+  passkeyRequestOptions: () =>
+    request<PasskeyCeremony<RequestOptionsJson>>('/api/v1/auth/passkey/options', { method: 'POST', anonymous: true }),
+  signInWithPasskey: (ceremonyId: string, credential: CredentialJson, deviceSecret: string) =>
+    request<AuthResponse>('/api/v1/auth/passkey', { method: 'POST', body: { ceremonyId, credential, deviceSecret }, anonymous: true }),
   /** Fire-and-forget: starts waking a sleeping server while the user reads the welcome screen */
   health: () => request<void>('/api/v1/health', { anonymous: true, responseType: 'none' }),
 

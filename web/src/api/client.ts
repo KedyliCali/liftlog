@@ -2,7 +2,7 @@ import type { ApiErrorBody } from './types'
 
 export const API_BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080').replace(/\/$/, '')
 
-export type AppErrorKind = 'network' | 'notFound' | 'unauthorized' | 'validation' | 'conflict' | 'server' | 'riotNoKey' | 'riotUnavailable' | 'signedOut' | 'forbidden' | 'groupRule' | 'unknown'
+export type AppErrorKind = 'network' | 'notFound' | 'unauthorized' | 'validation' | 'conflict' | 'server' | 'riotNoKey' | 'riotUnavailable' | 'signedOut' | 'forbidden' | 'groupRule' | 'rateLimited' | 'unknown'
 
 /** Typed failure the UI knows how to explain; components never inspect HTTP details. */
 export class AppError extends Error {
@@ -26,6 +26,8 @@ function errorFromResponse(status: number, body: ApiErrorBody | null): AppError 
       return new AppError('forbidden')
     case status === 404:
       return new AppError('notFound')
+    case status === 429:
+      return new AppError('rateLimited')
     // League group rules name themselves, so the app shows its own text instead of the English message
     case status === 409 && body?.fieldErrors?.group != null:
       return new AppError('groupRule', body?.fieldErrors?.group ?? null)
