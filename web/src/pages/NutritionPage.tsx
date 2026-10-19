@@ -4,7 +4,7 @@ import { Link } from 'react-router'
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { FoodEntry, FoodInput, FrequentFood, NutritionGoals } from '../api/types'
-import { useToast } from '../components/contexts'
+import { useConfirm, useToast } from '../components/contexts'
 import { CountUp } from '../components/CountUp'
 import { Sheet } from '../components/Sheet'
 import { NutritionSkeleton } from '../components/Skeletons'
@@ -21,6 +21,7 @@ import { PlateIcon } from '../components/Icons'
 export function NutritionPage() {
   const queryClient = useQueryClient()
   const toast = useToast()
+  const confirm = useConfirm()
   const today = todayIso()
   const [date, setDate] = useState(today)
   const [adding, setAdding] = useState(false)
@@ -176,7 +177,12 @@ export function NutritionPage() {
           ) : (
             <div className="food-list">
               {visibleEntries.map((entry, index) => (
-                <SwipeToDelete key={entry.id} label={entry.name} onDelete={() => remove(entry)}>
+                <SwipeToDelete
+                  key={entry.id}
+                  label={entry.name}
+                  confirm={() => confirm({ item: entry.name, message: t.kcal(formatKg(entry.caloriesKcal)) })}
+                  onDelete={() => remove(entry)}
+                >
                   <div className="food-row" style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}>
                     <span className="food-text">
                       <span className="food-name">{entry.name}</span>

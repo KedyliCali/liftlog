@@ -12,7 +12,7 @@ import { ShareTrainingToggle } from '../components/ShareTraining'
 import { ProfileSkeleton } from '../components/Skeletons'
 import { WeightCard } from '../components/WeightCard'
 import { ErrorState } from '../components/StateViews'
-import { useToast } from '../components/contexts'
+import { useConfirm, useToast } from '../components/contexts'
 import { errorMessage, formatKg } from '../lib/format'
 import { locale, t } from '../lib/i18n'
 import { toAvatarJpeg } from '../lib/image'
@@ -25,6 +25,7 @@ import { CameraIcon, PencilIcon } from '../components/Icons'
 export function ProfilePage() {
   const queryClient = useQueryClient()
   const toast = useToast()
+  const confirm = useConfirm()
   const profile = useQuery({ queryKey: queryKeys.profile, queryFn: api.profile })
   const version = profile.data?.avatarVersion ?? null
   const avatar = useQuery({
@@ -63,6 +64,7 @@ export function ProfilePage() {
   }
 
   const removePhoto = async () => {
+    if (!(await confirm({ title: t.removePhotoTitle, message: t.removePhotoBody, confirmLabel: t.removePhotoAction }))) return
     try {
       await api.deleteAvatar()
       queryClient.setQueryData<Profile>(queryKeys.profile, (p) => (p ? { ...p, avatarVersion: null } : p))

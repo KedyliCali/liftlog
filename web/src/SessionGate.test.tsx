@@ -14,11 +14,15 @@ let onRestored = vi.fn()
 
 async function renderGate() {
   const { SessionGate } = await import('./SessionGate')
+  // Imported after resetModules too, so it shares the context module with the freshly imported gate
+  const { ConfirmProvider } = await import('./components/Confirm')
   onRestored = vi.fn()
   render(
-    <SessionGate onRestored={onRestored}>
-      <p>app content</p>
-    </SessionGate>,
+    <ConfirmProvider>
+      <SessionGate onRestored={onRestored}>
+        <p>app content</p>
+      </SessionGate>
+    </ConfirmProvider>,
   )
   return userEvent.setup()
 }
@@ -73,11 +77,17 @@ describe('SessionGate', () => {
         .mockResolvedValueOnce(jsonResponse(409, { status: 409 }))
         .mockResolvedValueOnce(jsonResponse(201, AUTH)),
     )
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     const user = await renderGate()
 
     expect(await screen.findByText(t.signedOutTitle)).toBeInTheDocument()
     await user.click(screen.getByText(t.startFresh))
+    // Cancel first: still signed out, nothing new was registered
+    await user.click(screen.getByRole('button', { name: t.cancel }))
+    expect(onRestored).not.toHaveBeenCalled()
+    expect(screen.getByText(t.signedOutTitle)).toBeInTheDocument()
+
+    await user.click(screen.getByText(t.startFresh))
+    await user.click(screen.getByRole('button', { name: t.startFreshAction }))
 
     // A full reload follows, so no cached data of the old account can show in the new log
     await vi.waitFor(() => expect(onRestored).toHaveBeenCalledTimes(1))

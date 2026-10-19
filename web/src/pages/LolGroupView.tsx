@@ -5,7 +5,7 @@ import { AppError } from '../api/client'
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { LolGroup, LolGroupMember } from '../api/types'
-import { useToast } from '../components/contexts'
+import { useConfirm, useToast } from '../components/contexts'
 import { ControllerIcon, SettingsIcon, ShareIcon } from '../components/Icons'
 import { LolBoardRow, RankBadge } from '../components/LolBits'
 import { RiotIdSheet } from '../components/RiotIdSheet'
@@ -496,6 +496,7 @@ function ManageGroupSheet({ group, onClose, onChangeAccount, onLeft }: {
 }) {
   const queryClient = useQueryClient()
   const toast = useToast()
+  const confirm = useConfirm()
   const [name, setName] = useState(group.name)
   const [busy, setBusy] = useState(false)
   const me = group.members.find((member) => member.you)
@@ -517,16 +518,18 @@ function ManageGroupSheet({ group, onClose, onChangeAccount, onLeft }: {
     }
   }
 
-  const rotate = () => {
-    if (!window.confirm(t.newInviteCodeConfirm)) return
+  const rotate = async () => {
+    const confirmed = await confirm({ title: t.newInviteCodeTitle, message: t.newInviteCodeConfirm, confirmLabel: t.newCode, tone: 'neutral' })
+    if (!confirmed) return
     void run(async () => {
       await setGroup(await api.rotateLolInviteCode())
       toast({ message: t.inviteCodeChanged })
     })
   }
 
-  const remove = (member: LolGroupMember) => {
-    if (!window.confirm(t.removeMemberConfirm(nameOf(member)))) return
+  const remove = async (member: LolGroupMember) => {
+    const confirmed = await confirm({ title: t.removeMemberTitle, item: nameOf(member), message: t.removeMemberConsequence, confirmLabel: t.removeMember })
+    if (!confirmed) return
     void run(async () => {
       await api.removeLolGroupMember(member.userId)
       await queryClient.invalidateQueries({ queryKey: queryKeys.lolGroup })
@@ -534,11 +537,11 @@ function ManageGroupSheet({ group, onClose, onChangeAccount, onLeft }: {
     })
   }
 
-  const leave = () => {
+  const leave = async () => {
     const others = group.members.filter((member) => !member.you)
     // Members come in join order, so the first other member is the next owner
     const consequence = others.length === 0 ? t.leaveConfirmLast : isOwner ? t.leaveConfirmOwner(nameOf(others[0])) : t.leaveConfirmMember
-    if (!window.confirm(`${t.leaveConfirmTitle}\n${consequence}`)) return
+    if (!(await confirm({ title: t.leaveConfirmTitle, item: group.name, message: consequence, confirmLabel: t.leaveAction }))) return
     void run(async () => {
       await api.leaveLolGroup()
       await setGroup(null)
@@ -569,7 +572,7 @@ function ManageGroupSheet({ group, onClose, onChangeAccount, onLeft }: {
               <button type="submit" className="btn btn-tonal" disabled={busy || !name.trim() || name.trim() === group.name}>
                 {t.save}
               </button>
-              <button type="button" className="btn btn-text" onClick={rotate} disabled={busy}>
+              <button type="button" className="btn btn-text" onClick={() => void rotate()} disabled={busy}>
                 {t.newInviteCode}
               </button>
             </div>
@@ -597,7 +600,7 @@ function ManageGroupSheet({ group, onClose, onChangeAccount, onLeft }: {
                 </small>
               </span>
               {isOwner && !member.you && (
-                <button className="btn btn-text member-remove" onClick={() => remove(member)} disabled={busy}>
+                <button className="btn btn-text member-remove" onClick={() => void remove(member)} disabled={busy}>
                   {t.removeMember}
                 </button>
               )}
@@ -605,7 +608,7 @@ function ManageGroupSheet({ group, onClose, onChangeAccount, onLeft }: {
           ))}
         </ul>
 
-        <button className="btn btn-danger btn-block" onClick={leave} disabled={busy}>
+        <button className="btn btn-danger btn-block" onClick={() => void leave()} disabled={busy}>
           {t.leaveGroup}
         </button>
       </div>

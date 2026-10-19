@@ -1,13 +1,15 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PlanItem, WorkoutDetail, WorkoutSet } from '../api/types'
+import { ConfirmProvider } from '../components/Confirm'
 import { RestTimerContext, ToastContext, type ToastOptions } from '../components/contexts'
 import { formatKg } from '../lib/format'
 import { t } from '../lib/i18n'
 import { fakeServer, jsonResponse, type Handler } from '../test/fakeServer'
+import { swipeRowLeft } from '../test/swipe'
 import { WorkoutDetailPage } from './WorkoutDetailPage'
 
 const bench: PlanItem = {
@@ -67,7 +69,9 @@ function renderDetail({ toast = () => {}, startRest = () => {} }: { toast?: (o: 
     <QueryClientProvider client={client}>
       <ToastContext.Provider value={toast}>
         <RestTimerContext.Provider value={{ start: startRest }}>
-          <RouterProvider router={router} />
+          <ConfirmProvider>
+            <RouterProvider router={router} />
+          </ConfirmProvider>
         </RestTimerContext.Provider>
       </ToastContext.Provider>
     </QueryClientProvider>,
@@ -194,6 +198,85 @@ describe('workout mode', () => {
     renderDetail()
     expect(await screen.findByText(t.detailEmptyTitle)).toBeInTheDocument()
     expect(calls.some((c) => c.path.endsWith('/plan'))).toBe(false)
+  })
+})
+
+describe('deleting asks first', () => {
+  /** A plain workout (no routine) with one saved Bench Press set of 80 kg × 8. */
+  function oneSetWorkout() {
+    const server = workoutServer({ routineId: null, plan: [bench] })
+    server.storeSet({ exerciseId: 1, reps: 8, weightKg: 80 })
+    return server
+  }
+  const deletes = (calls: { method: string }[]) => calls.filter((c) => c.method === 'DELETE')
+
+  it('a swiped set slides back on Cancel and is not deleted', async () => {
+    const { calls } = oneSetWorkout()
+    const toast = vi.fn()
+    const user = renderDetail({ toast })
+
+    await swipeRowLeft('Bench Press #1')
+    const dialog = await screen.findByRole('alertdialog', { name: t.confirmDeleteTitle })
+    expect(dialog).toHaveTextContent('Bench Press #1')
+    expect(dialog).toHaveTextContent('80 kg × 8')
+    await user.click(within(dialog).getByRole('button', { name: t.cancel }))
+
+    expect(screen.getByLabelText('Bench Press #1')).toBeInTheDocument()
+    expect(toast).not.toHaveBeenCalled()
+    expect(deletes(calls)).toEqual([])
+  })
+
+  it('a swiped set is deleted after the confirm, behind the undo toast', async () => {
+    const { calls } = oneSetWorkout()
+    const toast = vi.fn()
+    const user = renderDetail({ toast })
+
+    await swipeRowLeft('Bench Press #1')
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: t.delete }))
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ message: t.setDeleted, actionLabel: t.undo })))
+    await act(async () => {
+      await (toast.mock.calls[0][0] as ToastOptions).onTimeout?.()
+    })
+    await waitFor(() => expect(deletes(calls)).toEqual([{ method: 'DELETE', path: '/api/v1/sets/100', body: undefined }]))
+  })
+
+  it('the set editor asks too, and Cancel keeps the editor open', async () => {
+    const { calls } = oneSetWorkout()
+    const toast = vi.fn()
+    const user = renderDetail({ toast })
+
+    await user.click(await screen.findByTestId('saved-set'))
+    const editor = screen.getByRole('dialog', { name: t.editSet })
+    await user.click(within(editor).getByRole('button', { name: t.delete }))
+    const dialog = screen.getByRole('alertdialog')
+    expect(dialog).toHaveTextContent('Bench Press #1')
+    await user.click(within(dialog).getByRole('button', { name: t.cancel }))
+
+    expect(screen.getByRole('dialog', { name: t.editSet })).toBeInTheDocument()
+    expect(toast).not.toHaveBeenCalled()
+
+    await user.click(within(editor).getByRole('button', { name: t.delete }))
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: t.delete }))
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ message: t.setDeleted }))
+    expect(screen.queryByRole('dialog', { name: t.editSet })).toBeNull()
+    expect(deletes(calls)).toEqual([])
+  })
+
+  it('deleting the workout from the menu needs the confirm', async () => {
+    const { calls } = oneSetWorkout()
+    const user = renderDetail()
+    await screen.findByTestId('saved-set')
+
+    await user.click(screen.getByRole('button', { name: 'Menu' }))
+    await user.click(screen.getByRole('button', { name: t.deleteWorkout }))
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Push day')
+    await user.click(screen.getByRole('button', { name: t.cancel }))
+    expect(deletes(calls)).toEqual([])
+
+    await user.click(screen.getByRole('button', { name: 'Menu' }))
+    await user.click(screen.getByRole('button', { name: t.deleteWorkout }))
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: t.delete }))
+    await waitFor(() => expect(deletes(calls)).toEqual([{ method: 'DELETE', path: '/api/v1/workouts/7', body: undefined }]))
   })
 })
 

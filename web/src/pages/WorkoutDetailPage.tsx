@@ -12,7 +12,7 @@ import { Sheet } from '../components/Sheet'
 import { DetailSkeleton, SetListSkeleton } from '../components/Skeletons'
 import { ErrorState, MessageState } from '../components/StateViews'
 import { SwipeToDelete } from '../components/SwipeToDelete'
-import { useToast } from '../components/contexts'
+import { useConfirm, useToast } from '../components/contexts'
 import { useFlushOutbox, useOutbox } from '../components/useOutbox'
 import { unlockAudio, vibrate } from '../lib/feedback'
 import { errorMessage, formatKg, formatLoad, formatLongDate } from '../lib/format'
@@ -39,6 +39,7 @@ export function WorkoutDetailPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const toast = useToast()
+  const confirm = useConfirm()
   const restTimer = useRestTimer()
 
   const [editor, setEditor] = useState<Editor | null>(null)
@@ -208,9 +209,14 @@ export function WorkoutDetailPage() {
     })
   }
 
+  /** "Bench Press #3" plus its load, so the question names exactly the set that goes. */
+  const confirmSetDelete = (set: WorkoutSet, label: string) =>
+    confirm({ item: label, message: `${formatLoad(set.weightKg, set.bodyweight)} × ${set.reps}` })
+
   const deleteWorkout = async () => {
     setMenuOpen(false)
-    if (!window.confirm(t.deleteWorkoutConfirm)) return
+    const name = query.data?.notes ?? t.untitledWorkout
+    if (!(await confirm({ item: name, message: t.deleteWorkoutConsequence }))) return
     try {
       await api.deleteWorkout(id)
       await queryClient.invalidateQueries({ queryKey: queryKeys.workouts })
@@ -218,6 +224,13 @@ export function WorkoutDetailPage() {
     } catch (error) {
       toast({ message: errorMessage(error) })
     }
+  }
+
+  const confirmEditorDelete = async (set: WorkoutSet) => {
+    // Numbered like the row in the list: its place among the visible sets of the same exercise
+    const sameExercise = visibleSets.filter((s) => s.exerciseId === set.exerciseId)
+    const label = `${set.exerciseName} #${sameExercise.findIndex((s) => s.id === set.id) + 1}`
+    if (await confirmSetDelete(set, label)) deleteSet(set)
   }
 
   const workout = query.data
@@ -235,7 +248,12 @@ export function WorkoutDetailPage() {
   const renderSet = (set: WorkoutSet, i: number, exerciseName: string) => {
     const waiting = overlaid.pendingIds.has(set.id)
     return (
-      <SwipeToDelete key={set.id} label={`${exerciseName} #${i + 1}`} onDelete={() => deleteSet(set)}>
+      <SwipeToDelete
+        key={set.id}
+        label={`${exerciseName} #${i + 1}`}
+        confirm={() => confirmSetDelete(set, `${exerciseName} #${i + 1}`)}
+        onDelete={() => deleteSet(set)}
+      >
         <button
           className={['set-row', set.id === newSetId && 'new', waiting && 'pending'].filter(Boolean).join(' ')}
           onClick={() => setEditor({ mode: 'edit', set })}
@@ -351,7 +369,12 @@ export function WorkoutDetailPage() {
       )}
 
       {editor && workout && (
-        <SetEditorSheet {...editorProps(editor, visibleSets, saving)} onSave={saveSet} onDelete={editor.mode === 'edit' ? () => deleteSet(editor.set) : undefined} onClose={() => setEditor(null)} />
+        <SetEditorSheet
+          {...editorProps(editor, visibleSets, saving)}
+          onSave={saveSet}
+          onDelete={editor.mode === 'edit' ? () => void confirmEditorDelete(editor.set) : undefined}
+          onClose={() => setEditor(null)}
+        />
       )}
       {savingRoutine && workout && <SaveAsRoutineSheet workout={workout} onClose={() => setSavingRoutine(false)} />}
       {editingWorkout && workout && <EditWorkoutSheet workout={workout} onClose={() => setEditingWorkout(false)} onSaved={refreshAll} />}

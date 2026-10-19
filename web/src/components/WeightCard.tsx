@@ -4,7 +4,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { WeightEntry } from '../api/types'
-import { useToast } from './contexts'
+import { useConfirm, useToast } from './contexts'
 import { ErrorState } from './StateViews'
 import { vibrate } from '../lib/feedback'
 import { errorMessage, formatKg, formatShortDate } from '../lib/format'
@@ -37,6 +37,7 @@ const STEPS = [-0.5, -0.1, 0.1, 0.5] as const
 export function WeightCard({ profileWeightKg }: { profileWeightKg: number | null }) {
   const queryClient = useQueryClient()
   const toast = useToast()
+  const confirm = useConfirm()
   const today = todayIso()
   const [range, setRange] = useState<WeightRange>(30)
   // null until the user types or steps: until then the field follows the loaded data
@@ -93,6 +94,8 @@ export function WeightCard({ profileWeightKg }: { profileWeightKg: number | null
   }
 
   const deleteToday = async () => {
+    const item = todaysEntry ? `${t.weightToday} · ${t.kg(formatKg(todaysEntry.weightKg))}` : t.weightToday
+    if (!(await confirm({ item }))) return
     setBusy(true)
     try {
       await api.deleteWeight(today)

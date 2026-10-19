@@ -892,6 +892,140 @@
   font-size: 22px;
 }
 
+/* ---------- Confirm sheet ---------- */
+/* Above any open sheet: deleting a set is asked from inside the set editor */
+.confirm-backdrop {
+  z-index: 60;
+}
+
+.confirm-sheet {
+  position: relative;
+  border-top: 1px solid var(--outline-variant);
+  padding-bottom: calc(16px + var(--safe-bottom));
+}
+
+/* A short colored bar under the handle marks what kind of question this is */
+.confirm-sheet::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 96px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--error);
+  transform: translateX(-50%);
+}
+
+.confirm-neutral::before {
+  background: var(--primary);
+}
+
+.confirm-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+/* Icon tile with a second, offset frame behind it so the corner reads as two stacked plates */
+.confirm-badge {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-m);
+  background: color-mix(in srgb, var(--error) 16%, var(--surface));
+  color: var(--error);
+}
+
+.confirm-badge::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid color-mix(in srgb, var(--error) 45%, transparent);
+  border-radius: var(--radius-m);
+  transform: translate(4px, 4px);
+}
+
+.confirm-neutral .confirm-badge {
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+}
+
+.confirm-neutral .confirm-badge::after {
+  border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
+.confirm-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  line-height: 1.15;
+}
+
+/* The item being deleted, on a raised card with a red edge on its left */
+.confirm-body {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--error);
+  border-radius: 0 var(--radius-m) var(--radius-m) 0;
+  background: var(--surface-high);
+}
+
+.confirm-neutral .confirm-body {
+  border-left-color: var(--primary);
+}
+
+.confirm-item {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.confirm-message {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.confirm-actions .btn {
+  min-height: 50px;
+}
+
+.confirm-ok {
+  background: var(--error);
+  color: var(--on-error);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.confirm-neutral .confirm-ok {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.confirm-ok:focus-visible,
+.confirm-cancel:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
 /* Exercise selector tile with a colored tab sticking out of its left edge */
 .selector {
   position: relative;

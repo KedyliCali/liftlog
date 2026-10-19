@@ -21,6 +21,7 @@
   --outline: #3a3a40;
   --outline-variant: #242428;
   --error: #ff5a4e;
+  --on-error: #0a0a0b;
   --scrim: rgb(0 0 0 / 65%);
 
   --radius-s: 4px;
@@ -63,6 +64,7 @@
     --outline: #b5b5ae;
     --outline-variant: #dcdcd6;
     --error: #c62828;
+    --on-error: #ffffff;
     --scrim: rgb(0 0 0 / 35%);
   }
 }

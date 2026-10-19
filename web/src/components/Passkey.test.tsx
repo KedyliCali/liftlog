@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { t } from '../lib/i18n'
+import { ConfirmProvider } from './Confirm'
 import { ToastContext, type ToastOptions } from './contexts'
 import { BackupCard, PasskeyRestoreButton } from './Passkey'
 import { RecoveryCodeCard } from './RecoveryCard'
@@ -48,7 +49,9 @@ function renderWith(ui: ReactNode, toast: (options: ToastOptions) => void = () =
   render(
     <QueryClientProvider client={client}>
       <ToastContext.Provider value={toast}>
-        <MemoryRouter>{ui}</MemoryRouter>
+        <ConfirmProvider>
+          <MemoryRouter>{ui}</MemoryRouter>
+        </ConfirmProvider>
       </ToastContext.Provider>
     </QueryClientProvider>,
   )
@@ -170,7 +173,6 @@ describe('Recovery code on a device that came back with Face ID', () => {
   it('explains where the code is instead of showing the device secret, and New code makes a real one', async () => {
     localStorage.setItem('liftlog.device', JSON.stringify(VIA_PASSKEY))
     localStorage.setItem('liftlog.passkey', DEVICE.email)
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     const fetchMock = fakeServer({
       'PUT /api/v1/profile/password': () => jsonResponse(200, { token: 't', expiresAt: '2026-11-18T00:00:00Z', user: { id: 1, email: DEVICE.email, displayName: null } }),
     })
@@ -183,6 +185,8 @@ describe('Recovery code on a device that came back with Face ID', () => {
     expect(screen.queryByText(VIA_PASSKEY.password, { exact: false })).not.toBeInTheDocument()
 
     await user.click(screen.getByTestId('new-code'))
+    expect(screen.getByRole('alertdialog', { name: t.newCodeTitle })).toHaveTextContent(t.newCodeBody)
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: t.newCode }))
 
     expect(await screen.findByTestId('recovery-code')).toHaveTextContent(/^[0-9a-f]{32}\./)
     expect(screen.queryByText(t.recoveryViaPasskey)).not.toBeInTheDocument()

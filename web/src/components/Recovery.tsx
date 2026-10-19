@@ -7,6 +7,7 @@ import { errorMessage } from '../lib/format'
 import { t } from '../lib/i18n'
 import { parseRecoveryCode, type Credentials } from '../lib/recoveryCode'
 import { passkeysSupported } from '../lib/webauthn'
+import { useConfirm } from './contexts'
 import { DumbbellIcon, KeyIcon } from './Icons'
 import { PasskeyRestoreButton } from './Passkey'
 import { MessageState, WakeUpHint } from './StateViews'
@@ -66,6 +67,11 @@ export function WelcomeScreen({ onStart, onRestored }: { onStart: () => void; on
 
 /** This device's code was replaced elsewhere, so its stored password no longer works. */
 export function SignedOutScreen({ onRestored, onStartFresh }: { onRestored: () => void; onStartFresh: () => void }) {
+  const confirm = useConfirm()
+  const startFresh = async () => {
+    const confirmed = await confirm({ title: t.startFreshTitle, message: t.startFreshBody, confirmLabel: t.startFreshAction, tone: 'neutral' })
+    if (confirmed) onStartFresh()
+  }
   return (
     <div className="page recovery-screen">
       <MessageState icon={<KeyIcon size={32} />} title={t.signedOutTitle} body={t.signedOutBody} />
@@ -77,12 +83,7 @@ export function SignedOutScreen({ onRestored, onStartFresh }: { onRestored: () =
       )}
       {/* The stored credentials are known to be dead here, so pasting them must read as "not recognized" */}
       <RestoreForm needsConfirm={false} checkSameDevice={false} onRestored={onRestored} />
-      <button
-        className="btn btn-text recovery-fresh"
-        onClick={() => {
-          if (window.confirm(t.startFreshConfirm)) onStartFresh()
-        }}
-      >
+      <button className="btn btn-text recovery-fresh" onClick={() => void startFresh()}>
         {t.startFresh}
       </button>
       <p className="muted recovery-footnote">{t.signedOutHint}</p>

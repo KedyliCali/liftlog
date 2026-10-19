@@ -1,14 +1,16 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { FoodEntry } from '../api/types'
+import { ConfirmProvider } from '../components/Confirm'
 import { ToastProvider } from '../components/Toast'
 import { formatKg } from '../lib/format'
 import { t } from '../lib/i18n'
 import { shiftDay, todayIso } from '../lib/nutrition'
 import { fakeServer, jsonResponse } from '../test/fakeServer'
+import { swipeRowLeft } from '../test/swipe'
 import { NutritionPage } from './NutritionPage'
 
 const today = todayIso()
@@ -50,10 +52,12 @@ function renderPage() {
   render(
     <QueryClientProvider client={client}>
       <ToastProvider>
-        {/* The weight chip is a router link */}
-        <MemoryRouter>
-          <NutritionPage />
-        </MemoryRouter>
+        <ConfirmProvider>
+          {/* The weight chip is a router link */}
+          <MemoryRouter>
+            <NutritionPage />
+          </MemoryRouter>
+        </ConfirmProvider>
       </ToastProvider>
     </QueryClientProvider>,
   )
@@ -63,6 +67,48 @@ function renderPage() {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  vi.useRealTimers()
+})
+
+describe('swipe to delete a food entry', () => {
+  const banana: FoodEntry = { ...oats, id: 50, entryDate: today, name: 'Banana', caloriesKcal: 90 }
+
+  function serverWithBanana() {
+    return fakeServer({
+      'GET /api/v1/nutrition/frequent': () => jsonResponse(200, []),
+      [`GET /api/v1/nutrition/days/${today}`]: () =>
+        jsonResponse(200, { date: today, entries: [banana], totalCaloriesKcal: 90, totalProteinG: 0, totalCarbsG: 0, totalFatG: 0, goals }),
+      'DELETE /api/v1/nutrition/entries/50': () => jsonResponse(204, undefined),
+    })
+  }
+
+  it('asks first; Cancel keeps the entry and never calls the server', async () => {
+    const calls = serverWithBanana()
+    const user = renderPage()
+
+    await swipeRowLeft('Banana')
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('Banana')
+    await user.click(screen.getByRole('button', { name: t.cancel }))
+
+    expect(screen.getByText('Banana')).toBeInTheDocument()
+    expect(screen.queryByText(t.foodDeleted)).toBeNull()
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
+  })
+
+  it('deletes after the confirm once the undo window closes', async () => {
+    // Real time keeps flowing for the clicks; only the 5 s undo window is skipped
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const calls = serverWithBanana()
+    const user = renderPage()
+
+    await swipeRowLeft('Banana')
+    await user.click(await screen.findByRole('button', { name: t.delete }))
+    expect(await screen.findByText(t.foodDeleted)).toBeInTheDocument()
+    expect(screen.queryByText('Banana')).toBeNull()
+
+    act(() => void vi.advanceTimersByTime(5000))
+    await waitFor(() => expect(calls).toContainEqual({ method: 'DELETE', path: '/api/v1/nutrition/entries/50', body: undefined }))
+  })
 })
 
 describe('copy yesterday', () => {
