@@ -7,6 +7,7 @@ import type { Profile } from '../api/types'
 import { Sheet } from '../components/Sheet'
 import { BackupCard } from '../components/Passkey'
 import { RecoveryCodeCard } from '../components/RecoveryCard'
+import { ShareTrainingToggle } from '../components/ShareTraining'
 import { ProfileSkeleton } from '../components/Skeletons'
 import { ErrorState } from '../components/StateViews'
 import { useToast } from '../components/contexts'
@@ -121,6 +122,8 @@ export function ProfilePage() {
         <BodyStat label={t.bodyWeight} value={data.bodyWeightKg != null ? t.kg(formatKg(data.bodyWeightKg)) : null} />
         <BodyStat label={t.bmi} value={bodyMassIndex != null ? bodyMassIndex.toLocaleString(locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 }) : null} emphasized />
       </div>
+
+      <ShareTrainingToggle enabled={data.shareTraining === true} />
 
       {/* With passkeys the Face ID backup leads and the code folds under it; without them, today's code card */}
       {passkeysSupported() ? (

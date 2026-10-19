@@ -5598,3 +5598,297 @@ body:has(.rest-timer) .finish-btn {
   -webkit-touch-callout: none;
 }
 
+
+/* ---------- Group training comparison ---------- */
+/* League / Training switch under the group card: a track on an offset plate, the chosen half a lime block */
+.group-mode {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  gap: 2px;
+  margin: -6px 0 16px;
+  padding: 3px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+}
+
+.group-mode::after {
+  content: '';
+  position: absolute;
+  inset: 4px -4px -4px 4px;
+  z-index: -1;
+  border-radius: var(--radius-m);
+  background: var(--surface-highest);
+}
+
+.group-mode button {
+  height: 34px;
+  min-width: 86px;
+  padding: 0 14px;
+  border-radius: var(--radius-s);
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  transition: background 0.2s, color 0.2s;
+}
+
+.group-mode button.selected {
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: 0 2px 0 var(--primary-container);
+}
+
+.training-view .board-toggle {
+  justify-content: flex-start;
+}
+
+.training-period {
+  margin: -2px 2px 10px;
+  font-size: 12px;
+}
+
+.training-empty {
+  padding: 16px 4px;
+}
+
+/* The column leader: lime number with a lime bar under it, so it reads without color too */
+.data-table td.leader {
+  color: var(--primary);
+  font-weight: 800;
+  box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--primary) 70%, transparent);
+}
+
+.data-table tr.you > td.leader {
+  background: color-mix(in srgb, var(--primary) 14%, var(--surface));
+}
+
+/* Members who did not opt in: greyed name chips, each with a small "not sharing" tag */
+.not-sharing-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.not-sharing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  border: 1px dashed var(--outline);
+  border-radius: var(--radius-m);
+  background: var(--surface-low);
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+.not-sharing span {
+  font-weight: 650;
+}
+
+.not-sharing small {
+  padding: 2px 6px;
+  border-radius: var(--radius-s);
+  background: var(--surface-highest);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+/* Opt-in card: stacked on a plate with a lime strip, the switch on a tab straddling the lower edge */
+.share-card-wrap {
+  position: relative;
+  isolation: isolate;
+  margin: 0 8px 36px 0;
+}
+
+.share-card-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 8px -8px -8px 8px;
+  z-index: -1;
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--primary) 18%, var(--surface-highest));
+}
+
+.share-card {
+  position: relative;
+  padding: 16px 14px 34px 20px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+}
+
+.share-card::before {
+  content: '';
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  left: -1px;
+  width: 4px;
+  border-radius: 0 3px 3px 0;
+  background: var(--primary);
+}
+
+.share-card h2 {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.share-card-lead {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.share-card-items {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.share-card-items li {
+  position: relative;
+  padding: 8px 8px 8px 26px;
+  border-radius: var(--radius-m);
+  background: var(--surface-high);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+/* A lime check drawn from two borders */
+.share-card-items li::before {
+  content: '';
+  position: absolute;
+  top: 11px;
+  left: 10px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--primary);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.share-card-private {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--outline);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.share-card-action {
+  position: absolute;
+  right: 14px;
+  bottom: -20px;
+  padding: 4px 6px 4px 14px;
+  border-radius: 22px;
+  background: var(--surface-high);
+  border: 1px solid var(--outline);
+  box-shadow: 0 3px 0 var(--surface-highest);
+}
+
+/* Switch: a real checkbox laid over a drawn track, so it keeps keyboard and screen reader behaviour */
+.share-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.share-switch-label {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.share-switch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.share-switch-track {
+  position: relative;
+  width: 46px;
+  height: 28px;
+  border: 1px solid var(--outline);
+  border-radius: 14px;
+  background: var(--surface-highest);
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.share-switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform 0.2s var(--ease-spring), background 0.2s;
+}
+
+.share-switch input:checked + .share-switch-track {
+  border-color: transparent;
+  background: var(--primary);
+}
+
+.share-switch input:checked + .share-switch-track .share-switch-thumb {
+  transform: translateX(18px);
+  background: var(--on-primary);
+}
+
+.share-switch input:focus-visible + .share-switch-track {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.share-switch input:disabled + .share-switch-track {
+  opacity: 0.5;
+}
+
+/* Profile row: text on the left, the switch on the right, with a lime edge like the other cards */
+.share-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--outline-variant);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+}
+
+.share-toggle-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.share-toggle-text small {
+  font-size: 12px;
+}
