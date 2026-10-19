@@ -176,7 +176,10 @@ function AmountStep({ food, product, onBack, onSave }: { food: CatalogFood; prod
 
   const save = async () => {
     setSaving(true)
-    await onSave({ name: entryName(nameOf(food), servingOf(food), amount, formatKg), ...values })
+    // Servings become grams too (count × serving size), so the export and the day list know the portion
+    const grams = Math.round(amountInGrams(food, amount) * 10) / 10
+    // (a weight below 0.05 g rounds to 0, which the backend rejects: leave it unknown instead)
+    await onSave({ name: entryName(nameOf(food), servingOf(food), amount, formatKg), ...values, ...(grams > 0 && { grams }) })
     setSaving(false)
   }
 
