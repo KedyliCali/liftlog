@@ -58,6 +58,14 @@ export function errorMessage(error: unknown): string {
   }
 }
 
+/**
+ * A new workout cannot wait in the offline queue: its sets need the id the server hands out. So
+ * without signal the message says to start it online, after which sets can be logged offline.
+ */
+export function startWorkoutErrorMessage(error: unknown): string {
+  return error instanceof AppError && error.kind === 'network' ? t.startWorkoutOnline : errorMessage(error)
+}
+
 /** How a set's load reads: "100 kg", or for bodyweight exercises "Bodyweight" / "BW + 10 kg". */
 export function formatLoad(weightKg: number, bodyweight: boolean): string {
   if (!bodyweight) return t.kg(formatKg(weightKg))

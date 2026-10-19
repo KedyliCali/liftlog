@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider, useParams } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Exercise, Routine } from '../api/types'
+import { ToastContext, type ToastOptions } from '../components/contexts'
 import { t } from '../lib/i18n'
 import { todayIso } from '../lib/nutrition'
 import { fakeServer, jsonResponse } from '../test/fakeServer'
@@ -24,7 +25,7 @@ function OpenedWorkout() {
   return <p>opened workout {useParams().id}</p>
 }
 
-function renderWorkouts() {
+function renderWorkouts(toast: (o: ToastOptions) => void = () => {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const router = createMemoryRouter(
     [
@@ -35,7 +36,9 @@ function renderWorkouts() {
   )
   render(
     <QueryClientProvider client={client}>
-      <RouterProvider router={router} />
+      <ToastContext.Provider value={toast}>
+        <RouterProvider router={router} />
+      </ToastContext.Provider>
     </QueryClientProvider>,
   )
   return userEvent.setup()
@@ -70,6 +73,24 @@ describe('routine strip', () => {
 
     expect(await screen.findByText('opened workout 42')).toBeInTheDocument()
     expect(calls.filter((c) => c.path === '/api/v1/routines/5/start')).toEqual([{ method: 'POST', path: '/api/v1/routines/5/start', body: { workoutDate: todayIso() } }])
+  })
+
+  it('says a workout has to be started online when there is no signal', async () => {
+    fakeServer({
+      'GET /api/v1/workouts': () => jsonResponse(200, emptyPage),
+      'GET /api/v1/routines': () => jsonResponse(200, [push]),
+      'POST /api/v1/routines/5/start': () => {
+        throw new TypeError('Failed to fetch')
+      },
+    })
+    const toast = vi.fn()
+    const user = renderWorkouts(toast)
+
+    const strip = await screen.findByRole('region', { name: t.startWithRoutine })
+    await user.click(within(strip).getByRole('button', { name: /Push A/ }))
+
+    await waitFor(() => expect(toast).toHaveBeenCalledWith({ message: t.startWorkoutOnline }))
+    expect(screen.queryByText(/opened workout/)).not.toBeInTheDocument()
   })
 
   it('stays hidden without routines, and on servers that have no routines yet', async () => {

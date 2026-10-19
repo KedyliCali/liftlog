@@ -6,7 +6,9 @@ import { queryKeys } from '../api/queryKeys'
 import type { Page, Routine, WorkoutSummary } from '../api/types'
 import { Sheet } from '../components/Sheet'
 import { useToast } from '../components/contexts'
-import { errorMessage, formatShortDate, toIsoDate } from '../lib/format'
+import { CloudOffIcon } from '../components/Icons'
+import { useOnline } from '../components/useOutbox'
+import { formatShortDate, startWorkoutErrorMessage, toIsoDate } from '../lib/format'
 import { t } from '../lib/i18n'
 import { routineSummary } from '../lib/routineLogic'
 import type { RoutineTemplate } from '../lib/routineTemplates'
@@ -24,6 +26,7 @@ export function NewWorkoutSheet({ routines = [], offerTemplates = false, onClose
   const [busy, setBusy] = useState<'creating' | 'copying' | null>(null)
   const routine = useStartRoutine(onClose)
   const [template, setTemplate] = useState<RoutineTemplate | null>(null)
+  const online = useOnline()
 
   const cached = queryClient.getQueryData<InfiniteData<Page<WorkoutSummary>>>(queryKeys.workouts)
   const templates = pickTemplates(cached?.pages.flatMap((page) => page.content) ?? [])
@@ -45,7 +48,7 @@ export function NewWorkoutSheet({ routines = [], offerTemplates = false, onClose
       onClose()
       navigate(`/workouts/${workout.id}`, { viewTransition: true })
     } catch (error) {
-      toast({ message: errorMessage(error) })
+      toast({ message: startWorkoutErrorMessage(error) })
       setBusy(null)
     }
   }
@@ -62,6 +65,12 @@ export function NewWorkoutSheet({ routines = [], offerTemplates = false, onClose
   return (
     <Sheet title={t.newWorkout} onClose={onClose}>
       <div className="stack">
+        {!online && (
+          <p className="new-workout-offline" role="note" data-testid="start-online-note">
+            <CloudOffIcon size={20} />
+            {t.startWorkoutOnline}
+          </p>
+        )}
         {routines.length === 0 && offerTemplates && (
           <section aria-label={t.readyTemplates}>
             <h3 className="section-title" style={{ margin: 0 }}>
