@@ -272,3 +272,25 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
    ekrandan açıp "Koda katıl"a mesajın tamamını yapıştırsın.
 3. Canlıda League sekmesinin kalıcı Riot anahtarıyla çalıştığını telefondan kontrol et (bu oturumda
    tarayıcıda canlı hesap açılmadı).
+
+## 2026-10-19 — Face ID ile yedek (passkey) (branch `feature/passkey`)
+
+- PR #18 (League grupları) Behlül'ün onayıyla birleştirildi; canlıda 6 grup adresi açık, V11 uygulandı.
+- Behlül kurtarma kodunu uğraştırıcı buldu; "veriler kaybolmasın" isteğiyle passkey seçildi (a seçeneği: dönen
+  cihaz kendi gizli girişini alır, bir daha Face ID istenmez). Tasarım: `docs/design/passkey.md`.
+- **Backend:** Yubico `webauthn-server-core` 2.10.1; V12 (passkeys, ceremonies, device_secrets, users.passkey_handle),
+  V13 (device_secrets.last_used_at). Yeni kod passkey'leri ve cihaz anahtarlarını siler. Giriş uç noktalarında
+  dakikada 30 deneme sınırı.
+- **Web:** Profil'de Yedek kartı (Face ID ile yedekle / Yedeklendi), kurtarma kodu altında katlı; Antrenmanlar'da
+  tek dokunuşla yedekleme bandı; açılışta "Face ID ile geri dön". Face ID seçenekleri dokunuştan önce hazırlanıyor
+  (Safari şartı).
+- İnceleme (kod inceleme ajanı): başka hesaba girme yolu bulunmadı; 4 orta, 5 düşük bulgu düzeltildi.
+- Doğrulama: backend 144 test, web 159 test, lint, build. Yerel Docker'da tarayıcıda yazılım anahtar cihazıyla uçtan
+  uca: yedekle → veriyi sil → Face ID ile dön (aynı hesap, League grubu dahil) → token silinince sessiz giriş →
+  Face ID ile dönen cihazda kod yerine açıklama → Yeni kod passkey'i siler, kart sıfırlanır.
+
+**Sıradaki adımlar:**
+1. PR'ı CI yeşil olunca birleştir; canlıda V12/V13 ve passkey adresleri.
+2. iPhone'da gerçek Face ID ile dene: Profil → Face ID ile yedekle; sonra Safari'de açıp "Face ID ile geri dön".
+3. League: daha ayrıntılı istatistikler. 4. Antrenman: rutinler, tik atarak antrenman modu, ilerleme önerisi.
+

@@ -229,5 +229,20 @@ eklenmeye çalışılmaz. İki iş parçacıklı entegrasyon testi bunu kanıtl�
 id'si dolu bir varlığı "var olan" sanıp `merge` eder; iki eşzamanlı katılmada biri sessizce diğer gruba
 taşınabilirdi. `Persistable` ile her zaman `INSERT` olur ve birincil anahtar çakışması hata verir.
 
+**Passkey nasıl çalışıyor, sunucuda ne saklanıyor?** Telefon bir anahtar çifti üretir; gizli anahtar iCloud
+Anahtar Zinciri'nden hiç çıkmaz, sunucu sadece açık anahtarı saklar. Girişte sunucu rastgele bir "challenge"
+gönderir, telefon Face ID'den sonra onu imzalar, sunucu imzayı açık anahtarla doğrular. Veritabanı sızsa bile
+işe yarar bir sır yoktur. Challenge'lar veritabanında 5 dakika yaşar ve tek kullanımlıktır (tekrar oynatma
+olmasın diye).
+
+**Face ID ile dönen cihaz sonra nasıl sessizce giriyor?** Dönerken kendi rastgele "cihaz anahtarını" üretip
+gönderir; sunucu onun BCrypt hash'ini hesabın ek parolası olarak saklar. Böylece her açılışta Face ID gerekmez.
+"Yeni kod" token sürümünü artırır, bütün cihaz anahtarlarını ve passkey'leri siler: kayıp bir cihaz geri
+giremez. Hesap başına en fazla 20 cihaz anahtarı tutulur, en uzun süredir kullanılmayan silinir.
+
+**Testte Face ID olmadan passkey'i nasıl denedin?** Testlerde yazılımla bir "anahtar cihazı" taklit ediliyor
+(P-256 anahtarı, CBOR ile attestation, imzalı assertion); gerçek uç noktalar ve gerçek Yubico doğrulaması
+kullanılıyor. Yanlış imza, kapalı kullanıcı doğrulaması (UV), yanlış origin ve RP id reddediliyor.
+
 **Tekrar yapsan neyi farklı yapardın?** Refresh token, çevrimdışı çalışma için Room, ekranlar
 için Compose UI testleri, eşzamanlı set düzenlemede optimistic locking (`@Version`).

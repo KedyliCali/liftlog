@@ -6,6 +6,15 @@ home-screen app (today those two keep separate device accounts). Option (a) was 
 with a passkey gets its own silent sign-in, so it never asks for Face ID again and no other device is affected.
 The recovery code stays as the backup of the backup.
 
+## Changed after review (built on `feature/passkey`)
+- "New code" deletes passkeys too (it is the lockout for a lost device); a passkey sign-in racing it gets 401.
+- Device secrets: at most 20, evicting the least recently used (`last_used_at`, V13), not the oldest created.
+- Anonymous auth endpoints are rate-limited per client (30 a minute, 429 + Retry-After), and live sign-in
+  ceremonies are capped at 500.
+- Options carry `expiresAt`; the web app prefetches them before the tap and refreshes them, because Safari opens
+  Face ID only inside the tap's user activation.
+- A device that came back through a passkey holds a device secret, so it never shows that as a recovery code.
+
 ## How it works (for the interview)
 - **WebAuthn / passkey:** the phone makes a key pair. The private key never leaves iCloud Keychain; the server
   stores only the public key. To sign in, the server sends a random challenge, the phone signs it after Face ID,
