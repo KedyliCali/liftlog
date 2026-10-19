@@ -13,15 +13,16 @@ import { todayIso } from '../lib/nutrition'
 import {
   WEIGHT_RANGES,
   changeDirection,
+  formatWeight,
   formatWeightChange,
   parseWeight,
   startingWeight,
   stepWeight,
+  weightDomain,
   weightText,
   withMovingAverage,
   type WeightRange,
 } from '../lib/weight'
-import { yDomain } from '../lib/workoutLogic'
 
 /** The Nutrition page's weight chip links here with this anchor. */
 export const WEIGHT_CARD_ID = 'weight'
@@ -125,7 +126,7 @@ export function WeightCard({ profileWeightKg }: { profileWeightKg: number | null
         <div className="weight-chips">
           {history.data.change7d != null && <ChangeChip days={7} kg={history.data.change7d} />}
           {history.data.change30d != null && <ChangeChip days={30} kg={history.data.change30d} />}
-          {history.data.average7d != null && <span className="weight-chip average num">{t.weightAverage(formatKg(history.data.average7d))}</span>}
+          {history.data.average7d != null && <span className="weight-chip average num">{t.weightAverage(formatWeight(history.data.average7d))}</span>}
         </div>
       )}
 
@@ -210,9 +211,9 @@ function WeightChart({ entries }: { entries: WeightEntry[] }) {
         <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
           <CartesianGrid stroke="var(--outline-variant)" strokeDasharray="4 4" vertical={false} />
           <XAxis dataKey="label" tick={axisStyle} tickLine={false} axisLine={false} minTickGap={24} />
-          <YAxis domain={yDomain(data.map((d) => d.weightKg))} tick={axisStyle} tickLine={false} axisLine={false} />
+          <YAxis domain={weightDomain(data.flatMap((d) => [d.weightKg, d.averageKg]))} tick={axisStyle} tickLine={false} axisLine={false} />
           <Tooltip
-            formatter={(value, name) => [t.kg(formatKg(Number(value))), name === 'averageKg' ? t.weightAverageSeries : t.weightSeries]}
+            formatter={(value, name) => [t.kg(formatWeight(Number(value))), name === 'averageKg' ? t.weightAverageSeries : t.weightSeries]}
             contentStyle={{ background: 'var(--surface-highest)', border: 'none', borderRadius: 12 }}
             labelStyle={{ color: 'var(--text-muted)' }}
           />

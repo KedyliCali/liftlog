@@ -7,7 +7,7 @@ import type { WeightEntry, WeightHistory } from '../api/types'
 import { formatKg } from '../lib/format'
 import { t } from '../lib/i18n'
 import { shiftDay, todayIso } from '../lib/nutrition'
-import { formatWeightChange } from '../lib/weight'
+import { formatWeight, formatWeightChange } from '../lib/weight'
 import { fakeServer, jsonResponse } from '../test/fakeServer'
 import { ToastProvider } from './Toast'
 import { WeightCard } from './WeightCard'
@@ -63,7 +63,7 @@ describe('WeightCard', () => {
         { date: shiftDay(today, -7), weightKg: 81.2 },
         { date: today, weightKg: 80.4 },
       ],
-      { change7d: -0.8, change30d: -2.5, average7d: 80.8 },
+      { change7d: -0.8, change30d: -2.5, average7d: 80.84 },
     )
     renderCard()
 
@@ -71,7 +71,7 @@ describe('WeightCard', () => {
     expect(screen.getByTestId('weight-change-7')).toHaveTextContent(t.weightChange(7, formatWeightChange(-0.8)))
     expect(screen.getByTestId('weight-change-7')).toHaveClass('down')
     expect(screen.getByTestId('weight-change-30')).toHaveTextContent(t.weightChange(30, formatWeightChange(-2.5)))
-    expect(screen.getByText(t.weightAverage(formatKg(80.8)))).toBeInTheDocument()
+    expect(screen.getByText(t.weightAverage(formatWeight(80.84)))).toBeInTheDocument()
     expect(screen.getByTestId('weight-chart')).toBeInTheDocument()
     // Today already has an entry, so saving replaces it
     expect(screen.getByTestId('save-weight')).toHaveTextContent(t.weightUpdate)

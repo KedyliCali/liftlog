@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { changeDirection, formatWeightChange, parseWeight, startingWeight, stepWeight, weightText, withMovingAverage } from './weight'
+import { changeDirection, formatWeight, formatWeightChange, parseWeight, startingWeight, stepWeight, weightDomain, weightText, withMovingAverage } from './weight'
 
 describe('withMovingAverage', () => {
   it('averages the calendar week ending on each entry', () => {
@@ -77,6 +77,17 @@ describe('formatting', () => {
   it('writes the field value without grouping', () => {
     expect(weightText(80.4, 'tr')).toBe('80,4')
     expect(weightText(80.4, 'en')).toBe('80.4')
+  })
+})
+
+describe('chart helpers', () => {
+  it('pads the y-range by about a kilo on whole numbers', () => {
+    expect(weightDomain([80.4, 82.9, 81])).toEqual([79, 84])
+  })
+
+  it('shows weights with one decimal', () => {
+    expect(formatWeight(81.18, 'tr')).toBe('81,2')
+    expect(formatWeight(80, 'en')).toBe('80')
   })
 })
 

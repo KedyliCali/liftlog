@@ -82,6 +82,19 @@ export function startingWeight(entries: WeightEntry[], latest: WeightEntry | nul
   return todays?.weightKg ?? latest?.weightKg ?? profileKg ?? null
 }
 
+/**
+ * Y-range for the chart: whole kilos 1 kg around the data. Body weight moves slowly, so the 5 kg padding the
+ * strength charts use would flatten a real 2 kg trend into a straight line.
+ */
+export function weightDomain(values: number[]): [number, number] {
+  return [Math.floor(Math.min(...values) - 1), Math.ceil(Math.max(...values) + 1)]
+}
+
+/** Weights on chips and the average: one decimal is what a scale shows. */
+export function formatWeight(kg: number, loc: string = locale): string {
+  return new Intl.NumberFormat(loc, { maximumFractionDigits: 1 }).format(kg)
+}
+
 function roundTo(value: number, decimals: number): number {
   const factor = 10 ** decimals
   return Math.round(value * factor) / factor
