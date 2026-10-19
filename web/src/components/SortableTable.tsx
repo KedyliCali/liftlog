@@ -10,6 +10,8 @@ export interface SortableColumn<T> {
   render: (row: T) => ReactNode
   /** The direction of the first tap: high to low for numbers, A to Z for names */
   firstDirection?: SortDirection
+  /** Marks the cell holding the column's top value */
+  isLeader?: (row: T) => boolean
 }
 
 /**
@@ -59,7 +61,7 @@ export function SortableTable<T>({ rows, columns, rowKey, initialSort, rowClassN
                       {column.render(row)}
                     </th>
                   ) : (
-                    <td key={column.key} className="num">
+                    <td key={column.key} className={column.isLeader?.(row) ? 'num leader' : 'num'}>
                       {column.render(row)}
                     </td>
                   ),

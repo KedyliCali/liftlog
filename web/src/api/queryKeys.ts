@@ -10,6 +10,9 @@ export const queryKeys = {
   stats: ['stats'] as const,
   // Under stats, so logging or deleting sets refreshes the streak with the other numbers
   streak: ['stats', 'streak'] as const,
+  // Under stats, so logging sets refreshes the comparison too
+  groupTraining: (days: number, today: string) => ['stats', 'group-training', days, today] as const,
+  groupTrainingAll: ['stats', 'group-training'] as const,
   profile: ['profile'] as const,
   weight: ['weight'] as const,
   // Under weight, so saving an entry refreshes every range at once

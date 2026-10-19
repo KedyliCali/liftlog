@@ -18,11 +18,14 @@ import { t } from '../lib/i18n'
 import { sortForLeaderboard } from '../lib/lol'
 import { LolGroupView } from './LolGroupView'
 
-type View = 'group' | 'following'
+/** 'sport' is the group compared on training: the same group, so it lives under the Group tab */
+type View = 'group' | 'sport' | 'following'
+
+const isView = (value: string | null): value is View => value === 'group' || value === 'sport' || value === 'following'
 
 /**
- * The League tab: the group board everyone in your group shares, and your own follow list. The chosen view
- * lives in the URL (?view=), so coming back from a player page returns to the same one.
+ * The League tab: the group board everyone in your group shares (on League or on training), and your own
+ * follow list. The chosen view lives in the URL (?view=), so coming back from a player page returns to it.
  */
 export function GamePage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -31,7 +34,7 @@ export function GamePage() {
   // a fresh list would show them again while their unfollow is still scheduled
   const [pendingDelete, setPendingDelete] = useState<Set<string>>(new Set())
   const requested = searchParams.get('view')
-  const chosen: View | null = requested === 'group' || requested === 'following' ? requested : null
+  const chosen: View | null = isView(requested) ? requested : null
   // Without a choice: the group board when there is one, otherwise the follow list
   const view: View = chosen ?? (group.data ? 'group' : 'following')
 
@@ -53,18 +56,24 @@ export function GamePage() {
       },
       { replace: true },
     )
+  const onGroup = view !== 'following'
   return (
     <div className="page">
       {header}
       <div className="segmented lol-views" role="tablist">
-        <button role="tab" aria-selected={view === 'group'} className={view === 'group' ? 'selected' : ''} onClick={() => select('group')}>
+        {/* Tapping Group while the training comparison is open keeps it open */}
+        <button role="tab" aria-selected={onGroup} className={onGroup ? 'selected' : ''} onClick={() => !onGroup && select('group')}>
           {t.lolViewGroup}
         </button>
-        <button role="tab" aria-selected={view === 'following'} className={view === 'following' ? 'selected' : ''} onClick={() => select('following')}>
+        <button role="tab" aria-selected={!onGroup} className={!onGroup ? 'selected' : ''} onClick={() => select('following')}>
           {t.lolViewFollowing}
         </button>
       </div>
-      {view === 'group' ? <LolGroupView group={group} /> : <FollowingView pendingDelete={pendingDelete} setPendingDelete={setPendingDelete} />}
+      {onGroup ? (
+        <LolGroupView group={group} sport={view === 'sport'} onSportChange={(sport) => select(sport ? 'sport' : 'group')} />
+      ) : (
+        <FollowingView pendingDelete={pendingDelete} setPendingDelete={setPendingDelete} />
+      )}
     </div>
   )
 }

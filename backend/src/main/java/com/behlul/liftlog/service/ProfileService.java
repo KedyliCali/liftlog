@@ -61,6 +61,13 @@ public class ProfileService {
     }
 
     @Transactional
+    public ProfileResponse setShareTraining(boolean enabled) {
+        User user = loadUser();
+        user.setShareTraining(enabled);
+        return toResponse(user);
+    }
+
+    @Transactional
     public ProfileResponse replaceAvatar(byte[] data) {
         if (data.length == 0) {
             throw new InvalidImageException("Image is empty");
@@ -105,6 +112,6 @@ public class ProfileService {
     private static ProfileResponse toResponse(User user, LocalDateTime avatarUpdatedAt) {
         Long avatarVersion = avatarUpdatedAt == null ? null : avatarUpdatedAt.toInstant(ZoneOffset.UTC).toEpochMilli();
         return new ProfileResponse(user.getId(), user.getDisplayName(), user.getHeightCm(), user.getBodyWeightKg(),
-                avatarVersion);
+                avatarVersion, user.isShareTraining());
     }
 }

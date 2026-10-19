@@ -14,6 +14,7 @@ import { SortableTable, type SortableColumn } from '../components/SortableTable'
 import { WorkoutListSkeleton } from '../components/Skeletons'
 import { ErrorState, MessageState } from '../components/StateViews'
 import { useDdragonVersion } from '../components/useDdragonVersion'
+import { GroupTrainingView } from './GroupTrainingView'
 import { errorMessage, formatKg } from '../lib/format'
 import { locale, t } from '../lib/i18n'
 import { rankScore, timeAgo } from '../lib/lol'
@@ -44,7 +45,12 @@ const isAlreadyInGroup = (error: unknown): error is AppError =>
   error instanceof AppError && error.kind === 'groupRule' && error.detail === 'ALREADY_IN_GROUP'
 
 /** The group half of the League tab: start or join a group, or the board everyone in it shares. */
-export function LolGroupView({ group }: { group: UseQueryResult<LolGroup | null> }) {
+export function LolGroupView({ group, sport = false, onSportChange = () => {} }: {
+  group: UseQueryResult<LolGroup | null>
+  /** Compare the group on training instead of League */
+  sport?: boolean
+  onSportChange?: (sport: boolean) => void
+}) {
   const queryClient = useQueryClient()
   const toast = useToast()
   const [, setSearchParams] = useSearchParams()
@@ -65,7 +71,8 @@ export function LolGroupView({ group }: { group: UseQueryResult<LolGroup | null>
     setSearchParams(
       (current) => {
         const next = new URLSearchParams(current)
-        next.set('view', 'group')
+        // The training comparison is a group view too; it stays as it is
+        if (next.get('view') !== 'sport') next.set('view', 'group')
         return next
       },
       { replace: true },
@@ -102,6 +109,8 @@ export function LolGroupView({ group }: { group: UseQueryResult<LolGroup | null>
       {data ? (
         <GroupBoard
           group={data}
+          sport={sport}
+          onSportChange={onSportChange}
           onLink={() => {
             stayOnGroupView()
             setSheet('link')
@@ -175,9 +184,14 @@ export function LolGroupView({ group }: { group: UseQueryResult<LolGroup | null>
 
 type BoardMode = 'board' | 'table'
 
-function GroupBoard({ group, onLink, onManage }: { group: LolGroup; onLink: () => void; onManage: () => void }) {
+function GroupBoard({ group, sport, onSportChange, onLink, onManage }: {
+  group: LolGroup
+  sport: boolean
+  onSportChange: (sport: boolean) => void
+  onLink: () => void
+  onManage: () => void
+}) {
   const toast = useToast()
-  const version = useDdragonVersion()
   // In the URL, so coming back from a player page shows the same mode
   const [searchParams, setSearchParams] = useSearchParams()
   const mode: BoardMode = searchParams.get('board') === 'table' ? 'table' : 'board'
@@ -192,7 +206,6 @@ function GroupBoard({ group, onLink, onManage }: { group: LolGroup; onLink: () =
       { replace: true },
     )
   const me = group.members.find((member) => member.you)
-  const { ranked, unlinked } = splitGroupBoard(group.members)
   const oldest = oldestRefresh(group.members.map((member) => member.player))
   const updated = oldest ? timeAgo(oldest) : null
 
@@ -236,6 +249,39 @@ function GroupBoard({ group, onLink, onManage }: { group: LolGroup; onLink: () =
         </section>
       </div>
 
+      {/* Same group, two comparisons; the switch hangs off the card's lower edge */}
+      <div className="group-mode" role="group" aria-label={t.groupModeLabel}>
+        <button type="button" aria-pressed={!sport} className={!sport ? 'selected' : ''} onClick={() => onSportChange(false)}>
+          {t.groupModeLeague}
+        </button>
+        <button type="button" aria-pressed={sport} className={sport ? 'selected' : ''} onClick={() => onSportChange(true)}>
+          {t.groupModeSport}
+        </button>
+      </div>
+
+      {me && me.displayName == null && (
+        <Link to="/profile" className="group-name-hint">
+          {t.setNameHint}
+        </Link>
+      )}
+
+      {sport ? <GroupTrainingView /> : <LeagueBoard group={group} mode={mode} selectMode={selectMode} onLink={onLink} />}
+    </>
+  )
+}
+
+/** The League half of the group: the link prompt, the Board/Table switch and the ranking. */
+function LeagueBoard({ group, mode, selectMode, onLink }: {
+  group: LolGroup
+  mode: BoardMode
+  selectMode: (mode: BoardMode) => void
+  onLink: () => void
+}) {
+  const version = useDdragonVersion()
+  const me = group.members.find((member) => member.you)
+  const { ranked, unlinked } = splitGroupBoard(group.members)
+  return (
+    <>
       {me && !me.player && (
         <div className="group-banner">
           <p>{t.linkAccountBanner}</p>
@@ -243,11 +289,6 @@ function GroupBoard({ group, onLink, onManage }: { group: LolGroup; onLink: () =
             {t.linkAccount}
           </button>
         </div>
-      )}
-      {me && me.displayName == null && (
-        <Link to="/profile" className="group-name-hint">
-          {t.setNameHint}
-        </Link>
       )}
 
       {ranked.length > 0 && (

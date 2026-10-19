@@ -8,6 +8,7 @@ import { Sheet } from '../components/Sheet'
 import { ExportCard } from '../components/ExportCard'
 import { BackupCard } from '../components/Passkey'
 import { RecoveryCodeCard } from '../components/RecoveryCard'
+import { ShareTrainingToggle } from '../components/ShareTraining'
 import { ProfileSkeleton } from '../components/Skeletons'
 import { WeightCard } from '../components/WeightCard'
 import { ErrorState } from '../components/StateViews'
@@ -125,6 +126,7 @@ export function ProfilePage() {
       </div>
 
       <WeightCard profileWeightKg={data.bodyWeightKg} />
+      <ShareTrainingToggle enabled={data.shareTraining === true} />
 
       {/* With passkeys the Face ID backup leads and the code folds under it; without them, today's code card */}
       {passkeysSupported() ? (

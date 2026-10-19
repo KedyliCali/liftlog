@@ -364,6 +364,21 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
 1. PR aç ve birleştir; canlıda özet ve seri uçlarını kontrol et.
 2. Android'e aynı özet ve seri (isteğe bağlı).
 
+## 2026-10-19 — Arkadaşlarla antrenman karşılaştırma (branch `feature/friend-training`)
+- **Backend:** V20 `users.share_training` (varsayılan kapalı). `PUT /api/v1/profile/share-training {enabled}`,
+  profil yanıtında `shareTraining`. `GET /api/v1/group/training?days=7|30[&today=]`: League grubunun (aynı grup)
+  paylaşan üyeleri için antrenman sayısı, hacim, set, haftalık seri ve 4 büyük hareketin tüm zamanların en iyi
+  tahmini 1RM'i. Çağıran kendini her zaman görür (`shares` bayrağıyla); paylaşmayanlar yalnızca
+  `{displayName, shares:false}`. Grupta değilse 204. Yalnızca hazır (built-in) hareketler sayılır.
+- **Web:** Grup kartının altında League / Spor anahtarı (`?view=sport`). 7/30 gün tablosu, sütuna dokununca sıralama,
+  her sütunun lideri lime. Paylaşmayanlar gri "paylaşmıyor" çipleri. Paylaşmadıysan neyin paylaşıldığını anlatan
+  kart + Paylaş anahtarı; Profil'de de anahtar.
+- Doğrulama: backend `mvnw verify` 223 test, web 338 test, tsc, lint, build. Tarayıcıda görsel kontrol yapılmadı.
+
+**Sıradaki adımlar:**
+1. Tarayıcıda (375 px) Spor görünümünü gerçek veriyle kontrol et, PR aç.
+2. Android'e aynı görünüm (isteğe bağlı).
+
 ## 2026-10-19 — Kilo takibi (branch `feature/weight-log`)
 
 - **Backend:** V18 `weight_entries` (kullanıcı başına günde bir kayıt, `UNIQUE(user_id, entry_date)`, 20–400 kg

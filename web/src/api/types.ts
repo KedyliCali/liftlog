@@ -213,6 +213,8 @@ export interface Profile {
   heightCm: number | null
   bodyWeightKg: number | null
   avatarVersion: number | null
+  /** Whether the user's group may see their training summary */
+  shareTraining: boolean
 }
 
 /** One weigh-in; a user has at most one per date. */
@@ -456,6 +458,39 @@ export interface LolGroup {
   maxMembers: number
   /** Join order, so the first member is the owner */
   members: LolGroupMember[]
+}
+
+export type BigLift = 'Bench Press' | 'Squat' | 'Deadlift' | 'Overhead Press'
+
+export interface LiftBest {
+  exercise: BigLift
+  /** All-time best estimated 1RM; null when the member never logged the lift */
+  estimated1rmKg: number | null
+}
+
+/**
+ * One member of the group's training comparison. A member who did not opt in arrives as only
+ * { displayName, shares: false }; the numbers are left out of the JSON, not zeroed. The caller always gets
+ * their own numbers, with shares saying whether the others can see them.
+ */
+export interface GroupTrainingMember {
+  userId?: number
+  displayName?: string | null
+  you?: boolean
+  shares: boolean
+  workouts?: number
+  totalVolumeKg?: number
+  sets?: number
+  weekStreak?: number
+  best?: LiftBest[]
+}
+
+/** Workouts dated from..to (both inclusive); members in join order. */
+export interface GroupTraining {
+  days: 7 | 30
+  from: string
+  to: string
+  members: GroupTrainingMember[]
 }
 
 export interface ApiErrorBody {
