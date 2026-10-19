@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { t } from '../lib/i18n'
+import { todayIso } from '../lib/nutrition'
 import { ConfirmProvider } from './Confirm'
 import { ToastContext, type ToastOptions } from './contexts'
 import { BackupCard, PasskeyRestoreButton } from './Passkey'
@@ -233,7 +234,8 @@ describe('Workouts reminder banner', () => {
 
     expect(screen.queryByRole('note')).not.toBeInTheDocument()
     const until = localStorage.getItem('liftlog.recoveryNudge')!.slice('snooze:'.length)
-    const days = Math.round((Date.parse(until) - Date.parse(new Date().toISOString().slice(0, 10))) / 86_400_000)
+    // The snooze counts from the phone's local date, so the test must too (UTC is a day behind after midnight in Türkiye)
+    const days = Math.round((Date.parse(until) - Date.parse(todayIso())) / 86_400_000)
     expect(days).toBe(30)
   })
 
