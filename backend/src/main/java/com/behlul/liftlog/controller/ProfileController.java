@@ -3,6 +3,7 @@ package com.behlul.liftlog.controller;
 import com.behlul.liftlog.dto.AuthDtos.AuthResponse;
 import com.behlul.liftlog.dto.AuthDtos.ChangePasswordRequest;
 import com.behlul.liftlog.dto.ProfileDtos.ProfileResponse;
+import com.behlul.liftlog.dto.ProfileDtos.ShareTrainingRequest;
 import com.behlul.liftlog.dto.ProfileDtos.UpdateProfileRequest;
 import com.behlul.liftlog.entity.UserAvatar;
 import com.behlul.liftlog.service.AuthService;
@@ -42,6 +43,12 @@ public class ProfileController {
     @PutMapping
     public ProfileResponse update(@Valid @RequestBody UpdateProfileRequest request) {
         return profileService.updateProfile(request);
+    }
+
+    /** Opt in or out of showing the training summary to the user's group. */
+    @PutMapping("/share-training")
+    public ProfileResponse shareTraining(@Valid @RequestBody ShareTrainingRequest request) {
+        return profileService.setShareTraining(request.enabled());
     }
 
     /**

@@ -50,6 +50,10 @@ public class User {
     @Column(name = "passkey_handle", unique = true)
     private byte[] passkeyHandle;
 
+    /** Opt-in: the user's group may see their training summary (counts and e1RMs, never workout details). */
+    @Column(name = "share_training", nullable = false)
+    private boolean shareTraining;
+
     protected User() {
     }
 
@@ -123,6 +127,14 @@ public class User {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public boolean isShareTraining() {
+        return shareTraining;
+    }
+
+    public void setShareTraining(boolean shareTraining) {
+        this.shareTraining = shareTraining;
     }
 
     public byte[] getPasskeyHandle() {
