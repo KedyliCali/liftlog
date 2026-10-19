@@ -21,11 +21,9 @@ import {
   weightDomain,
   weightText,
   withMovingAverage,
+  WEIGHT_CARD_ID,
   type WeightRange,
 } from '../lib/weight'
-
-/** The Nutrition page's weight chip links here with this anchor. */
-export const WEIGHT_CARD_ID = 'weight'
 
 const STEPS = [-0.5, -0.1, 0.1, 0.5] as const
 
