@@ -357,6 +357,8 @@ export interface LolMatch {
   /** Two numeric summoner spell keys */
   summonerSpells?: number[] | null
   gameMode?: string | null
+  /** 100 blue, 200 red; missing from servers before the full matches were stored */
+  teamId?: number | null
 }
 
 export interface LolChampionStats {
@@ -460,7 +462,270 @@ export interface LolGroup {
   members: LolGroupMember[]
 }
 
-export type BigLift = 'Bench Press' | 'Squat' | 'Deadlift' | 'Overhead Press'
+// ---------- League deep stats (GET /lol/players/{puuid}/stats), match detail and timeline ----------
+
+export type LolStatsQueue = 'ALL' | 'SOLO' | 'FLEX' | 'ARAM' | 'OTHER'
+export type LolStatsWindow = 20 | 50 | 100
+
+export interface LolWinCount {
+  games: number
+  wins: number
+}
+
+/** Averages over the filtered games; a number no game had is null. */
+export interface LolDeepOverview {
+  kda: number | null
+  avgKills: number | null
+  avgDeaths: number | null
+  avgAssists: number | null
+  /** 0..1 */
+  killParticipation: number | null
+  /** 0..1 */
+  damageShare: number | null
+  csPerMinute: number | null
+  goldPerMinute: number | null
+  damagePerMinute: number | null
+  damageTakenPerMinute: number | null
+  visionPerMinute: number | null
+  avgWardsPlaced: number | null
+  avgWardsKilled: number | null
+  avgControlWards: number | null
+  avgSoloKills: number | null
+  /** Seconds */
+  avgCcTime: number | null
+  /** Time dead as a share of game time, 0..1 */
+  deadShare: number | null
+  damagePerGold: number | null
+  objectiveDamagePerMinute: number | null
+  /** 0..1 */
+  firstBloodRate: number | null
+  multiKills: { double: number; triple: number; quadra: number; penta: number }
+  avgGameMinutes: number | null
+}
+
+export interface LolDeepChampion {
+  champion: string
+  games: number
+  wins: number
+  /** Averages per game */
+  kills: number
+  deaths: number
+  assists: number
+  kda: number
+  csPerMinute: number | null
+  damagePerMinute: number | null
+  goldPerMinute: number | null
+  visionPerMinute: number | null
+  killParticipation: number | null
+  damageShare: number | null
+  pentas: number
+  lastPlayed: string
+}
+
+export interface LolDeepRole {
+  position: string | null
+  games: number
+  wins: number
+  kda: number | null
+  csPerMinute: number | null
+  damagePerMinute: number | null
+  visionPerMinute: number | null
+}
+
+/** A teammate seen in at least two of the games. */
+export interface LolDuo {
+  puuid: string
+  riotName: string | null
+  riotTag: string | null
+  games: number
+  wins: number
+  /** Theirs in the games together */
+  kda: number
+  /** Mine in those same games */
+  myKda: number
+  /** Their top three */
+  champions: string[]
+  /** Already on the caller's follow list */
+  tracked: boolean
+}
+
+export interface LolMatchup {
+  /** The lane opponent's champion */
+  champion: string
+  games: number
+  wins: number
+  kda: number
+  /** End of game, mine − theirs */
+  avgGoldDiff: number | null
+  avgCsDiff: number | null
+}
+
+export interface LolChampionCount extends LolWinCount {
+  champion: string
+}
+
+export interface LolDeepStats {
+  queue: LolStatsQueue
+  /** The requested window */
+  games: number
+  gamesFound: number
+  /** Games stored with both teams; duos, matchups, sides, objectives, keystones and patches count only these */
+  gamesWithFullData: number
+  wins: number
+  overview: LolDeepOverview
+  champions: LolDeepChampion[]
+  roles: LolDeepRole[]
+  duos: LolDuo[]
+  matchups: LolMatchup[]
+  enemyChampions: LolChampionCount[]
+  allyChampions: LolChampionCount[]
+  sides: (LolWinCount & { teamId: number })[]
+  durations: (LolWinCount & { label: string })[]
+  hours: (LolWinCount & { label: string })[]
+  /** 1..7, Monday first */
+  weekdays: (LolWinCount & { day: number })[]
+  objectives: {
+    avgTeamDragons: number | null
+    avgTeamBarons: number | null
+    avgTeamTowers: number | null
+    avgTeamGrubs: number | null
+    avgTeamHeralds: number | null
+    firstBlood: LolWinCount
+    firstTower: LolWinCount
+    firstDragon: LolWinCount
+    firstBaron: LolWinCount
+  }
+  items: (LolWinCount & { itemId: number })[]
+  keystones: (LolWinCount & { keystone: number; primaryStyle: number })[]
+  /** "4,14": two numeric summoner spell keys */
+  spells: (LolWinCount & { spells: string })[]
+  /** "14.20" */
+  patches: (LolWinCount & { patch: string })[]
+  /** Oldest first */
+  trend: LolTrendPoint[]
+}
+
+export interface LolTrendPoint {
+  matchId: string
+  endedAt: string
+  win: boolean
+  kda: number
+  csPerMinute: number | null
+  damagePerMinute: number | null
+  goldPerMinute: number | null
+  visionPerMinute: number | null
+  killParticipation: number | null
+}
+
+export interface LolMatchTeam {
+  /** 100 blue, 200 red */
+  teamId: number
+  win: boolean
+  kills: number
+  towers: number
+  inhibitors: number
+  dragons: number
+  barons: number
+  heralds: number
+  grubs: number
+  atakhan: number
+  firstBlood: boolean
+  firstTower: boolean
+  firstDragon: boolean
+  firstBaron: boolean
+  /** Numeric champion keys (champion.json "key"); -1 is no ban */
+  bans: number[]
+}
+
+export interface LolMatchParticipant {
+  /** 1..10; the timeline uses the same ids */
+  participantId: number
+  puuid: string
+  riotName: string | null
+  riotTag: string | null
+  teamId: number
+  champion: string
+  champLevel: number
+  position: string | null
+  kills: number
+  deaths: number
+  assists: number
+  cs: number
+  gold: number
+  damage: number
+  damageTaken: number
+  damageObjectives: number
+  damageBuildings: number
+  healing: number
+  shielding: number
+  /** Seconds */
+  ccTime: number
+  /** Seconds */
+  timeDead: number
+  visionScore: number
+  wardsPlaced: number
+  wardsKilled: number
+  controlWards: number
+  doubleKills: number
+  tripleKills: number
+  quadraKills: number
+  pentaKills: number
+  firstBlood: boolean
+  soloKills: number | null
+  killParticipation: number | null
+  damageShare: number | null
+  /** Seven ids, 0 empty, the last one the trinket */
+  items: number[]
+  spells: number[]
+  keystone: number | null
+  primaryStyle: number | null
+  secondaryStyle: number | null
+  win: boolean
+  tracked: boolean
+}
+
+export interface LolMatchDetail {
+  matchId: string
+  queueId: number
+  gameMode: string | null
+  /** "14.20.123.4567" */
+  gameVersion: string | null
+  endedAt: string
+  durationS: number
+  teams: LolMatchTeam[]
+  participants: LolMatchParticipant[]
+  timelineAvailable: boolean
+}
+
+export interface LolTimelineSnapshot {
+  gold: number
+  cs: number
+  xp: number
+  level: number
+}
+
+export interface LolTimeline {
+  matchId: string
+  /** Team gold per minute */
+  minutes: { minute: number; blueGold: number; redGold: number }[]
+  participants: {
+    participantId: number
+    at10: LolTimelineSnapshot | null
+    at15: LolTimelineSnapshot | null
+    /** Per minute */
+    gold: number[]
+  }[]
+}
+
+/** Two group members who played in the same match on the same team. */
+export interface LolGroupDuo {
+  a: { userId: number; displayName: string | null }
+  b: { userId: number; displayName: string | null }
+  games: number
+  wins: number
+}
+
+export type BigLift ='Bench Press' | 'Squat' | 'Deadlift' | 'Overhead Press'
 
 export interface LiftBest {
   exercise: BigLift
