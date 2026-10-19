@@ -109,3 +109,12 @@ export function ControllerIcon({ size }: { size?: number }) {
     </Icon>
   )
 }
+
+export function KeyIcon({ size = 20 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <circle cx="8" cy="15" r="4" />
+      <path d="M10.8 12.2L20 3M16 7l3 3M14 9l2 2" />
+    </Icon>
+  )
+}

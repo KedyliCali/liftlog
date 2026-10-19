@@ -6,4 +6,9 @@ public class InvalidCredentialsException extends RuntimeException {
     public InvalidCredentialsException() {
         super("Invalid email or password");
     }
+
+    /** For an already signed-in user, where naming the problem reveals nothing new. */
+    public InvalidCredentialsException(String message) {
+        super(message);
+    }
 }

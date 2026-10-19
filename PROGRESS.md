@@ -196,3 +196,44 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
   oyuncu sayfası, yenileme; anahtarsız modda "anahtar eklenmedi" mesajı ve önbellekten liste.
 - **Sıradaki adım (Behlül):** [docs/RIOT.md](docs/RIOT.md)'deki adımlarla kişisel anahtarı alıp Render'da
   `RIOT_API_KEY` olarak eklemek. Nick: Pesimist Fidan#2003.
+
+## 2026-10-19 — Hesap kurtarma kodu (branch `feature/recovery-code`)
+
+- Kalıcı Riot kişisel anahtarı başvurusu yapıldı ve anında onaylandı (Approved). Behlül Render'da
+  `RIOT_API_KEY`'i değiştirdi; yeni deploy olmadığı için anahtar bir sonraki deploy'da devreye girecek.
+- Behlül'ün sırası: kurtarma kodu → uyuma sorunu → League grup davet kodu. Tasarım iş akışında her özellik
+  için üç bağımsız tasarım ve bir hakem kullanıldı; uyuma için ayrı araştırma yapıldı.
+- **Kurtarma kodu:** kod, cihaz hesabının kendisi (`uuid.parola`, 76 karakter); geri yükleme sıradan bir giriş.
+  "Yeni kod" = parola değişikliği (`PUT /api/v1/profile/password`, Android /auth altındaki çağrılarda token'ı
+  sildiği için /profile altında). V10 `users.token_version`; her JWT `ver` taşıyor, eski sürümlü token'lar
+  bir sonraki istekte 401 alıyor (claim'i olmayan eski token'lar 0 sayılıyor, deploy kimseyi atmadı).
+- **Web:** hesabı olmayan cihazda karşılama ekranı (Başla / Kurtarma kodum var), kodu başka yerde değişen
+  cihazda "Bu cihazdan çıkış yapıldı" ekranı (eskiden 409 hatasında takılıyordu), Profil'de kod kartı
+  (göster, kopyala, paylaş, yeni kod, başka kod kullan), Antrenmanlar'da "kodunu kaydet" hatırlatıcısı.
+  Yanıtı kaybolan "yeni kod" bekleyen parola olarak saklanıyor; geç gelen 401 yeni token'ı silmiyor.
+- **İnceleme iş akışı** (4 açı + her bulguya şüpheci doğrulayıcı, 23 ajan): 8 bulgu doğrulandı, 11'i
+  çürütüldü. Düzeltilenler: sunucuya ulaşıp yanıtı kaybolan yeni kodun sessizce benimsenmesi, sekmeler
+  arası kontrolün hiç çalışmaması, boş kayıt başlatınca eski verinin görünmesi, çıkış ekranında yanlış
+  mesaj. Ayrıca sayfa dili artık Türkçe: büyük harf başlıklar "İ"yi doğru yazıyor ("PROFİL").
+- Elle bulunan hata: çıkış ekranında aynı hesabın yeni kodu "zaten bu cihazda" diye reddediliyordu
+  (sadece e-posta karşılaştırılıyordu) → e-posta ve parola birlikte karşılaştırılıyor.
+- Doğrulama: backend 66 test, web 87 test, lint, build; yerel Docker (V10) ile telefon boyutunda: eski
+  token çalışıyor, karşılama → kodla geri yükleme, yeni kod → eski cihaz çıkış ekranı → yeni kodla dönüş.
+- Kurtarma için yönetici yedeği (kod da cihaz da kaybolursa): Neon SQL'de pgcrypto ile yeni BCrypt parola
+  ve `token_version + 1`, sonra arkadaşa `<uuid tiresiz>.<parola>` gönderilir.
+
+## 2026-10-19 — Açılış hızı ve kalan iş (branch `feature/faster-startup`, PR #17)
+
+- Behlül uyuma sorunu için "sadece hızlandır"ı seçti (ping yok: Render ekibi uyandırma isteklerini
+  ücretsiz planın ruhuna aykırı buluyor, ayrıca sürekli açık API Neon'un aylık ücretsiz süresini bitirir).
+- 0.1 CPU / 512 MB'ta ölçüm: açılış **178 sn → 96 sn** (`-XX:TieredStopAtLevel=1`) **→ 51 sn** (CDS
+  arşivi, imaj oluşturulurken veritabanısız eğitim açılışıyla). Ayrıntılar `docs/DEPLOY.md`'de.
+- League grup davet kodu tasarımı hazır, henüz yapılmadı: `docs/design/lol-groups.md` (PR #17'de).
+  Kararlar: sadece üyeler, kişi başı tek grup.
+
+**Sıradaki adımlar:**
+1. PR #16 (kurtarma kodu) ve #17 (açılış hızı) CI yeşilse birleştir; ikisi de `README.md`'ye farklı
+   satırlar ekliyor, çakışma beklenmiyor. Birleşince canlıda kontrol: V10 Neon'da, eski token'lar çalışıyor,
+   Render loglarında açılış ~1 dakikanın altında, League sekmesi kalıcı Riot anahtarıyla çalışıyor.
+2. iPhone'da: Profil → Kurtarma kodu → Kopyala, Notlar'a kaydet.
+3. League grupları: `docs/design/lol-groups.md`'ye göre (V11, önce HttpRiotClient 404 düzeltmesi).

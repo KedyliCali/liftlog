@@ -36,6 +36,10 @@ public class User {
     @Column(name = "body_weight_kg", precision = 5, scale = 2)
     private BigDecimal bodyWeightKg;
 
+    /** Raised by every password change; tokens carrying an older value are rejected (TokenVersionValidator). */
+    @Column(name = "token_version", nullable = false)
+    private int tokenVersion;
+
     @Column(name = "calorie_goal_kcal")
     private Integer calorieGoalKcal;
 
@@ -63,8 +67,17 @@ public class User {
         return passwordHash;
     }
 
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
+    /**
+     * Stores a new password hash and invalidates every token issued before it. This is the only way to
+     * change a password, so no future feature can change one and forget to sign other devices out.
+     */
+    public void changePassword(String newPasswordHash) {
+        this.passwordHash = newPasswordHash;
+        this.tokenVersion++;
+    }
+
+    public int getTokenVersion() {
+        return tokenVersion;
     }
 
     public String getDisplayName() {

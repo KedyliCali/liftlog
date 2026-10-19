@@ -1,6 +1,7 @@
 package com.behlul.liftlog.security;
 
 import com.behlul.liftlog.dto.ApiError;
+import com.behlul.liftlog.repository.UserRepository;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -16,6 +17,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -98,12 +100,13 @@ public class SecurityConfig {
     }
 
     @Bean
-    JwtDecoder jwtDecoder(SecretKey jwtSigningKey) {
+    JwtDecoder jwtDecoder(SecretKey jwtSigningKey, UserRepository userRepository) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(jwtSigningKey)
                 .macAlgorithm(MacAlgorithm.HS256)
                 .build();
-        // Default validators check expiry; also reject tokens issued by anyone else
-        decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(JwtService.ISSUER));
+        // Expiry, our issuer, and not revoked by a later password change
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+                JwtValidators.createDefaultWithIssuer(JwtService.ISSUER), new TokenVersionValidator(userRepository)));
         return decoder;
     }
 

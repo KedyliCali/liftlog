@@ -15,6 +15,8 @@ import java.time.Instant;
 public class JwtService {
 
     static final String ISSUER = "liftlog";
+    /** The user's token version when the token was issued; see TokenVersionValidator. */
+    static final String VERSION_CLAIM = "ver";
 
     private final JwtEncoder encoder;
     private final JwtProperties properties;
@@ -36,6 +38,7 @@ public class JwtService {
                 .issuedAt(now)
                 .expiresAt(expiresAt)
                 .claim("email", user.getEmail())
+                .claim(VERSION_CLAIM, user.getTokenVersion())
                 .build();
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
         String token = encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();

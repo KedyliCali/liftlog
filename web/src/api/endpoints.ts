@@ -45,6 +45,12 @@ export const api = {
   untrackLolPlayer: (puuid: string) =>
     request<void>(`/api/v1/lol/players/${encodeURIComponent(puuid)}`, { method: 'DELETE', responseType: 'none' }),
 
+  /** The recovery code's "New code": the web app generates both passwords itself */
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<AuthResponse>('/api/v1/profile/password', { method: 'PUT', body: { currentPassword, newPassword } }),
+  /** Fire-and-forget: starts waking a sleeping server while the user reads the welcome screen */
+  health: () => request<void>('/api/v1/health', { anonymous: true, responseType: 'none' }),
+
   profile: () => request<Profile>('/api/v1/profile'),
   updateProfile: (displayName: string | null, heightCm: number | null, bodyWeightKg: number | null) =>
     request<Profile>('/api/v1/profile', { method: 'PUT', body: { displayName, heightCm, bodyWeightKg } }),
