@@ -5598,3 +5598,255 @@ body:has(.rest-timer) .finish-btn {
   -webkit-touch-callout: none;
 }
 
+
+/* ---------- Weight log ---------- */
+/* Card with the signal rule on top and an offset plate behind its lower right, like a stacked weight plate */
+.weight-card {
+  position: relative;
+  padding: 20px;
+  margin: 0 6px 22px 0;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: 6px 6px 0 var(--surface-low), 6px 6px 0 1px var(--outline-variant);
+  scroll-margin-top: 16px;
+}
+
+.weight-card::before {
+  content: '';
+  display: block;
+  width: 28px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--primary);
+  margin-bottom: 10px;
+}
+
+.weight-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.weight-head h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.weight-head p {
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+
+/* Lime slab on a darker offset plate, with the date tag hanging over its top edge */
+.weight-latest {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  margin-top: 4px;
+  padding: 14px 14px 6px;
+  border-radius: var(--radius-m);
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: 4px 4px 0 var(--primary-container);
+}
+
+.weight-latest strong {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.weight-latest small {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.weight-latest-tag {
+  position: absolute;
+  top: -9px;
+  left: -6px;
+  padding: 1px 6px;
+  border: 1px solid var(--primary);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.weight-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 4px;
+}
+
+/* Direction is shown by the edge color only: down and up are neither good nor bad without a goal */
+.weight-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border-left: 3px solid var(--outline);
+  border-radius: var(--radius-s);
+  background: var(--surface-high);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.weight-chip.down {
+  border-left-color: var(--tertiary);
+}
+
+.weight-chip.up {
+  border-left-color: var(--primary);
+}
+
+.weight-chip.average {
+  border: 1px dashed var(--outline);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.weight-entry {
+  margin-top: 14px;
+}
+
+/* Coarse ±0.5 steps sit outside the fine ±0.1 ones, lighter, so the common tap is the bigger target */
+.weight-stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 60px;
+  padding: 0 4px;
+  border-radius: var(--radius-m);
+  background: var(--surface-highest);
+  box-shadow: 0 3px 0 var(--primary-container);
+}
+
+.weight-stepper.invalid {
+  outline: 2px solid var(--error);
+}
+
+.weight-step {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius-m);
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+  font-size: 15px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  transition: transform 0.45s var(--ease-spring);
+}
+
+.weight-step.coarse {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--outline);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.weight-step:active {
+  transform: scale(0.88);
+  transition-duration: 0.08s;
+}
+
+.weight-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.weight-input:focus {
+  outline: none;
+}
+
+.weight-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 18px;
+}
+
+.weight-actions .btn {
+  flex: none;
+}
+
+.weight-ranges {
+  margin-bottom: 12px;
+}
+
+.weight-chart {
+  height: 220px;
+}
+
+.weight-note {
+  margin: 0;
+  padding: 16px 0 4px;
+  font-size: 14px;
+}
+
+/* Nutrition header: current weight as a tag; the lime label overlaps its left edge */
+.weight-link-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-top: 12px;
+  padding: 3px 10px 3px 3px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-s);
+  background: var(--surface-high);
+  color: var(--text);
+  text-decoration: none;
+  box-shadow: 0 3px 0 var(--primary-container);
+  transition: transform 0.12s;
+}
+
+.weight-link-chip:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--primary-container);
+}
+
+.weight-link-chip-tag {
+  align-self: center;
+  margin-left: -7px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.weight-link-chip strong {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.weight-link-chip small {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
