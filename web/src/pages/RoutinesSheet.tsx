@@ -21,6 +21,8 @@ import {
   validateRoutine,
   type RoutineField,
 } from '../lib/routineLogic'
+import type { RoutineTemplate } from '../lib/routineTemplates'
+import { TemplateCards, TemplatePreview } from './RoutineTemplates'
 import { ExercisePicker } from './SetEditorSheet'
 
 interface Draft {
@@ -30,14 +32,25 @@ interface Draft {
   exercises: RoutineExercise[]
 }
 
-/** Manage routines: the list, then an editor for one routine in the same sheet. */
-export function RoutinesSheet({ onClose }: { onClose: () => void }) {
+/**
+ * Manage routines: the list (with the ready-made templates under it), then an editor for one routine or a
+ * template's preview in the same sheet. initialTemplate opens straight on that preview.
+ */
+export function RoutinesSheet({ onClose, initialTemplate = null }: { onClose: () => void; initialTemplate?: RoutineTemplate | null }) {
   const [draft, setDraft] = useState<Draft | null>(null)
+  const [template, setTemplate] = useState<RoutineTemplate | null>(initialTemplate)
   if (draft) return <RoutineEditor initial={draft} onDone={() => setDraft(null)} onClose={onClose} />
-  return <RoutineList onEdit={setDraft} onClose={onClose} />
+  if (template) {
+    return (
+      <Sheet title={t.readyTemplates} onClose={onClose}>
+        <TemplatePreview template={template} backLabel={t.routines} onBack={() => setTemplate(null)} onAdded={() => setTemplate(null)} onStarted={onClose} />
+      </Sheet>
+    )
+  }
+  return <RoutineList onEdit={setDraft} onPickTemplate={setTemplate} onClose={onClose} />
 }
 
-function RoutineList({ onEdit, onClose }: { onEdit: (draft: Draft) => void; onClose: () => void }) {
+function RoutineList({ onEdit, onPickTemplate, onClose }: { onEdit: (draft: Draft) => void; onPickTemplate: (template: RoutineTemplate) => void; onClose: () => void }) {
   const queryClient = useQueryClient()
   const toast = useToast()
   const routines = useQuery({ queryKey: queryKeys.routines, queryFn: api.routines })
@@ -93,6 +106,9 @@ function RoutineList({ onEdit, onClose }: { onEdit: (draft: Draft) => void; onCl
             </div>
           ))
         )}
+        <h3 className="section-title templates-title">{t.readyTemplates}</h3>
+        <p className="templates-body">{t.readyTemplatesBody}</p>
+        <TemplateCards variant="list" onSelect={onPickTemplate} />
       </div>
     </Sheet>
   )
