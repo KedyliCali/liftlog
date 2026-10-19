@@ -5,7 +5,7 @@ import { setNavDirection } from '../lib/navDirection'
 import { swipeTarget, TAB_PATHS, tabIndexOf } from '../lib/tabSwipe'
 
 /** Places that own horizontal gestures themselves: swipe-to-delete rows, scrolling chip rows, charts, inputs, sheets. */
-const OWNS_HORIZONTAL_GESTURE = '.swipe, .chip-row, .recharts-wrapper, input, textarea, select, .sheet-backdrop, .menu'
+const OWNS_HORIZONTAL_GESTURE = '.swipe, .chip-row, .recharts-wrapper, .data-table-scroll, input, textarea, select, .sheet-backdrop, .menu'
 
 /** Left/right swipe anywhere on a tab page opens the neighbouring tab. */
 export function useTabSwipe() {

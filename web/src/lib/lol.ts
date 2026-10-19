@@ -19,6 +19,49 @@ export function rankScore(rank: LolRank | null): number {
   return tier * 100_000 + division * 1_000 + rank.lp
 }
 
+/** Where Master starts on the chart ladder: 7 tiers below it, 4 divisions of 100 LP each. */
+export const LADDER_APEX = APEX_FROM * 400
+
+/**
+ * The rank as a position on one continuous LP ladder, for the LP chart: Gold II 45 LP is 45 above Gold II 0 LP,
+ * and Gold I 0 LP is 100 above that. It orders ranks the same way as rankScore below Master, but without
+ * rankScore's gaps of 900 between divisions, so a promotion looks like the 100 LP step it is instead of a
+ * cliff. Master and above have one shared LP ladder in the game, so there LP alone decides.
+ */
+export function rankLadder(rank: Pick<LolRank, 'tier' | 'division' | 'lp'>): number | null {
+  const tier = TIERS.indexOf(rank.tier)
+  if (tier < 0) return null
+  if (tier >= APEX_FROM) return LADDER_APEX + rank.lp
+  return tier * 400 + Math.max(0, DIVISIONS.indexOf(rank.division)) * 100 + rank.lp
+}
+
+/** Axis label for a ladder value: the division that starts there ("Gold II"), or LP above Master. */
+export function ladderLabel(value: number): string {
+  if (value >= LADDER_APEX) return value === LADDER_APEX ? rankLabel({ tier: 'MASTER', division: 'I', lp: 0, wins: 0, losses: 0 }) : `${value - LADDER_APEX} LP`
+  const tier = TIERS[Math.max(0, Math.floor(value / 400))]
+  const division = DIVISIONS[Math.floor((value % 400) / 100)]
+  return rankLabel({ tier, division, lp: 0, wins: 0, losses: 0 })
+}
+
+/**
+ * Y axis for the LP chart: whole divisions around the data, with at most six labelled lines. The step doubles
+ * (division, two divisions, tier, …) until the labels fit, and stays aligned so each line starts a division.
+ */
+export function ladderAxis(values: number[]): { domain: [number, number]; ticks: number[] } {
+  const low = Math.floor(Math.min(...values) / 100) * 100
+  let high = Math.ceil(Math.max(...values) / 100) * 100
+  if (high === low) high += 100
+  let step = 100
+  let ticks: number[] = []
+  for (;;) {
+    ticks = []
+    for (let v = Math.ceil(low / step) * step; v <= high; v += step) ticks.push(v)
+    if (ticks.length <= 6) break
+    step *= 2
+  }
+  return { domain: [low, high], ticks: ticks.length >= 2 ? ticks : [low, high] }
+}
+
 /** Leaderboard order: rank first, then recent form, then name so ties are stable. */
 export function sortForLeaderboard(players: LolPlayer[]): LolPlayer[] {
   return [...players].sort(
@@ -88,6 +131,26 @@ const DDRAGON = 'https://ddragon.leagueoflegends.com'
 export const ddragonVersionsUrl = `${DDRAGON}/api/versions.json`
 
 export const profileIconUrl = (version: string, iconId: number) => `${DDRAGON}/cdn/${version}/img/profileicon/${iconId}.png`
+
+export const itemIconUrl = (version: string, itemId: number) => `${DDRAGON}/cdn/${version}/img/item/${itemId}.png`
+
+/** Spell icons are named by the spell ("SummonerFlash.png"), while matches only carry its numeric key. */
+export const summonerSpellDataUrl = (version: string) => `${DDRAGON}/cdn/${version}/data/en_US/summoner.json`
+
+export const summonerSpellIconUrl = (version: string, file: string) => `${DDRAGON}/cdn/${version}/img/spell/${file}`
+
+/** summoner.json → numeric key to icon file. Anything unexpected gives an empty map, so no icons show. */
+export function parseSummonerSpells(json: unknown): Record<number, string> {
+  const map: Record<number, string> = {}
+  const data = (json as { data?: unknown } | null)?.data
+  if (!data || typeof data !== 'object') return map
+  for (const spell of Object.values(data as Record<string, { key?: unknown; image?: { full?: unknown } }>)) {
+    const key = Number(spell?.key)
+    const file = spell?.image?.full
+    if (Number.isFinite(key) && typeof file === 'string') map[key] = file
+  }
+  return map
+}
 
 /** Match data uses Data Dragon ids ("MonkeyKing" for Wukong), so the name maps straight to the file. */
 export const championIconUrl = (version: string, champion: string) => `${DDRAGON}/cdn/${version}/img/champion/${champion}.png`

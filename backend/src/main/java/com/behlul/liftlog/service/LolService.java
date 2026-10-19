@@ -3,19 +3,23 @@ package com.behlul.liftlog.service;
 import com.behlul.liftlog.dto.LolDtos.LolMatchResponse;
 import com.behlul.liftlog.dto.LolDtos.LolPlayerDetailResponse;
 import com.behlul.liftlog.dto.LolDtos.LolPlayerResponse;
+import com.behlul.liftlog.dto.LolDtos.RankHistoryPoint;
 import com.behlul.liftlog.dto.LolDtos.RankResponse;
 import com.behlul.liftlog.dto.LolDtos.TrackPlayerRequest;
 import com.behlul.liftlog.entity.LolMatchPlayer;
 import com.behlul.liftlog.entity.LolPlayer;
+import com.behlul.liftlog.entity.LolRankHistory;
 import com.behlul.liftlog.exception.ConflictException;
 import com.behlul.liftlog.exception.ResourceNotFoundException;
 import com.behlul.liftlog.exception.RiotIdNotFoundException;
 import com.behlul.liftlog.repository.LolMatchPlayerRepository;
 import com.behlul.liftlog.repository.LolPlayerRepository;
+import com.behlul.liftlog.repository.LolRankHistoryRepository;
 import com.behlul.liftlog.riot.LolPlatform;
 import com.behlul.liftlog.riot.RiotClient;
 import com.behlul.liftlog.riot.RiotClient.LeagueEntry;
 import com.behlul.liftlog.riot.RiotClient.Match;
+import com.behlul.liftlog.riot.RiotClient.Participant;
 import com.behlul.liftlog.riot.RiotClient.Summoner;
 import com.behlul.liftlog.riot.RiotRateLimiter;
 import com.behlul.liftlog.riot.RiotUnavailableException;
@@ -27,16 +31,20 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Follows League players for the current user. Riot data is cached and refreshed lazily: a player is
@@ -55,7 +63,10 @@ public class LolService {
     /** A manual refresh within this time of the last one is ignored rather than spending requests. */
     static final Duration MIN_MANUAL_REFRESH = Duration.ofMinutes(1);
     static final int MATCHES_SHOWN = 20;
-    /** Caps one refresh at about a dozen requests, so one player cannot use up the shared budget. */
+    /**
+     * Caps one refresh at about a dozen requests, so one player cannot use up the shared budget. Covers new
+     * matches and re-downloads of old rows without details together.
+     */
     static final int MAX_NEW_MATCHES_PER_REFRESH = 10;
     /** Requests a full refresh may need (profile, rank, match list and new matches), checked before starting. */
     static final int REQUESTS_PER_REFRESH = 3 + MAX_NEW_MATCHES_PER_REFRESH;
@@ -68,6 +79,8 @@ public class LolService {
     static final int RESERVED_FOR_ACTIONS = 1 + REQUESTS_PER_REFRESH;
     static final int MAX_TRACKED = 20;
     static final String SOLO_QUEUE = "RANKED_SOLO_5x5";
+    /** Rank history rows kept per player: months of play when a row is added only on a change. */
+    static final int RANK_HISTORY_KEPT = 200;
 
     private enum RefreshOutcome {
         /** Fresh already, or another request is refreshing the player right now. */
@@ -79,15 +92,18 @@ public class LolService {
 
     private final LolPlayerRepository playerRepository;
     private final LolMatchPlayerRepository matchRepository;
+    private final LolRankHistoryRepository rankHistoryRepository;
     private final RiotClient riot;
     private final RiotRateLimiter limiter;
     private final CurrentUserProvider currentUser;
     private final Clock clock;
 
-    public LolService(LolPlayerRepository playerRepository, LolMatchPlayerRepository matchRepository, RiotClient riot,
-                      RiotRateLimiter limiter, CurrentUserProvider currentUser, Clock clock) {
+    public LolService(LolPlayerRepository playerRepository, LolMatchPlayerRepository matchRepository,
+                      LolRankHistoryRepository rankHistoryRepository, RiotClient riot, RiotRateLimiter limiter,
+                      CurrentUserProvider currentUser, Clock clock) {
         this.playerRepository = playerRepository;
         this.matchRepository = matchRepository;
+        this.rankHistoryRepository = rankHistoryRepository;
         this.riot = riot;
         this.limiter = limiter;
         this.currentUser = currentUser;
@@ -163,6 +179,15 @@ public class LolService {
                     "Riot has no League profile for this player on " + player.getPlatform());
         }
         return detailOf(player);
+    }
+
+    /** The LP chart's points, oldest first. Same visibility as the detail page; never calls Riot. */
+    @Transactional(readOnly = true)
+    public List<RankHistoryPoint> rankHistory(String puuid) {
+        LolPlayer player = loadVisible(puuid);
+        return rankHistoryRepository.findByPuuidOrderByRecordedAtAsc(player.getPuuid()).stream()
+                .map(h -> new RankHistoryPoint(h.getRecordedAt(), h.getTier(), h.getDivision(), h.getLp()))
+                .toList();
     }
 
     @Transactional
@@ -249,11 +274,41 @@ public class LolService {
 
         List<String> ids = riot.recentMatchIds(platform, player.getPuuid(), MATCHES_SHOWN);
         Set<String> stored = ids.isEmpty() ? Set.of() : matchRepository.findStoredIds(player.getPuuid(), ids);
-        ids.stream().filter(id -> !stored.contains(id)).limit(MAX_NEW_MATCHES_PER_REFRESH)
-                .forEach(id -> fetchMatch(platform, id).ifPresent(match -> storeMatch(match, player.getPuuid())));
+        List<String> newIds = ids.stream().filter(id -> !stored.contains(id)).limit(MAX_NEW_MATCHES_PER_REFRESH).toList();
+        // New matches come first; what is left of the budget re-downloads stored rows from before the detail
+        // columns, newest first, so the details fill in over a few refreshes without spending extra requests. A
+        // match Riot sends without gold would be asked for again, but only while it is among the recent ids
+        int budgetLeft = MAX_NEW_MATCHES_PER_REFRESH - newIds.size();
+        List<String> backfillIds = List.of();
+        if (budgetLeft > 0 && !stored.isEmpty()) {
+            Set<String> withoutDetails = matchRepository.findIdsWithoutDetails(player.getPuuid(), stored);
+            backfillIds = ids.stream().filter(withoutDetails::contains).limit(budgetLeft).toList();
+        }
+        newIds.forEach(id -> fetchMatch(platform, id).ifPresent(match -> storeMatch(match, player.getPuuid())));
+        backfillIds.forEach(id -> fetchMatch(platform, id).ifPresent(match -> fillDetails(match, player.getPuuid())));
+
+        if (solo != null) {
+            recordRank(player.getPuuid(), solo);
+        }
         player.markRefreshed(now());
         playerRepository.save(player);
         return RefreshOutcome.REFRESHED;
+    }
+
+    /**
+     * Adds a rank history point when tier, division or LP moved since the newest one (or there is none yet), so a
+     * player who did not play adds nothing. Unranked players record nothing: the chart has no value for them.
+     */
+    private void recordRank(String puuid, LeagueEntry solo) {
+        Optional<LolRankHistory> newest = rankHistoryRepository.findFirstByPuuidOrderByRecordedAtDesc(puuid);
+        if (newest.isPresent() && newest.get().sameRank(solo.tier(), solo.rank(), solo.leaguePoints())) {
+            return;
+        }
+        // Microseconds, what a Postgres TIMESTAMP keeps, so the key in memory matches the stored one
+        LocalDateTime recordedAt = LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC).truncatedTo(ChronoUnit.MICROS);
+        rankHistoryRepository.save(new LolRankHistory(puuid, recordedAt, solo.tier(), solo.rank(), solo.leaguePoints(),
+                solo.wins(), solo.losses()));
+        rankHistoryRepository.deleteAllButNewest(puuid, RANK_HISTORY_KEPT);
     }
 
     /**
@@ -279,12 +334,47 @@ public class LolService {
     }
 
     private void storeMatch(Match match, String puuid) {
-        match.participants().stream().filter(p -> puuid.equals(p.puuid())).findFirst().ifPresent(p ->
-                matchRepository.save(new LolMatchPlayer(match.matchId(), puuid, match.queueId(),
-                        LocalDateTime.ofInstant(Instant.ofEpochMilli(match.gameEndTimestamp()), ZoneOffset.UTC),
-                        (int) match.gameDuration(), p.championName(), emptyToNull(p.teamPosition()), p.kills(), p.deaths(),
-                        p.assists(), p.totalMinionsKilled() + p.neutralMinionsKilled(), p.totalDamageDealtToChampions(),
-                        p.win())));
+        participant(match, puuid).ifPresent(p -> {
+            LolMatchPlayer line = new LolMatchPlayer(match.matchId(), puuid, match.queueId(),
+                    LocalDateTime.ofInstant(Instant.ofEpochMilli(match.gameEndTimestamp()), ZoneOffset.UTC),
+                    (int) match.gameDuration(), p.championName(), emptyToNull(p.teamPosition()), p.kills(), p.deaths(),
+                    p.assists(), p.totalMinionsKilled() + p.neutralMinionsKilled(), p.totalDamageDealtToChampions(),
+                    p.win());
+            line.fillDetails(detailsOf(match, p));
+            matchRepository.save(line);
+        });
+    }
+
+    /**
+     * The backfill: updates the stored row in place (its key is the match and the player), leaving the numbers it
+     * already had alone. The row is managed by this transaction, so the change is written when it commits.
+     */
+    private void fillDetails(Match match, String puuid) {
+        participant(match, puuid).ifPresent(p -> matchRepository.findById(new LolMatchPlayer.Key(match.matchId(), puuid))
+                .ifPresent(line -> line.fillDetails(detailsOf(match, p))));
+    }
+
+    private static Optional<Participant> participant(Match match, String puuid) {
+        return match.participants().stream().filter(p -> puuid.equals(p.puuid())).findFirst();
+    }
+
+    private static LolMatchPlayer.Details detailsOf(Match match, Participant p) {
+        RiotClient.Challenges challenges = p.challenges();
+        return new LolMatchPlayer.Details(p.goldEarned(), p.visionScore(), p.champLevel(), p.totalDamageTaken(),
+                fraction(challenges == null ? null : challenges.killParticipation()),
+                fraction(challenges == null ? null : challenges.teamDamagePercentage()),
+                p.largestMultiKill(), p.wardsPlaced(),
+                p.items().stream().map(String::valueOf).collect(Collectors.joining(",")),
+                p.summoner1Id() == null || p.summoner2Id() == null ? null : p.summoner1Id() + "," + p.summoner2Id(),
+                emptyToNull(match.gameMode()));
+    }
+
+    /** Riot sends these as doubles with many decimals; the column keeps four, and 0..1 is all it may hold. */
+    private static BigDecimal fraction(Double value) {
+        if (value == null || value.isNaN()) {
+            return null;
+        }
+        return BigDecimal.valueOf(Math.max(0, Math.min(1, value))).setScale(4, RoundingMode.HALF_UP);
     }
 
     private LolPlayerDetailResponse detailOf(LolPlayer player) {
@@ -310,7 +400,8 @@ public class LolService {
                 player.getSoloDivision(), player.getSoloLp(), player.getSoloWins(), player.getSoloLosses());
         int wins = (int) matches.stream().filter(LolMatchPlayer::isWin).count();
         return new LolPlayerResponse(player.getPuuid(), player.getGameName(), player.getTagLine(), player.getPlatform(),
-                player.getProfileIconId(), player.getSummonerLevel(), rank, matches.size(), wins, player.getRefreshedAt());
+                player.getProfileIconId(), player.getSummonerLevel(), rank, matches.size(), wins, player.getRefreshedAt(),
+                LolStats.playerSummary(matches));
     }
 
     private static String emptyToNull(String text) {

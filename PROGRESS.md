@@ -293,4 +293,16 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
 1. PR'ı CI yeşil olunca birleştir; canlıda V12/V13 ve passkey adresleri.
 2. iPhone'da gerçek Face ID ile dene: Profil → Face ID ile yedekle; sonra Safari'de açıp "Face ID ile geri dön".
 3. League: daha ayrıntılı istatistikler. 4. Antrenman: rutinler, tik atarak antrenman modu, ilerleme önerisi.
+## 2026-10-19 — Ayrıntılı League istatistikleri (branch `feature/lol-stats`)
+
+- Behlül "daha çok bilgi, tablo, istatistik" istedi. Tasarım: `docs/design/lol-stats.md`.
+- **Backend:** V14 maç ayrıntıları (altın, görüş, seviye, alınan hasar, kill katılımı, hasar payı, en büyük seri,
+  totem, eşyalar, büyüler, oyun modu) ve `lol_rank_history`. Eski maçlar yenilemede bütçe içinde tamamlanıyor.
+  Özet: dakika başı ortalamalar, seri, roller, kuyruklar, tüm şampiyonlar, rekorlar; `GET .../rank-history`.
+- **Web:** oyuncu sayfasında seri çipi, LP grafiği, 8 istatistik kutusu, roller, sıralanabilir şampiyon tablosu,
+  kuyruklar, rekorlar, eşya/büyü ikonlu maç satırları; grup tahtasında "Tablo" karşılaştırması (`?board=table`).
+- Doğrulama: backend 157 test, web 140 test (passkey ile birleşik halde 186); yerel Docker + sahte Riot ile
+  tarayıcıda: yenileme sonrası 8 kutu, rekorlar, rozetler, eşya ikonları, grup tablosu.
+- **Not:** passkey PR'ı (#19, V12/V13) önce birleşmeli; sonra bu dala main birleştirilip `endpoints.ts` import
+  satırındaki küçük çakışma çözülecek.
 

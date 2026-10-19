@@ -43,7 +43,16 @@ export function GamePage() {
   )
   if (!chosen && group.isPending) return <div className="page">{header}<WorkoutListSkeleton /></div>
 
-  const select = (next: View) => setSearchParams({ view: next }, { replace: true })
+  // Keeps the group board's own choice (?board=table) for when the group view comes back
+  const select = (next: View) =>
+    setSearchParams(
+      (current) => {
+        const params = new URLSearchParams(current)
+        params.set('view', next)
+        return params
+      },
+      { replace: true },
+    )
   return (
     <div className="page">
       {header}

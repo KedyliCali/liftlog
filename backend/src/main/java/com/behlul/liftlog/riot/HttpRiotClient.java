@@ -72,7 +72,7 @@ public class HttpRiotClient implements RiotClient {
             throw new RiotUnavailableException(Reason.RIOT_ERROR, "Riot returned an empty match " + matchId);
         }
         return Optional.of(new Match(dto.metadata().matchId(), dto.info().queueId(), dto.info().gameEndTimestamp(),
-                dto.info().gameDuration(), dto.info().participants()));
+                dto.info().gameDuration(), dto.info().gameMode(), dto.info().participants()));
     }
 
     /** Riot nests the match id under "metadata" and everything else under "info". */
@@ -83,8 +83,8 @@ public class HttpRiotClient implements RiotClient {
         }
 
         @JsonIgnoreProperties(ignoreUnknown = true)
-
-        private record Info(int queueId, long gameEndTimestamp, long gameDuration, List<Participant> participants) {
+        private record Info(int queueId, long gameEndTimestamp, long gameDuration, String gameMode,
+                            List<Participant> participants) {
         }
     }
 

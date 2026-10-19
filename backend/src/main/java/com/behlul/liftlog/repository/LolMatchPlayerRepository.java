@@ -17,4 +17,8 @@ public interface LolMatchPlayerRepository extends JpaRepository<LolMatchPlayer, 
     /** Which of these matches are already stored, so a refresh only downloads the new ones. */
     @Query("select m.matchId from LolMatchPlayer m where m.puuid = :puuid and m.matchId in :matchIds")
     Set<String> findStoredIds(@Param("puuid") String puuid, @Param("matchIds") Collection<String> matchIds);
+
+    /** Which of these stored matches predate the detail columns, so a refresh can re-download them. */
+    @Query("select m.matchId from LolMatchPlayer m where m.puuid = :puuid and m.matchId in :matchIds and m.goldEarned is null")
+    Set<String> findIdsWithoutDetails(@Param("puuid") String puuid, @Param("matchIds") Collection<String> matchIds);
 }

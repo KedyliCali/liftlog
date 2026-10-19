@@ -1,19 +1,21 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
-import type { LolMatch, LolPlayerDetail } from '../api/types'
+import type { LolPlayerDetail, LolRankPoint } from '../api/types'
 import { useToast } from '../components/contexts'
-import { CountUp } from '../components/CountUp'
-import { ChampionIcon, LolAvatar, RankBadge } from '../components/LolBits'
+import { LolAvatar, RankBadge } from '../components/LolBits'
+import { ChampionsTable, MatchRow, QueueBars, RankChart, RecordList, RoleBars, StatTiles, StreakChip } from '../components/LolPlayerSections'
 import { useDdragonVersion } from '../components/useDdragonVersion'
+import { useSummonerSpells } from '../components/useSummonerSpells'
 import { SetListSkeleton } from '../components/Skeletons'
 import { ErrorState, MessageState } from '../components/StateViews'
 import { ControllerIcon } from '../components/Icons'
-import { errorMessage, formatKg } from '../lib/format'
+import { errorMessage } from '../lib/format'
 import { t } from '../lib/i18n'
-import { formatDuration, kdaRatio, queueKey, seasonWinRate, timeAgo } from '../lib/lol'
+import { seasonWinRate, timeAgo } from '../lib/lol'
+import { currentStreak } from '../lib/lolStats'
 
 export function LolPlayerPage() {
   const puuid = useParams().puuid ?? ''
@@ -22,6 +24,8 @@ export function LolPlayerPage() {
   const toast = useToast()
   const [refreshing, setRefreshing] = useState(false)
   const query = useQuery({ queryKey: queryKeys.lolPlayer(puuid), queryFn: () => api.lolPlayer(puuid) })
+  // Only the chart needs it; an older server answers 404 and the chart simply stays hidden
+  const rankHistory = useQuery({ queryKey: queryKeys.lolRankHistory(puuid), queryFn: () => api.lolRankHistory(puuid), retry: false })
   const version = useDdragonVersion()
 
   const refresh = async () => {
@@ -33,6 +37,7 @@ export function LolPlayerPage() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.lolPlayers }),
         queryClient.invalidateQueries({ queryKey: queryKeys.lolGroup }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.lolRankHistory(puuid) }),
       ])
     } catch (error) {
       toast({ message: errorMessage(error) })
@@ -61,15 +66,38 @@ export function LolPlayerPage() {
       ) : query.isError ? (
         <ErrorState error={query.error} onRetry={() => query.refetch()} />
       ) : (
-        <PlayerContent data={data!} version={version} />
+        <PlayerContent data={data!} rankHistory={rankHistory.data} version={version} />
       )}
     </div>
   )
 }
 
-function PlayerContent({ data, version }: { data: LolPlayerDetail; version: string | null }) {
+function PlayerContent({ data, rankHistory, version }: { data: LolPlayerDetail; rankHistory: LolRankPoint[] | undefined; version: string | null }) {
   const { player, summary, matches } = data
+  const spells = useSummonerSpells(version)
+  const [expandedMatch, setExpandedMatch] = useState<string | null>(null)
+  // A record asks for its match: once the row has opened (and grown), it is scrolled into view
+  const scrollTarget = useRef<string | null>(null)
   const updated = player.refreshedAt ? timeAgo(player.refreshedAt) : null
+  const streak = currentStreak(summary.streak, summary.form)
+
+  // jsdom has no scrollIntoView
+  const scrollToMatch = (matchId: string) =>
+    document.getElementById(`match-${matchId}`)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+
+  useEffect(() => {
+    if (!expandedMatch || scrollTarget.current !== expandedMatch) return
+    scrollTarget.current = null
+    scrollToMatch(expandedMatch)
+  }, [expandedMatch])
+
+  const showMatch = (matchId: string) => {
+    // Already open: nothing re-renders, so scroll right away
+    if (matchId === expandedMatch) return scrollToMatch(matchId)
+    scrollTarget.current = matchId
+    setExpandedMatch(matchId)
+  }
+
   return (
     <>
       <section className="lol-hero">
@@ -91,17 +119,16 @@ function PlayerContent({ data, version }: { data: LolPlayerDetail; version: stri
             </span>
           )}
         </div>
+        {summary.games > 0 && <StreakChip streak={streak} />}
       </section>
+
+      <RankChart history={rankHistory} />
 
       {summary.games === 0 ? (
         <MessageState icon={<ControllerIcon size={32} />} title={t.lolNoMatches} />
       ) : (
         <>
-          <div className="lol-stats">
-            <Stat label={t.winRateLabel} value={<CountUp value={Math.round((summary.wins / summary.games) * 100)} format={(n) => `%${n}`} />} sub={t.gamesCount(summary.wins, summary.games)} />
-            <Stat label="KDA" value={<CountUp value={summary.kda} format={(n) => formatKg(Math.round(n * 100) / 100)} />} sub={`${formatKg(summary.avgKills)} / ${formatKg(summary.avgDeaths)} / ${formatKg(summary.avgAssists)}`} />
-            <Stat label={t.csPerMin} value={<CountUp value={summary.csPerMinute} format={(n) => formatKg(Math.round(n * 10) / 10)} />} />
-          </div>
+          <StatTiles summary={summary} />
 
           <div className="lol-form" aria-label={t.recentForm}>
             {summary.form.map((win, i) => (
@@ -111,61 +138,27 @@ function PlayerContent({ data, version }: { data: LolPlayerDetail; version: stri
             ))}
           </div>
 
-          <h2 className="section-title">{t.topChampions}</h2>
-          <div className="lol-champions">
-            {summary.champions.map((c) => (
-              <div key={c.champion} className="lol-champion">
-                <ChampionIcon version={version} champion={c.champion} size={48} />
-                <strong>{c.champion}</strong>
-                <span className="muted num">
-                  {t.gamesCount(c.wins, c.games)} · {formatKg(c.kda)} KDA
-                </span>
-              </div>
-            ))}
-          </div>
+          <RoleBars roles={summary.roles} />
+          <ChampionsTable champions={summary.champions} version={version} />
+          <QueueBars queues={summary.queues} />
+          <RecordList records={summary.records} matches={matches} version={version} onShowMatch={showMatch} />
 
           <h2 className="section-title">{t.recentMatches}</h2>
           <div className="lol-matches">
             {matches.map((m, i) => (
-              <MatchRow key={m.matchId} match={m} version={version} index={i} />
+              <MatchRow
+                key={m.matchId}
+                match={m}
+                version={version}
+                spells={spells}
+                index={i}
+                expanded={expandedMatch === m.matchId}
+                onToggle={() => setExpandedMatch((open) => (open === m.matchId ? null : m.matchId))}
+              />
             ))}
           </div>
         </>
       )}
     </>
-  )
-}
-
-function Stat({ label, value, sub }: { label: string; value: ReactNode; sub?: string }) {
-  return (
-    <div className="lol-stat">
-      <small>{label}</small>
-      <strong>{value}</strong>
-      {sub && <span className="muted num">{sub}</span>}
-    </div>
-  )
-}
-
-function MatchRow({ match, version, index }: { match: LolMatch; version: string | null; index: number }) {
-  const ago = timeAgo(match.endedAt)
-  const kda = kdaRatio(match.kills, match.deaths, match.assists)
-  return (
-    <div className={match.win ? 'lol-match win' : 'lol-match loss'} style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}>
-      <ChampionIcon version={version} champion={match.champion} />
-      <div className="lol-match-main">
-        <strong className="num">
-          {match.kills} / <span className="deaths">{match.deaths}</span> / {match.assists}
-        </strong>
-        <span className="muted">
-          {t.queues[queueKey(match.queueId)]} · {formatDuration(match.durationS)}
-        </span>
-      </div>
-      <div className="lol-match-side num">
-        <span>{formatKg(Math.round(kda * 10) / 10)} KDA</span>
-        <span className="muted">
-          {match.cs} CS · {t.ago(ago.value, ago.unit)}
-        </span>
-      </div>
-    </div>
   )
 }

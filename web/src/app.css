@@ -2457,6 +2457,7 @@ body:has(.rest-timer) .set-groups {
 .rank-badge[data-tier='CHALLENGER'] { --tier: #ffd75e; }
 
 .lol-hero {
+  position: relative;
   display: flex;
   gap: 16px;
   align-items: center;
@@ -2484,42 +2485,6 @@ body:has(.rest-timer) .set-groups {
 
 .lol-hero-meta,
 .lol-season {
-  font-size: 12px;
-}
-
-.lol-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.lol-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 12px;
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-l);
-  background: var(--surface);
-}
-
-.lol-stat small {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.lol-stat strong {
-  font-family: var(--font-display);
-  font-size: 30px;
-  font-weight: 800;
-  line-height: 1.05;
-}
-
-.lol-stat > span {
   font-size: 12px;
 }
 
@@ -2551,34 +2516,6 @@ body:has(.rest-timer) .set-groups {
   color: var(--error);
 }
 
-.lol-champions {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.lol-champion {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 12px 6px;
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--radius-l);
-  background: var(--surface);
-  text-align: center;
-}
-
-.lol-champion strong {
-  font-family: var(--font-display);
-  font-size: 16px;
-}
-
-.lol-champion span {
-  font-size: 11px;
-}
-
 .lol-matches {
   display: flex;
   flex-direction: column;
@@ -2588,10 +2525,9 @@ body:has(.rest-timer) .set-groups {
 
 /* Result shown as a colored edge, the same win/loss colors as the form strip */
 .lol-match {
+  position: relative;
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
+  flex-direction: column;
   border: 1px solid var(--outline-variant);
   border-left: 4px solid var(--primary);
   border-radius: var(--radius-m);
@@ -3299,4 +3235,601 @@ body:has(.rest-timer) .set-groups {
 .member-remove {
   flex: none;
   color: var(--error);
+}
+
+/* ---------- League detailed stats ---------- */
+
+/* The streak sits as a tag over the hero card's top-right corner */
+.streak-chip {
+  position: absolute;
+  top: -10px;
+  right: 14px;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 2px 9px 2px 4px;
+  border-radius: var(--radius-s);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: 0 3px 0 var(--primary-container);
+}
+
+.streak-chip .num {
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--on-primary);
+  color: var(--primary);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.streak-chip.loss {
+  background: var(--error);
+  color: #fff;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--error) 35%, var(--bg));
+}
+
+.streak-chip.loss .num {
+  background: #fff;
+  color: var(--error);
+}
+
+.lol-lp-card {
+  padding: 16px 12px 12px 16px;
+}
+
+.lp-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-m);
+  background: var(--surface-highest);
+  font-size: 13px;
+}
+
+/* Eight averages, four to a row; each tile sits on an offset plate with a lime notch on its top edge */
+.lol-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px 8px;
+  margin: 0 4px 16px 0;
+}
+
+.lol-tiles.four {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.lol-tile {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 8px 8px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  box-shadow: 4px 4px 0 var(--surface-highest);
+}
+
+.lol-tile::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 8px;
+  width: 18px;
+  height: 3px;
+  border-radius: 0 0 2px 2px;
+  background: var(--primary);
+}
+
+.lol-tile small {
+  min-height: 2.4em;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.lol-tile strong {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lol-tile-caption {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* Roles and queues: games as the bar length, the lime part of it the wins */
+.lol-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  list-style: none;
+  border: 1px solid var(--outline-variant);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+}
+
+.lol-bar-row {
+  display: grid;
+  grid-template-columns: 76px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.lol-bar-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 700;
+}
+
+.lol-bar-track {
+  height: 12px;
+  border-radius: 3px;
+  background: var(--surface-high);
+}
+
+.lol-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--error) 45%, var(--surface-highest));
+}
+
+.lol-bar-wins {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}
+
+.lol-bar-side {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.lol-bar-side small {
+  min-width: 34px;
+  text-align: right;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.lol-bar-side .good {
+  color: var(--primary);
+}
+
+.lol-bar-side .bad {
+  color: var(--error);
+}
+
+/* Sortable tables: the card rests on an offset plate; only the inside scrolls sideways */
+.data-table-card {
+  position: relative;
+  isolation: isolate;
+  margin: 0 8px 22px 0;
+}
+
+.data-table-card::after {
+  content: '';
+  position: absolute;
+  inset: 6px -6px -6px 6px;
+  z-index: -1;
+  border-radius: var(--radius-l);
+  background: var(--surface-highest);
+}
+
+.data-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  overscroll-behavior-x: contain;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.data-table th,
+.data-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--outline-variant);
+  text-align: right;
+}
+
+.data-table tbody tr:last-child > * {
+  border-bottom: none;
+}
+
+.data-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-high);
+  padding: 0;
+}
+
+.data-table thead button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.data-table thead th.sorted button {
+  color: var(--primary);
+}
+
+.sort-arrow {
+  width: 8px;
+  font-size: 8px;
+}
+
+/* First column stays while the numbers scroll under it; the lime rule marks where they slide in */
+.data-table tr > :first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: left;
+  background: var(--surface);
+  box-shadow: inset -2px 0 0 color-mix(in srgb, var(--primary) 40%, var(--outline-variant));
+}
+
+.data-table thead tr > :first-child {
+  z-index: 2;
+  background: var(--surface-high);
+}
+
+.data-table thead tr > :first-child button {
+  justify-content: flex-start;
+}
+
+.data-table tbody th {
+  font-weight: 600;
+}
+
+.data-table tr.you > * {
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface));
+}
+
+.data-table tr.you > :first-child {
+  box-shadow: inset 3px 0 0 var(--primary), inset -2px 0 0 color-mix(in srgb, var(--primary) 40%, var(--outline-variant));
+}
+
+.data-table .rank-badge {
+  white-space: nowrap;
+}
+
+.table-champion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 132px;
+}
+
+.table-champion > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.table-player {
+  display: flex;
+  flex-direction: column;
+  max-width: 128px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.table-player-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.table-player small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.table-you {
+  flex: none;
+  padding: 0 5px;
+  border-radius: var(--radius-s);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+/* Small Board/Table switch, right above the board */
+.board-toggle {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin: 0 0 10px;
+}
+
+.board-toggle button {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-s);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.board-toggle button.selected {
+  border-color: transparent;
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: 0 2px 0 var(--primary-container);
+}
+
+/* Records: a lime rule per line, the value set large on the right */
+.lol-records {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.lol-record {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  text-align: left;
+  box-shadow: inset 0 -3px 0 var(--surface-highest);
+}
+
+button.lol-record:active {
+  background: var(--surface-high);
+}
+
+.lol-record > :first-child {
+  grid-row: span 2;
+}
+
+.record-icon-blank {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-m);
+  background: var(--surface-highest);
+}
+
+.lol-record-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.lol-record-value {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+/* Match rows */
+.lol-match-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.lol-match-champ {
+  position: relative;
+  flex: none;
+}
+
+/* The champion level overlaps the icon's bottom corner, as in the game's scoreboard */
+.lol-match-level {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  min-width: 18px;
+  padding: 0 3px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-s);
+  background: var(--surface-highest);
+  font-size: 10px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.lol-match-spells {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.spell-icon,
+.item-icon {
+  display: block;
+  overflow: hidden;
+  border-radius: var(--radius-s);
+  background: var(--surface-highest);
+}
+
+.spell-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.spell-icon img,
+.item-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.lol-match-extra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 0 12px 8px;
+}
+
+.lol-match-items {
+  display: flex;
+  gap: 3px;
+}
+
+.item-icon {
+  width: 22px;
+  height: 22px;
+}
+
+/* The trinket slot sits a little apart from the six items */
+.item-icon:nth-child(7) {
+  margin-left: 4px;
+  border-radius: 50%;
+}
+
+.item-icon.empty {
+  background: transparent;
+  border: 1px dashed var(--outline);
+}
+
+.lol-match-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 12px;
+}
+
+.lol-match-numbers small {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* The multikill rides on the row's top edge like the "you" tag on the board */
+.multikill-badge {
+  position: absolute;
+  top: -8px;
+  right: 12px;
+  padding: 1px 7px;
+  border-radius: var(--radius-s);
+  background: var(--surface-highest);
+  color: var(--primary);
+  border: 1px solid color-mix(in srgb, var(--primary) 50%, transparent);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+}
+
+.multikill-badge.quadra,
+.multikill-badge.penta {
+  background: var(--primary);
+  color: var(--on-primary);
+  border-color: transparent;
+  box-shadow: 0 2px 0 var(--primary-container);
+}
+
+.lol-matches {
+  padding-top: 8px;
+  gap: 12px;
+}
+
+.lol-match.expanded {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--outline-variant));
+}
+
+.lol-match-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 14px;
+  margin: 0 12px 10px;
+  padding: 10px 0 0;
+  border-top: 1px dashed var(--outline);
+}
+
+.lol-match-details div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.lol-match-details dt {
+  color: var(--text-muted);
+}
+
+.lol-match-details dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
 }

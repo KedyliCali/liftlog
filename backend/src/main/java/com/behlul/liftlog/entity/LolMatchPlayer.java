@@ -7,6 +7,7 @@ import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /** One followed player's line from one match. */
@@ -43,6 +44,42 @@ public class LolMatchPlayer {
     private int damage;
     private boolean win;
 
+    // The detail columns below are null on rows stored before they existed, until a refresh re-downloads them
+
+    @Column(name = "gold_earned")
+    private Integer goldEarned;
+
+    @Column(name = "vision_score")
+    private Integer visionScore;
+
+    @Column(name = "champ_level")
+    private Integer champLevel;
+
+    @Column(name = "damage_taken")
+    private Integer damageTaken;
+
+    @Column(name = "kill_participation")
+    private BigDecimal killParticipation;
+
+    @Column(name = "damage_share")
+    private BigDecimal damageShare;
+
+    @Column(name = "largest_multi_kill")
+    private Integer largestMultiKill;
+
+    @Column(name = "wards_placed")
+    private Integer wardsPlaced;
+
+    /** Seven item ids, comma separated, 0 for an empty slot. */
+    private String items;
+
+    /** Two summoner spell ids, comma separated. */
+    @Column(name = "summoner_spells")
+    private String summonerSpells;
+
+    @Column(name = "game_mode")
+    private String gameMode;
+
     protected LolMatchPlayer() {
     }
 
@@ -61,6 +98,32 @@ public class LolMatchPlayer {
         this.cs = cs;
         this.damage = damage;
         this.win = win;
+    }
+
+    /**
+     * The numbers added after the first version. Kept apart from the constructor so a stored row can be filled in
+     * later (the backfill) with the same code that fills a new one.
+     *
+     * @param killParticipation 0..1, null when Riot did not send it (some modes)
+     * @param damageShare       share of the team's champion damage, 0..1, null when Riot did not send it
+     */
+    public record Details(Integer goldEarned, Integer visionScore, Integer champLevel, Integer damageTaken,
+                          BigDecimal killParticipation, BigDecimal damageShare, Integer largestMultiKill,
+                          Integer wardsPlaced, String items, String summonerSpells, String gameMode) {
+    }
+
+    public void fillDetails(Details details) {
+        this.goldEarned = details.goldEarned();
+        this.visionScore = details.visionScore();
+        this.champLevel = details.champLevel();
+        this.damageTaken = details.damageTaken();
+        this.killParticipation = details.killParticipation();
+        this.damageShare = details.damageShare();
+        this.largestMultiKill = details.largestMultiKill();
+        this.wardsPlaced = details.wardsPlaced();
+        this.items = details.items();
+        this.summonerSpells = details.summonerSpells();
+        this.gameMode = details.gameMode();
     }
 
     public record Key(String matchId, String puuid) implements Serializable {
@@ -120,5 +183,49 @@ public class LolMatchPlayer {
 
     public boolean isWin() {
         return win;
+    }
+
+    public Integer getGoldEarned() {
+        return goldEarned;
+    }
+
+    public Integer getVisionScore() {
+        return visionScore;
+    }
+
+    public Integer getChampLevel() {
+        return champLevel;
+    }
+
+    public Integer getDamageTaken() {
+        return damageTaken;
+    }
+
+    public BigDecimal getKillParticipation() {
+        return killParticipation;
+    }
+
+    public BigDecimal getDamageShare() {
+        return damageShare;
+    }
+
+    public Integer getLargestMultiKill() {
+        return largestMultiKill;
+    }
+
+    public Integer getWardsPlaced() {
+        return wardsPlaced;
+    }
+
+    public String getItems() {
+        return items;
+    }
+
+    public String getSummonerSpells() {
+        return summonerSpells;
+    }
+
+    public String getGameMode() {
+        return gameMode;
     }
 }

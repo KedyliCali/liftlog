@@ -3,9 +3,11 @@ package com.behlul.liftlog.service;
 import com.behlul.liftlog.dto.LolDtos.TrackPlayerRequest;
 import com.behlul.liftlog.entity.LolMatchPlayer;
 import com.behlul.liftlog.entity.LolPlayer;
+import com.behlul.liftlog.entity.LolRankHistory;
 import com.behlul.liftlog.exception.RiotIdNotFoundException;
 import com.behlul.liftlog.repository.LolMatchPlayerRepository;
 import com.behlul.liftlog.repository.LolPlayerRepository;
+import com.behlul.liftlog.repository.LolRankHistoryRepository;
 import com.behlul.liftlog.riot.FakeRiotClient;
 import com.behlul.liftlog.riot.LolPlatform;
 import com.behlul.liftlog.riot.RiotClient;
@@ -28,8 +30,11 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -59,6 +64,7 @@ class LolServiceTest {
 
     @Mock private LolPlayerRepository playerRepository;
     @Mock private LolMatchPlayerRepository matchRepository;
+    @Mock private LolRankHistoryRepository rankHistoryRepository;
     @Mock private RiotRateLimiter limiter;
     @Mock private CurrentUserProvider currentUser;
 
@@ -68,7 +74,8 @@ class LolServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new LolService(playerRepository, matchRepository, riot, limiter, currentUser, clock);
+        service = new LolService(playerRepository, matchRepository, rankHistoryRepository, riot, limiter, currentUser,
+                clock);
         lenient().when(currentUser.currentUserId()).thenReturn(USER_ID);
     }
 
@@ -302,6 +309,116 @@ class LolServiceTest {
                 .isInstanceOf(RiotIdNotFoundException.class)
                 .hasMessage("Riot ID Stays#TAG was not found on EUW1");
         verify(riot).summoner(LolPlatform.EUW1, "stays");
+    }
+
+    /** A stored line from before the detail columns: every detail is null. */
+    private static LolMatchPlayer oldRow(String matchId, String puuid) {
+        return new LolMatchPlayer(matchId, puuid, 420, NOW.minusDays(1), 1_800, "Ahri", "MIDDLE", 5, 3, 7, 180, 20_000,
+                true);
+    }
+
+    @Test
+    void oldRowsWithoutDetailsAreRedownloadedWithWhatIsLeftOfTheBudget() {
+        when(limiter.remaining()).thenReturn(90);
+        everyClaimSucceeds();
+        LolPlayer player = player("a", 60);
+        List<String> ids = riot.recentMatchIds(LolPlatform.TR1, "a", LolService.MATCHES_SHOWN);
+        // Five new matches on top; the fifteen below are stored, all from before the details
+        List<String> storedIds = ids.subList(5, ids.size());
+        when(matchRepository.findStoredIds(eq("a"), any())).thenReturn(Set.copyOf(storedIds));
+        when(matchRepository.findIdsWithoutDetails(eq("a"), any())).thenReturn(Set.copyOf(storedIds));
+        Map<String, LolMatchPlayer> rows = new HashMap<>();
+        storedIds.forEach(id -> rows.put(id, oldRow(id, "a")));
+        when(matchRepository.findById(any())).thenAnswer(call ->
+                Optional.ofNullable(rows.get(call.<LolMatchPlayer.Key>getArgument(0).matchId())));
+
+        service.refreshSomeStale(List.of(player));
+
+        // New matches first, then the newest old rows, ten downloads in all
+        InOrder order = inOrder(riot);
+        ids.subList(0, LolService.MAX_NEW_MATCHES_PER_REFRESH).forEach(id -> order.verify(riot).match(LolPlatform.TR1, id));
+        verify(riot, times(LolService.MAX_NEW_MATCHES_PER_REFRESH)).match(any(), anyString());
+
+        ArgumentCaptor<LolMatchPlayer> saved = ArgumentCaptor.forClass(LolMatchPlayer.class);
+        verify(matchRepository, times(5)).save(saved.capture());
+        assertThat(saved.getAllValues()).extracting(LolMatchPlayer::getMatchId).containsExactlyElementsOf(ids.subList(0, 5));
+        assertThat(saved.getAllValues()).allSatisfy(m -> assertThat(m.getGoldEarned()).isNotNull());
+
+        // The re-downloaded rows are updated in place, keeping their stored numbers; the rest wait for next time
+        for (String id : ids.subList(5, 10)) {
+            LolMatchPlayer row = rows.get(id);
+            assertThat(row.getGoldEarned()).isNotNull();
+            assertThat(row.getItems()).matches("\\d+(,\\d+){6}");
+            assertThat(row.getSummonerSpells()).startsWith("4,");
+            assertThat(row.getKillParticipation()).isBetween(new java.math.BigDecimal("0.3"), new java.math.BigDecimal("0.8"));
+            assertThat(row.getGameMode()).isEqualTo("CLASSIC");
+            assertThat(row.getKills()).isEqualTo(5);
+        }
+        assertThat(rows.get(ids.get(10)).getGoldEarned()).isNull();
+        assertThat(player.getRefreshedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void noBackfillWhenNewMatchesUseTheWholeBudget() {
+        when(limiter.remaining()).thenReturn(90);
+        everyClaimSucceeds();
+        List<String> ids = riot.recentMatchIds(LolPlatform.TR1, "a", LolService.MATCHES_SHOWN);
+        when(matchRepository.findStoredIds(eq("a"), any())).thenReturn(Set.copyOf(ids.subList(10, ids.size())));
+
+        service.refreshSomeStale(List.of(player("a", 60)));
+
+        verify(matchRepository, never()).findIdsWithoutDetails(anyString(), any());
+        verify(riot, times(LolService.MAX_NEW_MATCHES_PER_REFRESH)).match(any(), anyString());
+    }
+
+    /** The history table as the service sees it: what it saved, newest last. */
+    private List<LolRankHistory> rankHistoryKeptInMemory() {
+        List<LolRankHistory> history = new ArrayList<>();
+        when(rankHistoryRepository.findFirstByPuuidOrderByRecordedAtDesc("a"))
+                .thenAnswer(call -> history.isEmpty() ? Optional.empty() : Optional.of(history.getLast()));
+        when(rankHistoryRepository.save(any())).thenAnswer(call -> {
+            history.add(call.getArgument(0));
+            return call.getArgument(0);
+        });
+        return history;
+    }
+
+    private void refreshWithRank(LolPlayer player, RiotClient.LeagueEntry... entries) {
+        player.markRefreshed(NOW.minusMinutes(60));
+        doReturn(List.of(entries)).when(riot).leagueEntries(LolPlatform.TR1, "a");
+        service.refreshSomeStale(List.of(player));
+    }
+
+    @Test
+    void rankHistoryGetsARowOnlyWhenTheRankMoves() {
+        when(limiter.remaining()).thenReturn(90);
+        everyClaimSucceeds();
+        List<LolRankHistory> history = rankHistoryKeptInMemory();
+        LolPlayer player = player("a", 60);
+        RiotClient.LeagueEntry flex = new RiotClient.LeagueEntry("RANKED_FLEX_SR", "GOLD", "I", 10, 5, 5);
+
+        refreshWithRank(player, flex, new RiotClient.LeagueEntry("RANKED_SOLO_5x5", "SILVER", "II", 50, 10, 8));
+        // Same tier, division and LP: a game that changed nothing visible (wins move with every game)
+        refreshWithRank(player, new RiotClient.LeagueEntry("RANKED_SOLO_5x5", "SILVER", "II", 50, 11, 9));
+        assertThat(history).hasSize(1);
+
+        refreshWithRank(player, new RiotClient.LeagueEntry("RANKED_SOLO_5x5", "SILVER", "II", 68, 12, 9));
+        // Unranked (only flex) records nothing
+        refreshWithRank(player, flex);
+
+        assertThat(history).extracting(LolRankHistory::getLp).containsExactly(50, 68);
+        assertThat(history).extracting(LolRankHistory::getTier).containsOnly("SILVER");
+        assertThat(history.getFirst().getRecordedAt()).isEqualTo(NOW);
+        verify(rankHistoryRepository, times(2)).deleteAllButNewest("a", LolService.RANK_HISTORY_KEPT);
+    }
+
+    @Test
+    void rankHistoryOfAPlayerYouCannotSeeIsNotFound() {
+        when(playerRepository.isVisibleTo(USER_ID, "hidden")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.rankHistory("hidden"))
+                .isInstanceOf(com.behlul.liftlog.exception.ResourceNotFoundException.class);
+        verify(rankHistoryRepository, never()).findByPuuidOrderByRecordedAtAsc(anyString());
     }
 
     @Test
