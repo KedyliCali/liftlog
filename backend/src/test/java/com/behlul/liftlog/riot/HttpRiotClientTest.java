@@ -141,6 +141,89 @@ class HttpRiotClientTest {
     }
 
     @Test
+    void readsTeamsAndTheWholeScoreboard() {
+        riot.expect(requestTo("https://europe.api.riotgames.com/lol/match/v5/matches/TR1_9"))
+                .andRespond(withSuccess("""
+                        {"metadata":{"matchId":"TR1_9"},
+                         "info":{"queueId":420,"gameEndTimestamp":1760000000000,"gameDuration":1800,"gameMode":"CLASSIC",
+                                 "gameVersion":"14.20.612.3456",
+                                 "teams":[{"teamId":100,"win":true,"bans":[{"championId":266,"pickTurn":1},{"championId":-1}],
+                                           "objectives":{"baron":{"first":true,"kills":1},"champion":{"first":false,"kills":30},
+                                                         "dragon":{"first":true,"kills":3},"horde":{"first":false,"kills":4},
+                                                         "inhibitor":{"first":true,"kills":1},"riftHerald":{"first":false,"kills":1},
+                                                         "tower":{"first":true,"kills":9}}}],
+                                 "participants":[{"puuid":"abc","championName":"Ahri","teamPosition":"MIDDLE","kills":7,
+                                   "deaths":2,"assists":9,"totalMinionsKilled":180,"neutralMinionsKilled":12,
+                                   "totalDamageDealtToChampions":25000,"win":true,"participantId":3,
+                                   "riotIdGameName":"Behlul","riotIdTagline":"TR1","teamId":100,
+                                   "damageDealtToObjectives":5000,"damageDealtToBuildings":3000,"totalHeal":2000,
+                                   "totalDamageShieldedOnTeammates":100,"timeCCingOthers":12,"totalTimeSpentDead":40,
+                                   "wardsKilled":3,"visionWardsBoughtInGame":2,"doubleKills":1,"tripleKills":0,
+                                   "quadraKills":0,"pentaKills":0,"firstBloodKill":false,"firstBloodAssist":true,
+                                   "challenges":{"soloKills":2},
+                                   "perks":{"styles":[{"style":8100,"selections":[{"perk":8112},{"perk":8139}]},
+                                                      {"style":8200,"selections":[{"perk":8210}]}]}}]}}
+                        """, MediaType.APPLICATION_JSON));
+
+        RiotClient.Match match = client.match(LolPlatform.TR1, "TR1_9").orElseThrow();
+        assertThat(match.gameVersion()).isEqualTo("14.20.612.3456");
+        assertThat(match.teams()).singleElement().satisfies(t -> {
+            assertThat(t.teamId()).isEqualTo(100);
+            assertThat(t.bans()).extracting(RiotClient.Ban::championId).containsExactly(266, -1);
+            assertThat(t.objectives().horde().kills()).isEqualTo(4);
+            assertThat(t.objectives().tower().first()).isTrue();
+            // Matches from before Atakhan existed have none
+            assertThat(t.objectives().atakhan()).isNull();
+        });
+        assertThat(match.participants()).singleElement().satisfies(p -> {
+            assertThat(p.participantId()).isEqualTo(3);
+            assertThat(p.riotIdGameName()).isEqualTo("Behlul");
+            assertThat(p.teamId()).isEqualTo(100);
+            assertThat(p.timeCCingOthers()).isEqualTo(12);
+            assertThat(p.visionWardsBoughtInGame()).isEqualTo(2);
+            assertThat(p.firstBloodAssist()).isTrue();
+            assertThat(p.challenges().soloKills()).isEqualTo(2);
+            assertThat(p.perks().styles().getFirst().selections().getFirst().perk()).isEqualTo(8112);
+            assertThat(p.perks().styles().get(1).style()).isEqualTo(8200);
+        });
+    }
+
+    @Test
+    void readsTheTimelineFrames() {
+        riot.expect(requestTo("https://europe.api.riotgames.com/lol/match/v5/matches/TR1_9/timeline"))
+                .andExpect(header("X-Riot-Token", "RGAPI-test"))
+                .andRespond(withSuccess("""
+                        {"metadata":{"matchId":"TR1_9"},
+                         "info":{"frameInterval":60000,"frames":[
+                           {"timestamp":0,"events":[],"participantFrames":{"1":{"totalGold":500,"xp":0,"minionsKilled":0,
+                             "jungleMinionsKilled":0,"level":1,"championStats":{"armor":30}}}},
+                           {"timestamp":60021,"participantFrames":{"1":{"totalGold":620,"xp":180,"minionsKilled":3,
+                             "jungleMinionsKilled":1,"level":1}}}]}}
+                        """, MediaType.APPLICATION_JSON));
+
+        RiotClient.Timeline timeline = client.timeline(LolPlatform.TR1, "TR1_9").orElseThrow();
+        assertThat(timeline.frames()).hasSize(2);
+        assertThat(timeline.frames().get(1).timestamp()).isEqualTo(60021);
+        RiotClient.ParticipantFrame frame = timeline.frames().get(1).participantFrames().get("1");
+        assertThat(frame.totalGold()).isEqualTo(620);
+        assertThat(frame.minionsKilled() + frame.jungleMinionsKilled()).isEqualTo(4);
+    }
+
+    @Test
+    void missingTimelineIsEmptyAndAFailingOneIsRiotError() {
+        riot.expect(requestTo("https://europe.api.riotgames.com/lol/match/v5/matches/TR1_404/timeline"))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND));
+        assertThat(client.timeline(LolPlatform.TR1, "TR1_404")).isEmpty();
+
+        riot.reset();
+        riot.expect(requestTo("https://europe.api.riotgames.com/lol/match/v5/matches/TR1_500/timeline"))
+                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
+        assertThatThrownBy(() -> client.timeline(LolPlatform.TR1, "TR1_500"))
+                .isInstanceOfSatisfying(RiotUnavailableException.class,
+                        e -> assertThat(e.reason()).isEqualTo(RiotUnavailableException.Reason.RIOT_ERROR));
+    }
+
+    @Test
     void missingChallengesAreNull() {
         // Some modes send no "challenges" at all, others leave single values out
         riot.expect(requestTo("https://europe.api.riotgames.com/lol/match/v5/matches/TR1_7"))
