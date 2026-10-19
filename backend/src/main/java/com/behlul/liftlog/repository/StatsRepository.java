@@ -33,6 +33,10 @@ public interface StatsRepository extends Repository<WorkoutSet, Long> {
             """)
     List<SetFact> findFactsForExercise(@Param("userId") Long userId, @Param("exerciseId") Long exerciseId);
 
+    /** Dates of all the user's workouts, one entry per workout (empty workouts included). */
+    @Query("select w.workoutDate from Workout w where w.user.id = :userId")
+    List<LocalDate> findWorkoutDates(@Param("userId") Long userId);
+
     /**
      * Weekly volume computed in PostgreSQL; date_trunc('week') starts weeks on Monday (ISO 8601).
      * Returns only weeks that have sets; the service fills the gaps with zeros. Bodyweight exercises

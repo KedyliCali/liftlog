@@ -29,6 +29,10 @@ public final class StatsDtos {
                                         BigDecimal volumeKg) {
     }
 
+    /** Consecutive ISO weeks with at least one workout; see {@code WeekStreak}. */
+    public record StreakResponse(int weeks, int thisWeekWorkouts, int longestWeeks) {
+    }
+
     public record WeeklyVolumeResponse(LocalDate weekStart, BigDecimal volumeKg, long setCount) {
     }
 }

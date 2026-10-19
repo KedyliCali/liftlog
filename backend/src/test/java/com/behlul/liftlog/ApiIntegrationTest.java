@@ -587,6 +587,29 @@ class ApiIntegrationTest {
     }
 
     @Test
+    void weeklyStreakCountsConsecutiveWeeksWithAWorkout() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        mockMvc.perform(get("/api/v1/stats/streak").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.weeks").value(0))
+                .andExpect(jsonPath("$.thisWeekWorkouts").value(0))
+                .andExpect(jsonPath("$.longestWeeks").value(0));
+
+        // This week twice, last week once, then a gap two weeks ago that breaks the run
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        createWorkout(token, today.toString(), null);
+        createWorkout(token, today.toString(), null);
+        createWorkout(token, today.minusWeeks(1).toString(), null);
+        createWorkout(token, today.minusWeeks(3).toString(), null);
+
+        mockMvc.perform(get("/api/v1/stats/streak").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.weeks").value(2))
+                .andExpect(jsonPath("$.thisWeekWorkouts").value(2))
+                .andExpect(jsonPath("$.longestWeeks").value(2));
+    }
+
+    @Test
     void nutritionDayTotalsGoalsAndFrequentFoods() throws Exception {
         String token = register(randomEmail(), "s3cret-pass", null);
         String today = LocalDate.now(ZoneOffset.UTC).toString();
