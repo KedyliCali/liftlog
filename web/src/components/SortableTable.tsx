@@ -22,14 +22,16 @@ export function SortableTable<T>({ rows, columns, rowKey, initialSort, rowClassN
   rows: readonly T[]
   columns: SortableColumn<T>[]
   rowKey: (row: T) => string
-  initialSort: SortState
+  /** null keeps the rows in the given order until a header is tapped */
+  initialSort: SortState | null
   rowClassName?: (row: T) => string | undefined
   /** Read out as the table's name */
   label: string
 }) {
-  const [sort, setSort] = useState(initialSort)
-  const sortColumn = columns.find((column) => column.key === sort.key) ?? columns[0]
-  const sorted = sortRows(rows, sortColumn.sortValue, sort.direction)
+  const [sort, setSort] = useState<SortState | null>(initialSort)
+  // A column can disappear (the match page's detail columns): its sort then falls back to the given order
+  const sortColumn = sort ? columns.find((column) => column.key === sort.key) : undefined
+  const sorted = sort && sortColumn ? sortRows(rows, sortColumn.sortValue, sort.direction) : rows
 
   return (
     <div className="data-table-card">
@@ -38,13 +40,17 @@ export function SortableTable<T>({ rows, columns, rowKey, initialSort, rowClassN
           <thead>
             <tr>
               {columns.map((column) => {
-                const active = column.key === sort.key
+                const direction = sort && column.key === sort.key ? sort.direction : null
                 return (
-                  <th key={column.key} scope="col" aria-sort={active ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className={active ? 'sorted' : undefined}>
-                    <button type="button" title={t.sortBy(column.label)} onClick={() => setSort((current) => nextSort(current, column.key, column.firstDirection ?? 'desc'))}>
+                  <th key={column.key} scope="col" aria-sort={direction ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'} className={direction ? 'sorted' : undefined}>
+                    <button
+                      type="button"
+                      title={t.sortBy(column.label)}
+                      onClick={() => setSort((current) => (current ? nextSort(current, column.key, column.firstDirection ?? 'desc') : { key: column.key, direction: column.firstDirection ?? 'desc' }))}
+                    >
                       {column.label}
                       <span className="sort-arrow" aria-hidden>
-                        {active ? (sort.direction === 'asc' ? '▲' : '▼') : ''}
+                        {direction ? (direction === 'asc' ? '▲' : '▼') : ''}
                       </span>
                     </button>
                   </th>

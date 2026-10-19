@@ -25,8 +25,14 @@ export const queryKeys = {
   lolPlayers: ['lol', 'players'] as const,
   lolPlayer: (puuid: string) => ['lol', 'player', puuid] as const,
   lolRankHistory: (puuid: string) => ['lol', 'rank-history', puuid] as const,
+  // Under the player's own key, so a refresh (which invalidates the player) refreshes every filter too
+  lolStats: (puuid: string, queue: string, games: number) => ['lol', 'player', puuid, 'stats', queue, games] as const,
+  lolMatch: (matchId: string) => ['lol', 'match', matchId] as const,
+  lolTimeline: (matchId: string) => ['lol', 'match', matchId, 'timeline'] as const,
   lolGroup: ['lol', 'group'] as const,
+  lolGroupDuos: ['lol', 'group-duos'] as const,
   ddragonVersion: ['ddragon', 'version'] as const,
   ddragonSummonerSpells: (version: string) => ['ddragon', 'summoner', version] as const,
+  ddragonData: (version: string, file: string) => ['ddragon', 'data', version, file] as const,
   avatar: (version: number) => ['avatar', version] as const,
 }

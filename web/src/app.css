@@ -3968,34 +3968,764 @@ button.lol-record:active {
   gap: 12px;
 }
 
-.lol-match.expanded {
-  border-color: color-mix(in srgb, var(--primary) 35%, var(--outline-variant));
+/* A match row is a link to the match page now; it keeps the card look */
+a.lol-match {
+  color: inherit;
+  text-decoration: none;
 }
 
-.lol-match-details {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px 14px;
-  margin: 0 12px 10px;
-  padding: 10px 0 0;
-  border-top: 1px dashed var(--outline);
+a.lol-match:active {
+  background: var(--surface-high);
 }
 
-.lol-match-details div {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
+/* ---------- League deep stats: tabbed player page ---------- */
+
+/* Tabs and filter stay on top while the page scrolls; a lime stub on the bottom rule marks the bar's edge */
+.lol-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  margin: 0 -16px 14px;
+  padding: calc(var(--safe-top) + 4px) 16px 10px;
+  border-bottom: 1px solid var(--outline-variant);
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  backdrop-filter: blur(10px);
 }
 
-.lol-match-details dt {
+.lol-sticky::after {
+  content: '';
+  position: absolute;
+  left: 16px;
+  bottom: -2px;
+  width: 36px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--primary);
+}
+
+.lol-tabs {
+  gap: 4px;
+  padding: 0 0 8px;
+}
+
+.lol-tab {
+  position: relative;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-m) var(--radius-m) var(--radius-s) var(--radius-s);
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 
-.lol-match-details dd {
-  margin: 0;
+/* The open tab is a raised card with a lime underline, offset onto a darker plate */
+.lol-tab.selected {
+  border-color: var(--outline-variant);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 3px 3px 0 var(--surface-highest), inset 0 -3px 0 var(--primary);
+}
+
+.lol-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.lol-filter-group {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-m);
+  background: var(--surface-highest);
+}
+
+.lol-filter-group.window {
+  margin-left: auto;
+}
+
+.lol-filter-group button {
+  height: 28px;
+  min-width: 34px;
+  padding: 0 9px;
+  border-radius: var(--radius-s);
+  font-size: 12px;
   font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  transition: background 0.15s, color 0.15s;
+}
+
+.lol-filter-group button.selected {
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: 0 2px 0 var(--primary-container);
+}
+
+/* While a new filter loads, the old numbers stay but fade, so it is clear they are about to change */
+.lol-tab-panel {
+  transition: opacity 0.2s;
+}
+
+.lol-tab-panel.stale {
+  opacity: 0.55;
+}
+
+/* Stat groups: each card sits on an offset plate, its name a colored tab hanging over the top edge */
+.lol-stat-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  margin: 12px 6px 22px 0;
+}
+
+.lol-stat-group {
+  --group-accent: var(--primary);
+  position: relative;
+  padding: 18px 8px 0 10px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-xl);
+  background: var(--surface-low);
+  box-shadow: 6px 6px 0 var(--surface-high);
+}
+
+.lol-stat-group.vision {
+  --group-accent: var(--tertiary);
+}
+
+.lol-stat-group.multikills {
+  --group-accent: var(--error);
+}
+
+.lol-stat-group h3 {
+  position: absolute;
+  top: -11px;
+  left: 12px;
+  margin: 0;
+  padding: 2px 9px;
+  border-radius: var(--radius-s);
+  background: var(--group-accent);
+  color: var(--on-primary);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--group-accent) 35%, var(--bg));
+}
+
+/* Dense, so the double-width K / D / A tile never leaves a hole at the end of a row */
+.lol-stat-group .lol-tiles {
+  grid-auto-flow: row dense;
+  margin-bottom: 14px;
+}
+
+.lol-stat-group .lol-tile::before {
+  background: var(--group-accent);
+}
+
+.lol-stat-group .lol-tile strong {
+  font-size: 21px;
+}
+
+.lol-tile.wide {
+  grid-column: span 2;
+}
+
+/* On a phone four tiles to a row squeeze the labels onto three lines; three to a row keeps them even */
+@media (max-width: 440px) {
+  .lol-stat-group .lol-tiles.four {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* The four multikill names are short: they stay on one row */
+  .lol-stat-group.multikills .lol-tiles.four {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.lol-data-note {
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  border: 1px dashed var(--outline);
+  border-left: 3px solid var(--tertiary);
+  border-radius: var(--radius-m);
+  background: var(--surface-low);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.lol-empty-line {
+  margin: -4px 4px 20px;
+  font-size: 13px;
+}
+
+.lol-section-caption {
+  margin: -8px 4px 12px;
+  font-size: 12px;
+}
+
+/* Trend: the average rides on the card's top-right corner */
+.lol-trend-card,
+.gold-lead-card {
+  position: relative;
+  padding: 16px 12px 12px 16px;
+  box-shadow: 6px 6px 0 var(--surface-high);
+  margin-right: 6px;
+}
+
+.lol-metric-chips {
+  padding-bottom: 8px;
+}
+
+.lol-metric-chips .filter-chip {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.lol-trend-average {
+  position: absolute;
+  top: -10px;
+  right: 14px;
+  padding: 2px 8px;
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-s);
+  background: var(--surface-highest);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.lp-tooltip.loss,
+.lp-tooltip.red {
+  border-left-color: var(--error);
+}
+
+.lp-tooltip.blue {
+  border-left-color: var(--tertiary);
+}
+
+/* Side / length / hour / weekday bars: two to a row once there is room */
+.lol-splits {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0 12px;
+}
+
+@media (min-width: 520px) {
+  .lol-splits {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.lol-split h3 {
+  margin: 0 4px 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Average objectives: small stacked plates, the number set large */
+.lol-objective-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.lol-objective {
+  display: flex;
+  flex-direction: column;
+  min-width: 60px;
+  padding: 6px 10px 7px;
+  border: 1px solid var(--outline-variant);
+  border-top: 3px solid var(--primary);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  box-shadow: 3px 3px 0 var(--surface-highest);
+}
+
+.lol-objective strong {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.lol-objective small {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.lol-objective-caption {
+  font-size: 11px;
+}
+
+.data-table .wr.good,
+.diff.good {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.data-table .wr.bad,
+.diff.bad {
+  color: var(--error);
+  font-weight: 700;
+}
+
+.diff.blue {
+  color: var(--tertiary);
+  font-weight: 700;
+}
+
+.diff.red {
+  color: var(--error);
+  font-weight: 700;
+}
+
+.table-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.table-item .item-icon {
+  flex: none;
+  width: 26px;
+  height: 26px;
+}
+
+.table-patch {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.duo-cell {
+  gap: 4px;
+}
+
+.duo-follow {
+  align-self: flex-start;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid color-mix(in srgb, var(--primary) 60%, transparent);
+  border-radius: var(--radius-s);
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.duo-follow:disabled {
+  opacity: 0.5;
+}
+
+.group-duo {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.group-duo-plus {
+  color: var(--primary);
+  font-family: var(--font-display);
+  font-weight: 800;
+}
+
+.rune-icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--surface-highest);
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.rune-icon img {
+  width: 100%;
+  height: 100%;
+}
+
+/* The tree's small icon overlaps the keystone's corner */
+.rune-stack {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+}
+
+.rune-stack .rune-icon + .rune-icon {
+  position: absolute;
+  right: -4px;
+  bottom: -3px;
+  border: 2px solid var(--surface);
+}
+
+/* ---------- League match page ---------- */
+.lol-match-hero {
+  --tone: var(--primary);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 4px 6px 22px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--outline-variant);
+  border-left: 4px solid var(--tone);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: 6px 6px 0 var(--surface-high);
+}
+
+.lol-match-hero.loss,
+.lol-match-hero.red {
+  --tone: var(--error);
+}
+
+.lol-match-hero.blue {
+  --tone: var(--tertiary);
+}
+
+.lol-match-hero-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.lol-match-result {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--tone);
+}
+
+.lol-patch-tag {
+  position: absolute;
+  top: -10px;
+  right: 14px;
+  padding: 1px 8px;
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-s);
+  background: var(--surface-highest);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+/* Objectives: blue edge on the left, red on the right, the lead side's number in its color */
+.team-strip {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: inset 4px 0 0 var(--tertiary), inset -4px 0 0 var(--error);
+}
+
+.team-strip-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.team-name {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.team-name.blue {
+  color: var(--tertiary);
+}
+
+.team-name.red {
+  color: var(--error);
+}
+
+.team-strip-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.team-strip-rows li {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 3px 0;
+  border-bottom: 1px dashed var(--outline-variant);
+}
+
+.team-strip-rows li > span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.team-strip-rows strong {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.team-strip-rows strong:last-child {
   text-align: right;
+}
+
+.team-strip-rows strong:first-child.ahead {
+  color: var(--tertiary);
+}
+
+.team-strip-rows strong:last-child.ahead {
+  color: var(--error);
+}
+
+.team-firsts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 10px 0 8px;
+}
+
+.first-tag {
+  padding: 2px 7px;
+  border-radius: var(--radius-s);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.first-tag.blue {
+  background: color-mix(in srgb, var(--tertiary) 16%, transparent);
+  color: var(--tertiary);
+}
+
+.first-tag.red {
+  background: color-mix(in srgb, var(--error) 16%, transparent);
+  color: var(--error);
+}
+
+.team-bans {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ban-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+/* A ban is a grey portrait with a red slash through it */
+.ban-row .champion-icon {
+  position: relative;
+  font-size: 9px;
+}
+
+.ban-row .champion-icon img {
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+
+.ban-row .champion-icon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top right, transparent 45%, var(--error) 46% 54%, transparent 55%);
+}
+
+.scoreboard-toolbar {
+  margin-bottom: 4px;
+}
+
+.scoreboard-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.scoreboard.blue .scoreboard-title {
+  color: var(--tertiary);
+}
+
+.scoreboard.red .scoreboard-title {
+  color: var(--error);
+}
+
+.scoreboard-result {
+  padding: 1px 7px;
+  border-radius: var(--radius-s);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+}
+
+.scoreboard-result.win {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.scoreboard-result.loss {
+  background: color-mix(in srgb, var(--error) 18%, var(--surface));
+  color: var(--error);
+}
+
+/* Each team's table rests on a plate tinted with the team color */
+.scoreboard.blue .data-table-card::after {
+  background: color-mix(in srgb, var(--tertiary) 28%, var(--surface-highest));
+}
+
+.scoreboard.red .data-table-card::after {
+  background: color-mix(in srgb, var(--error) 28%, var(--surface-highest));
+}
+
+.scoreboard .table-champion {
+  max-width: 120px;
+}
+
+.scoreboard .lol-match-level {
+  min-width: 15px;
+  padding: 0 2px;
+  font-size: 9px;
+}
+
+.scoreboard .item-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.scoreboard-name {
+  display: inline-block;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+}
+
+a.scoreboard-name {
+  color: var(--primary);
+}
+
+.scoreboard-kda {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-weight: 700;
+}
+
+.scoreboard-kda .deaths {
+  color: var(--error);
+}
+
+.scoreboard-kda small {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.damage-cell {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.damage-bar {
+  display: block;
+  width: 56px;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--surface-highest);
+}
+
+.damage-bar span {
+  display: block;
+  height: 100%;
+  margin-left: auto;
+  background: var(--tertiary);
+}
+
+.scoreboard.red .damage-bar span {
+  background: var(--error);
+}
+
+.timeline-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--outline-variant);
+  border-left: 3px solid var(--error);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  font-size: 13px;
+}
+
+.timeline-error p {
+  margin: 0;
+}
+
+.lane-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lane-cell small {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.lane-versus {
+  display: flex;
+  gap: 6px;
+}
+
+.lane-versus .champion-icon:first-child {
+  box-shadow: 0 0 0 2px var(--tertiary);
+}
+
+.lane-versus .champion-icon:last-child {
+  box-shadow: 0 0 0 2px var(--error);
 }
 
 /* ---------- Routines and workout mode ---------- */
