@@ -5,6 +5,7 @@ import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { PersonalRecord, ProgressPoint, WeeklyVolume } from '../api/types'
 import { CountUp } from '../components/CountUp'
+import { MuscleMapCard } from '../components/MuscleMapCard'
 import { ProgressSkeleton } from '../components/Skeletons'
 import { ErrorState, MessageState } from '../components/StateViews'
 import { formatKg, formatRecordSet, formatShortDate } from '../lib/format'
@@ -65,6 +66,8 @@ export function ProgressPage() {
       </div>
 
       {selected && <RecordHighlight record={selected} />}
+
+      <MuscleMapCard />
 
       <section className="chart-card">
         <h2>{t.e1rmTitle}</h2>

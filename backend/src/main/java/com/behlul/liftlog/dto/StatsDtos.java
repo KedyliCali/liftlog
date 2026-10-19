@@ -2,6 +2,7 @@ package com.behlul.liftlog.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 public final class StatsDtos {
 
@@ -34,5 +35,24 @@ public final class StatsDtos {
     }
 
     public record WeeklyVolumeResponse(LocalDate weekStart, BigDecimal volumeKg, long setCount) {
+    }
+
+    /**
+     * Sets per muscle over the user's workouts dated {@code from}..{@code to} (both inclusive).
+     *
+     * @param muscles only muscles with sets above zero, most sets first
+     */
+    public record MuscleStatsResponse(int days, LocalDate from, LocalDate to, List<MuscleSetsResponse> muscles) {
+    }
+
+    /**
+     * @param muscle    one of the 16 map regions
+     * @param sets      a set counts 1 for a primary muscle and 0.5 for a secondary one; one decimal
+     * @param exercises what the sets came from, most sets first
+     */
+    public record MuscleSetsResponse(String muscle, BigDecimal sets, List<ExerciseSetsResponse> exercises) {
+    }
+
+    public record ExerciseSetsResponse(String name, BigDecimal sets) {
     }
 }

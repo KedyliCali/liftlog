@@ -1,11 +1,13 @@
 package com.behlul.liftlog.service;
 
+import com.behlul.liftlog.dto.StatsDtos.MuscleStatsResponse;
 import com.behlul.liftlog.dto.StatsDtos.PersonalRecordResponse;
 import com.behlul.liftlog.dto.StatsDtos.ProgressPointResponse;
 import com.behlul.liftlog.dto.StatsDtos.WeeklyVolumeResponse;
 import com.behlul.liftlog.entity.Exercise;
 import com.behlul.liftlog.exception.ResourceNotFoundException;
 import com.behlul.liftlog.repository.ExerciseRepository;
+import com.behlul.liftlog.repository.ExerciseSetCount;
 import com.behlul.liftlog.repository.SetFact;
 import com.behlul.liftlog.repository.StatsRepository;
 import com.behlul.liftlog.security.CurrentUserProvider;
@@ -113,6 +115,34 @@ class StatsServiceTest {
         assertThat(weeks).extracting(WeeklyVolumeResponse::weekStart).containsExactly(
                 LocalDate.of(2026, 9, 28), LocalDate.of(2026, 10, 5), LocalDate.of(2026, 10, 12));
         assertThat(weeks).extracting(w -> w.volumeKg().intValue()).containsExactly(0, 2500, 0);
+    }
+
+    @Test
+    void muscleWindowEndsTodayAndIncludesIt() {
+        // Server date 2026-10-16: seven days back to 2026-10-10, both ends included
+        when(statsRepository.findExerciseSetCounts(USER_ID, LocalDate.of(2026, 10, 10), LocalDate.of(2026, 10, 16)))
+                .thenReturn(List.of(new ExerciseSetCount(1L, "My Curl", "Arms", 2)));
+
+        MuscleStatsResponse week = statsService.muscles(7, null);
+
+        assertThat(week.days()).isEqualTo(7);
+        assertThat(week.from()).isEqualTo(LocalDate.of(2026, 10, 10));
+        assertThat(week.to()).isEqualTo(LocalDate.of(2026, 10, 16));
+        // A custom exercise has no stored muscles: the Arms fallback gives biceps and triceps half a set each
+        assertThat(week.muscles()).extracting(m -> m.muscle() + "=" + m.sets())
+                .containsExactly("BICEPS=1.0", "TRICEPS=1.0");
+        assertThat(week.muscles().getFirst().exercises().getFirst().name()).isEqualTo("My Curl");
+    }
+
+    @Test
+    void muscleWindowFollowsThePhoneDate() {
+        LocalDate phoneToday = LocalDate.of(2026, 10, 17);
+
+        MuscleStatsResponse month = statsService.muscles(30, phoneToday);
+
+        assertThat(month.from()).isEqualTo(LocalDate.of(2026, 9, 18));
+        assertThat(month.to()).isEqualTo(phoneToday);
+        assertThat(month.muscles()).isEmpty();
     }
 
     private static SetFact fact(long exerciseId, String name, String date, int reps, String weight) {

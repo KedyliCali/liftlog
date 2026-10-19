@@ -4,6 +4,7 @@ import { queryKeys } from '../api/queryKeys'
 import type { RecapRecord, WorkoutRecap } from '../api/types'
 import { useToast } from '../components/contexts'
 import { CountUp } from '../components/CountUp'
+import { RecapMuscles } from '../components/MuscleMapCard'
 import { ShareIcon, TrophyIcon } from '../components/Icons'
 import { Sheet } from '../components/Sheet'
 import { ErrorState } from '../components/StateViews'
@@ -99,6 +100,8 @@ function RecapCard({ recap, onDone }: { recap: WorkoutRecap; onDone: () => void 
           </ul>
         </section>
       )}
+
+      <RecapMuscles muscles={recap.muscles} />
 
       <div className="recap-actions">
         <button className="btn btn-primary" onClick={share} data-testid="recap-share">

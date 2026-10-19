@@ -9,6 +9,32 @@ export interface Exercise {
   bodyweight: boolean
   /** BARBELL, DUMBBELL, MACHINE, CABLE or BODYWEIGHT for built-ins; null (or missing from older servers) for custom ones */
   equipment?: 'BARBELL' | 'DUMBBELL' | 'MACHINE' | 'CABLE' | 'BODYWEIGHT' | null
+  /** Muscles the exercise works; missing from servers before the muscle map */
+  muscles?: ExerciseMuscle[]
+}
+
+export interface ExerciseMuscle {
+  muscle: string
+  role: 'PRIMARY' | 'SECONDARY'
+}
+
+/** Sets per muscle: 1 per set for a primary muscle, 0.5 for a secondary one */
+export interface MuscleSets {
+  /** CHEST, FRONT_DELTS, ... (ADDUCTORS / ABDUCTORS are folded into QUADS / GLUTES on the map) */
+  muscle: string
+  sets: number
+}
+
+export interface MuscleStat extends MuscleSets {
+  exercises: { name: string; sets: number }[]
+}
+
+/** GET /stats/muscles: muscles with sets > 0 over the last `days` days (from..to inclusive) */
+export interface MuscleStats {
+  days: number
+  from: string
+  to: string
+  muscles: MuscleStat[]
 }
 
 export interface WorkoutSummary {
@@ -143,6 +169,8 @@ export interface WorkoutRecap {
   previousWorkoutId: number | null
   previousWorkoutDate: string | null
   weekStreak: number
+  /** Sets per muscle in this workout; missing from servers before the muscle map */
+  muscles?: MuscleSets[]
 }
 
 /** Consecutive ISO weeks (Monday start) with at least one workout */

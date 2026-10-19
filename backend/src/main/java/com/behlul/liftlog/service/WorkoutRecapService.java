@@ -1,9 +1,11 @@
 package com.behlul.liftlog.service;
 
 import com.behlul.liftlog.dto.WorkoutRecapResponse;
+import com.behlul.liftlog.dto.WorkoutRecapResponse.MuscleResponse;
 import com.behlul.liftlog.dto.WorkoutRecapResponse.RecordResponse;
 import com.behlul.liftlog.entity.Workout;
 import com.behlul.liftlog.exception.ResourceNotFoundException;
+import com.behlul.liftlog.repository.ExerciseRepository;
 import com.behlul.liftlog.repository.StatsRepository;
 import com.behlul.liftlog.repository.WorkoutRepository;
 import com.behlul.liftlog.security.CurrentUserProvider;
@@ -25,13 +27,15 @@ public class WorkoutRecapService {
 
     private final WorkoutRepository workoutRepository;
     private final StatsRepository statsRepository;
+    private final ExerciseRepository exerciseRepository;
     private final CurrentUserProvider currentUser;
     private final Clock clock;
 
     public WorkoutRecapService(WorkoutRepository workoutRepository, StatsRepository statsRepository,
-                               CurrentUserProvider currentUser, Clock clock) {
+                               ExerciseRepository exerciseRepository, CurrentUserProvider currentUser, Clock clock) {
         this.workoutRepository = workoutRepository;
         this.statsRepository = statsRepository;
+        this.exerciseRepository = exerciseRepository;
         this.currentUser = currentUser;
         this.clock = clock;
     }
@@ -60,6 +64,10 @@ public class WorkoutRecapService {
 
         Optional<WorkoutShape> previous = WorkoutRecap.previousWorkout(current, workouts);
         WeekStreak streak = WeekStreak.compute(statsRepository.findWorkoutDates(userId), LocalDate.now(clock));
+        List<MuscleResponse> muscles = StatsService.muscleSets(
+                        statsRepository.findExerciseSetCountsOfWorkout(workoutId), exerciseRepository).stream()
+                .map(m -> new MuscleResponse(m.muscle().name(), m.sets()))
+                .toList();
 
         return new WorkoutRecapResponse(
                 workoutId,
@@ -71,6 +79,7 @@ public class WorkoutRecapService {
                 previous.map(WorkoutShape::volumeKg).orElse(null),
                 previous.map(WorkoutShape::id).orElse(null),
                 previous.map(WorkoutShape::date).orElse(null),
-                streak.weeks());
+                streak.weeks(),
+                muscles);
     }
 }

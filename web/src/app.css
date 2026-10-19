@@ -5267,3 +5267,324 @@ body:has(.rest-timer) .finish-btn {
   color: var(--text-muted);
   font-size: 13px;
 }
+
+/* ---------- Muscle map ---------- */
+/* Band colours read on both themes; light mode uses deeper siblings so yellow does not vanish on white */
+:root {
+  --map-body: #2a2a2f;
+  --map-shadow: #2b3610;
+  --map-none: #46464e;
+  --map-sep: #161618;
+  --map-low: #ffd43b;
+  --map-mid: #ff8c1a;
+  --map-high: #ff4136;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --map-body: #d9d9d2;
+    --map-shadow: #c5cdb0;
+    --map-none: #b3b3ab;
+    --map-sep: #ffffff;
+    --map-low: #f5b700;
+    --map-mid: #f76b15;
+    --map-high: #e0301e;
+  }
+}
+
+.body-map {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.body-map-shadow path {
+  fill: var(--map-shadow);
+}
+
+.body-map-body path {
+  fill: var(--map-body);
+}
+
+.body-map [data-band] path {
+  fill: var(--map-none);
+  stroke: var(--map-sep);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  transition: fill 0.3s var(--ease-out), stroke 0.15s;
+}
+
+.body-map [data-band='low'] path {
+  fill: var(--map-low);
+}
+
+.body-map [data-band='mid'] path {
+  fill: var(--map-mid);
+}
+
+.body-map [data-band='high'] path {
+  fill: var(--map-high);
+}
+
+.body-map [role='button'] {
+  cursor: pointer;
+  outline: none;
+}
+
+.body-map [role='button']:focus-visible path,
+.body-map [data-selected] path {
+  stroke: var(--text);
+  stroke-width: 2.2;
+}
+
+/* Progress card: dark plate with a lime edge strip, lifted off a lime plate offset to the bottom-right */
+.muscle-card {
+  position: relative;
+  margin: 0 8px 24px 0;
+}
+
+.muscle-card::before {
+  content: '';
+  position: absolute;
+  inset: 8px -8px -8px 8px;
+  border-radius: var(--radius-xl);
+  background: var(--primary);
+}
+
+.muscle-card-front {
+  position: relative;
+  padding: 16px 16px 18px;
+  border: 1px solid var(--outline-variant);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  /* Separators between muscles are cut in the plate's own colour */
+  --map-sep: var(--surface);
+}
+
+.muscle-card-kicker {
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.muscle-card h2 {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.muscle-card-caption {
+  margin: 4px 0 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.muscle-toggles {
+  display: flex;
+  gap: 8px;
+}
+
+.muscle-seg {
+  display: flex;
+  flex: 1;
+  padding: 3px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-m);
+  background: var(--surface-low);
+}
+
+.muscle-seg button {
+  flex: 1;
+  height: 32px;
+  border-radius: var(--radius-s);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  transition: background 0.2s, color 0.2s;
+}
+
+.muscle-seg button[aria-pressed='true'] {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.muscle-stage {
+  position: relative;
+  width: min(62%, 220px);
+  margin: 18px auto 8px;
+}
+
+.muscle-stage.empty .body-map {
+  opacity: 0.55;
+}
+
+.muscle-legend {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.muscle-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.muscle-legend small {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Swatch: a colour chip on a slightly offset dark chip, like the card itself */
+.muscle-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  box-shadow: 2px 2px 0 var(--outline);
+}
+
+.muscle-swatch.low {
+  background: var(--map-low);
+}
+
+.muscle-swatch.mid {
+  background: var(--map-mid);
+}
+
+.muscle-swatch.high {
+  background: var(--map-high);
+}
+
+.muscle-empty {
+  margin: 6px 0 0;
+  text-align: center;
+}
+
+.muscle-empty strong {
+  display: block;
+  font-size: 15px;
+}
+
+.muscle-empty p {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Tapped muscle: a small panel with the band colour as its edge strip */
+.muscle-detail {
+  position: relative;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--outline-variant);
+  border-left: 4px solid var(--map-none);
+  border-radius: var(--radius-m);
+  background: var(--surface-highest);
+}
+
+.muscle-detail[data-band='low'] {
+  border-left-color: var(--map-low);
+}
+
+.muscle-detail[data-band='mid'] {
+  border-left-color: var(--map-mid);
+}
+
+.muscle-detail[data-band='high'] {
+  border-left-color: var(--map-high);
+}
+
+.muscle-detail-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 28px;
+}
+
+.muscle-detail-head strong {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.muscle-detail-head span {
+  color: var(--primary);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.muscle-detail-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-s);
+  color: var(--text-muted);
+}
+
+.muscle-detail ul {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.muscle-detail li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  border-top: 1px solid var(--outline-variant);
+  font-size: 14px;
+}
+
+.muscle-detail li span:last-child {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Workout summary: front and back side by side, small */
+.recap-muscles-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.recap-muscles-figures {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  padding: 12px 0 10px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-l);
+  background: var(--surface-low);
+  --map-sep: var(--surface-low);
+}
+
+.recap-muscles-figures .body-map {
+  width: 96px;
+}
+
+.recap-muscles .muscle-legend {
+  margin-top: 10px;
+}

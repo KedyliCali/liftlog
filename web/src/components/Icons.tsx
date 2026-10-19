@@ -147,6 +147,14 @@ export function CheckIcon({ size = 16 }: { size?: number }) {
   )
 }
 
+export function CloseIcon({ size = 18 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M6 6l12 12M18 6L6 18" />
+    </Icon>
+  )
+}
+
 export function ChevronIcon({ size = 18 }: { size?: number }) {
   return (
     <Icon size={size}>
