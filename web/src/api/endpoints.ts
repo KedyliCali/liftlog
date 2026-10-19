@@ -1,6 +1,6 @@
 import type { CreationOptionsJson, CredentialJson, RequestOptionsJson } from '../lib/webauthn'
 import { request } from './client'
-import type { AuthResponse, LolGroup, LolPlayer, LolPlayerDetail, LolRankPoint, CatalogFood, MuscleStats, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, Passkey, PasskeyCeremony, PersonalRecord, PlanItem, Profile, ProgressPoint, Routine, RoutineInput, SetInput, Streak, WeeklyVolume, WorkoutDetail, WorkoutRecap, WorkoutSet, WorkoutSummary } from './types'
+import type { AuthResponse, GroupTraining, LolGroup, LolPlayer, LolPlayerDetail, LolRankPoint, CatalogFood, MuscleStats, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, Passkey, PasskeyCeremony, PersonalRecord, PlanItem, Profile, ProgressPoint, Routine, RoutineInput, SetInput, Streak, WeeklyVolume, WorkoutDetail, WorkoutRecap, WorkoutSet, WorkoutSummary } from './types'
 
 export const api = {
   register: (email: string, password: string) =>
@@ -77,6 +77,10 @@ export const api = {
   leaveLolGroup: () => request<void>('/api/v1/lol/group/me', { method: 'DELETE', responseType: 'none' }),
   removeLolGroupMember: (userId: number) =>
     request<void>(`/api/v1/lol/group/members/${userId}`, { method: 'DELETE', responseType: 'none' }),
+  /** The same group compared on training; 204 (not in a group) becomes null, like lolGroup */
+  groupTraining: (days: 7 | 30, today: string) =>
+    request<GroupTraining | undefined>(`/api/v1/group/training?days=${days}&today=${today}`).then((training) => training ?? null),
+  setShareTraining: (enabled: boolean) => request<Profile>('/api/v1/profile/share-training', { method: 'PUT', body: { enabled } }),
 
   /** The recovery code's "New code": the web app generates both passwords itself */
   changePassword: (currentPassword: string, newPassword: string) =>
