@@ -242,6 +242,8 @@ export interface FoodEntry {
   proteinG: number
   carbsG: number | null
   fatG: number | null
+  /** Portion in grams; the backend leaves it out for hand-typed entries and ones logged before it was stored. */
+  grams?: number | null
 }
 
 export interface FoodInput {
@@ -251,6 +253,8 @@ export interface FoodInput {
   proteinG: number
   carbsG: number | null
   fatG: number | null
+  /** Only when the user picked an amount (catalog or scanned food), to one decimal. */
+  grams?: number
 }
 
 export interface NutritionGoals {

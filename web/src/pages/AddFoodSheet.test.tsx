@@ -21,7 +21,7 @@ const CODE = '8690504011234'
 const OFF_PATH = `/api/v2/product/${CODE}.json`
 
 function renderSheet() {
-  const onSave = vi.fn(async () => {})
+  const onSave = vi.fn<(input: object) => Promise<void>>(async () => {})
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
@@ -64,7 +64,7 @@ describe('barcode in the add food sheet', () => {
     expect(screen.getByText(CODE)).toBeInTheDocument()
     await user.click(screen.getByTestId('save-food'))
     // One 30 g serving of a 440 kcal/100 g biscuit
-    expect(onSave).toHaveBeenCalledWith({ name: 'Ülker Pötibör (30 g)', caloriesKcal: 132, proteinG: 2.3, carbsG: 21.6, fatG: 3.9 })
+    expect(onSave).toHaveBeenCalledWith({ name: 'Ülker Pötibör (30 g)', caloriesKcal: 132, proteinG: 2.3, carbsG: 21.6, fatG: 3.9, grams: 30 })
     // Cached for the next scan
     expect(localStorage.getItem('liftlog.barcodeProducts')).toContain(CODE)
   })
@@ -105,5 +105,47 @@ describe('barcode in the add food sheet', () => {
     expect(await screen.findByText('Su')).toBeInTheDocument()
     // No printed serving: weigh it in grams
     expect(screen.getByRole('tab', { name: t.byGrams })).toHaveAttribute('aria-selected', 'true')
+  })
+})
+
+describe('portion in grams', () => {
+  const oats = {
+    id: 7, category: 'breakfast', nameTr: 'Oats', nameEn: 'Oats', kcalPer100g: 380, proteinPer100g: 13, carbsPer100g: 66, fatPer100g: 7,
+    servingG: 40, servingTr: 'bowl', servingEn: 'bowl',
+  }
+
+  it('sends the grams of a catalog food, counting servings as grams too', async () => {
+    fakeServer({ 'GET /api/v1/foods': () => jsonResponse(200, [oats]) })
+    const { onSave, user } = renderSheet()
+
+    await user.click(await screen.findByRole('button', { name: /^Oats/ }))
+    await user.click(screen.getByRole('button', { name: t.moreServings }))
+    await user.click(screen.getByTestId('save-food'))
+    // One and a half 40 g bowls
+    expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ caloriesKcal: 228, grams: 60 }))
+  })
+
+  it('sends the weighed amount in gram mode', async () => {
+    fakeServer({ 'GET /api/v1/foods': () => jsonResponse(200, [oats]) })
+    const { onSave, user } = renderSheet()
+
+    await user.click(await screen.findByRole('button', { name: /^Oats/ }))
+    await user.click(screen.getByRole('tab', { name: t.byGrams }))
+    await user.clear(screen.getByLabelText(t.amountGrams))
+    await user.type(screen.getByLabelText(t.amountGrams), '150')
+    await user.click(screen.getByTestId('save-food'))
+    expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ name: 'Oats (150 g)', caloriesKcal: 570, grams: 150 }))
+  })
+
+  it('leaves grams out of a hand-typed entry', async () => {
+    fakeServer({ 'GET /api/v1/foods': () => jsonResponse(200, []) })
+    const { onSave, user } = renderSheet()
+
+    await user.click(await screen.findByRole('button', { name: t.enterManually }))
+    await user.type(screen.getByLabelText(t.foodName), 'Homemade soup')
+    await user.type(screen.getByLabelText(t.caloriesKcal), '250')
+    await user.click(screen.getByTestId('save-food'))
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onSave.mock.calls[0][0]).not.toHaveProperty('grams')
   })
 })

@@ -73,6 +73,16 @@ export function validateFood(form: FoodForm): { input: ValidFood | null; errors:
   return { input, errors }
 }
 
+/**
+ * "150 g" for the day list, or null when the portion is unknown or the name already says it
+ * (an entry logged by grams is named "Oats (150 g)", so repeating it would only add clutter).
+ */
+export function portionLabel(entry: { name: string; grams?: number | null }, formatNumber: (n: number) => string): string | null {
+  if (entry.grams == null) return null
+  const label = `${formatNumber(entry.grams)} g`
+  return entry.name.includes(`(${label})`) ? null : label
+}
+
 /** Share of the day's calories from each macro (4 / 4 / 9 kcal per gram); all zero before anything is logged. */
 export function macroEnergySplit(proteinG: number, carbsG: number, fatG: number): { protein: number; carbs: number; fat: number } {
   const protein = proteinG * 4

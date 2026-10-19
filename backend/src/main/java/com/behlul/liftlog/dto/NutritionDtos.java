@@ -28,17 +28,20 @@ public final class NutritionDtos {
             @NotNull @DecimalMin("0.0") @DecimalMax("1000.0") @Digits(integer = 4, fraction = 1) BigDecimal proteinG,
             /* Optional: older clients and quick manual entries may not know them */
             @DecimalMin("0.0") @DecimalMax("1000.0") @Digits(integer = 4, fraction = 1) BigDecimal carbsG,
-            @DecimalMin("0.0") @DecimalMax("1000.0") @Digits(integer = 4, fraction = 1) BigDecimal fatG
+            @DecimalMin("0.0") @DecimalMax("1000.0") @Digits(integer = 4, fraction = 1) BigDecimal fatG,
+            /* Only sent when the user chose an amount (catalog or scanned food); hand-typed entries leave it out */
+            @DecimalMin("0.1") @DecimalMax("50000.0") @Digits(integer = 5, fraction = 1) BigDecimal grams
     ) {
     }
 
-    /** carbsG and fatG are null when the entry was logged without them. */
+    /** carbsG and fatG are null when the entry was logged without them; grams when the portion is unknown. */
     public record FoodEntryResponse(Long id, LocalDate entryDate, String name, int caloriesKcal, BigDecimal proteinG,
-                                    BigDecimal carbsG, BigDecimal fatG) {
+                                    BigDecimal carbsG, BigDecimal fatG, BigDecimal grams) {
 
         public static FoodEntryResponse from(FoodEntry entry) {
             return new FoodEntryResponse(entry.getId(), entry.getEntryDate(), entry.getName(),
-                    entry.getCaloriesKcal(), entry.getProteinG(), entry.getCarbsG(), entry.getFatG());
+                    entry.getCaloriesKcal(), entry.getProteinG(), entry.getCarbsG(), entry.getFatG(),
+                    entry.getGrams());
         }
     }
 
