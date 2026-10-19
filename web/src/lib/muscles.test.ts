@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bandFor, bandsFor, bandThresholds, foldMuscle, foldMuscleStats, formatSets, MAP_MUSCLES, SIDE_MUSCLES } from './muscles'
+import { bandFor, bandsFor, bandThresholds, foldMuscle, foldMuscleStats, formatSets, MAP_MUSCLES, SIDE_MUSCLES, musclesOfSets } from './muscles'
 
 describe('bandThresholds', () => {
   it('uses 5 and 10 sets for a week', () => {
@@ -100,3 +100,27 @@ it('formats sets with one decimal at most', () => {
   expect(formatSets(2.5, 'tr')).toBe('2,5')
   expect(formatSets(1.25, 'en')).toBe('1.3')
 })
+
+describe('musclesOfSets', () => {
+  const exercises = [
+    { id: 1, muscles: [{ muscle: 'CHEST', role: 'PRIMARY' as const }, { muscle: 'TRICEPS', role: 'SECONDARY' as const }] },
+    // QUADS primary and ADDUCTORS secondary land on one region: the primary role wins, nothing counts twice
+    { id: 2, muscles: [{ muscle: 'QUADS', role: 'PRIMARY' as const }, { muscle: 'ADDUCTORS', role: 'SECONDARY' as const }] },
+  ]
+
+  it('counts 1 per primary and 0.5 per secondary muscle for every set', () => {
+    const sets = [{ exerciseId: 1 }, { exerciseId: 1 }, { exerciseId: 1 }, { exerciseId: 2 }, { exerciseId: 99 }]
+    expect(musclesOfSets(sets, exercises)).toEqual([
+      { muscle: 'CHEST', sets: 3 },
+      { muscle: 'TRICEPS', sets: 1.5 },
+      { muscle: 'QUADS', sets: 1 },
+    ])
+  })
+
+  it('uses the single-workout bands for one day', () => {
+    expect(bandFor(1, 1)).toBe('low')
+    expect(bandFor(2, 1)).toBe('mid')
+    expect(bandFor(4, 1)).toBe('high')
+  })
+})
+

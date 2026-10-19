@@ -770,6 +770,12 @@ class ApiIntegrationTest {
                 "CHEST=3.0", "GLUTES=3.0", "TRICEPS=2.5", "LATS=2.5", "BICEPS=2.0", "LOWER_BACK=2.0", "QUADS=2.0",
                 "FRONT_DELTS=1.5", "FOREARMS=1.5", "SIDE_DELTS=1.0", "REAR_DELTS=1.0", "TRAPS=1.0", "HAMSTRINGS=1.0");
 
+        // "Today" is a one-day window
+        mockMvc.perform(get("/api/v1/stats/muscles?days=1").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.days").value(1))
+                .andExpect(jsonPath("$.from").value(LocalDate.now(ZoneOffset.UTC).toString()))
+                .andExpect(jsonPath("$.to").value(LocalDate.now(ZoneOffset.UTC).toString()));
         mockMvc.perform(get("/api/v1/stats/muscles?days=14").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors.days").exists());

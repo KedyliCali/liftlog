@@ -5588,3 +5588,13 @@ body:has(.rest-timer) .finish-btn {
 .recap-muscles .muscle-legend {
   margin-top: 10px;
 }
+
+/* Chips and cards in sideways strips are dragged, not read: without this a drag selects their text */
+.routine-chips,
+.chip-row,
+[class*='template-'] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+

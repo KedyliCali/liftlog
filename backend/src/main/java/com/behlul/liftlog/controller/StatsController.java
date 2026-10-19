@@ -40,7 +40,7 @@ public class StatsController {
         return statsService.streak();
     }
 
-    /** days must be 7 or 30; today (YYYY-MM-DD) is the phone's date, the server's date when absent. */
+    /** days must be 1 (today), 7 or 30; today (YYYY-MM-DD) is the phone's date, the server's date when absent. */
     @GetMapping("/muscles")
     public MuscleStatsResponse muscles(@RequestParam(defaultValue = "7") int days,
                                        @RequestParam(required = false)

@@ -45,7 +45,7 @@ public class StatsService {
     static final int MAX_WEEKS = 52;
 
     /** Windows the muscle map offers: a week and a month. */
-    static final Set<Integer> MUSCLE_MAP_DAYS = Set.of(7, 30);
+    static final Set<Integer> MUSCLE_MAP_DAYS = Set.of(1, 7, 30);
 
     /** Heavier wins; at equal weight more reps wins; at a full tie the earlier set keeps the record. */
     static final Comparator<SetFact> HEAVIEST_FIRST = Comparator.comparing(SetFact::weightKg)
@@ -120,7 +120,7 @@ public class StatsService {
      */
     public MuscleStatsResponse muscles(int days, LocalDate today) {
         if (!MUSCLE_MAP_DAYS.contains(days)) {
-            throw new FieldValidationException("days", "must be 7 or 30");
+            throw new FieldValidationException("days", "must be 1, 7 or 30");
         }
         LocalDate to = today != null ? today : LocalDate.now(clock);
         LocalDate from = to.minusDays(days - 1L);
