@@ -30,6 +30,9 @@ export function tzOffsetMinutes(date: Date = new Date()): number {
   return -date.getTimezoneOffset() || 0
 }
 
+/** The match page, carrying the player along so their row stands out there. */
+export const matchPath = (matchId: string, puuid: string) => `/game/match/${encodeURIComponent(matchId)}?player=${encodeURIComponent(puuid)}`
+
 const QUEUE_IDS: Partial<Record<LolStatsQueue, number>> = { SOLO: 420, FLEX: 440, ARAM: 450 }
 
 /** The same split the server makes, for filtering the match list on the phone. */
