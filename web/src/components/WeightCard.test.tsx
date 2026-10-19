@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { queryKeys } from '../api/queryKeys'
@@ -9,6 +9,7 @@ import { t } from '../lib/i18n'
 import { shiftDay, todayIso } from '../lib/nutrition'
 import { formatWeight, formatWeightChange } from '../lib/weight'
 import { fakeServer, jsonResponse } from '../test/fakeServer'
+import { ConfirmProvider } from './Confirm'
 import { ToastProvider } from './Toast'
 import { WeightCard } from './WeightCard'
 
@@ -41,7 +42,9 @@ function renderCard(profileWeightKg: number | null = null) {
   render(
     <QueryClientProvider client={client}>
       <ToastProvider>
-        <WeightCard profileWeightKg={profileWeightKg} />
+        <ConfirmProvider>
+          <WeightCard profileWeightKg={profileWeightKg} />
+        </ConfirmProvider>
       </ToastProvider>
     </QueryClientProvider>,
   )
@@ -132,7 +135,12 @@ describe('WeightCard', () => {
     const { user } = renderCard()
 
     await user.click(await screen.findByRole('button', { name: t.weightDeleteToday }))
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(t.kg(formatKg(80.4)))
+    await user.click(screen.getByRole('button', { name: t.cancel }))
+    expect(server.calls.some((c) => c.method === 'DELETE')).toBe(false)
 
+    await user.click(screen.getByRole('button', { name: t.weightDeleteToday }))
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: t.delete }))
     expect(await screen.findByText(t.weightDeleted)).toBeInTheDocument()
     expect(server.calls.filter((c) => c.method === 'DELETE').map((c) => c.path)).toEqual([`/api/v1/weight/${today}`])
     await waitFor(() => expect(screen.queryByRole('button', { name: t.weightDeleteToday })).not.toBeInTheDocument())
