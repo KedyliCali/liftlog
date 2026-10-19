@@ -433,3 +433,18 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
 1. LoL istatistiklerini detaylandırma (maç detayı, erken oyun farkları, rakip analizi, örüntüler, grafikler):
    Behlül'ün seçimini bekliyor.
 2. Kullanıcı işleri: Render ücretli plan (uyku gecikmesi); Safari ve ana ekran hesabını Face ID ile birleştirme.
+
+## 2026-10-19 — Silmeden önce onay (`feature/delete-confirm`, sadece web)
+
+- Ortak onay sayfası: `components/Confirm.tsx` (`ConfirmProvider`) + `useConfirm()` (`contexts.ts`).
+  `await confirm({ title, item, message, confirmLabel, tone })` sadece "Sil"e basınca `true` döner; Vazgeç, Escape ve
+  arka plana dokunma `false`. Odak "Vazgeç"te başlar (yanlışlıkla Enter silmez); Escape alttaki sayfayı kapatmaz.
+- Artık her silme önce sorar: antrenman (liste kaydırma + detay menüsü), set (kaydırma + set düzenleyici), yemek kaydı,
+  rutin, rutinden hareket çıkarma, bugünkü kilo, profil fotoğrafı, takip edilen LoL oyuncusu, gruptan üye çıkarma,
+  gruptan ayrılma. `SwipeToDelete` artık `confirm` alıyor; Vazgeç'te satır geri kayıyor. Geri al (undo) bildirimleri duruyor.
+- Silme olmayan sorular da aynı sayfaya taşındı: yeni davet kodu, yeni kurtarma kodu, boş kayıt başlat.
+  `window.confirm` kodda kalmadı.
+- Doğrulama: web 418 test (396 → 418), tsc, lint, build. Tarayıcıda 375 px koyu/açık temada sayfa, Escape ve Sil denendi.
+
+**Sıradaki adımlar:**
+1. PR aç; gerçek telefonda kaydırarak silmeyi dene.
