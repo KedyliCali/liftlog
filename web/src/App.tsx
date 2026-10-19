@@ -9,6 +9,7 @@ import { ToastProvider } from './components/Toast'
 import { SessionGate } from './SessionGate'
 import { t } from './lib/i18n'
 import { GamePage } from './pages/GamePage'
+import { LolMatchPage } from './pages/LolMatchPage'
 import { LolPlayerPage } from './pages/LolPlayerPage'
 import { NutritionPage } from './pages/NutritionPage'
 import { ProfilePage } from './pages/ProfilePage'
@@ -42,6 +43,8 @@ const router = createBrowserRouter([
       { path: '/nutrition', element: <NutritionPage /> },
       { path: '/game', element: <GamePage /> },
       { path: '/game/:puuid', element: <LolPlayerPage /> },
+      // Two segments after /game, so it never collides with a player's puuid
+      { path: '/game/match/:matchId', element: <LolMatchPage /> },
       {
         path: '/progress',
         element: (
