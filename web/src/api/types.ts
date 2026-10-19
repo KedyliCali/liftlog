@@ -215,6 +215,22 @@ export interface Profile {
   avatarVersion: number | null
 }
 
+/** One weigh-in; a user has at most one per date. */
+export interface WeightEntry {
+  date: string
+  weightKg: number
+}
+
+/** Trend numbers are measured from `latest`, not from today; each is null when there is too little data. */
+export interface WeightHistory {
+  /** Oldest first, only the requested window */
+  entries: WeightEntry[]
+  latest: WeightEntry | null
+  change7d: number | null
+  change30d: number | null
+  average7d: number | null
+}
+
 /** carbsG and fatG are null for entries logged without them. */
 export interface FoodEntry {
   id: number
