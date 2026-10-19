@@ -62,6 +62,21 @@ export interface AuthResponse {
   user: { id: number; email: string; displayName: string | null }
 }
 
+/** A passkey on this account; the private key never leaves the phone's keychain. */
+export interface Passkey {
+  id: number
+  createdAt: string // ISO instant
+  lastUsedAt: string | null
+}
+
+/** A started WebAuthn ceremony: its id goes back with the answer, publicKey goes to navigator.credentials. */
+export interface PasskeyCeremony<Options> {
+  ceremonyId: string
+  publicKey: Options
+  /** When the server forgets this ceremony (ISO instant); older servers leave it out */
+  expiresAt?: string
+}
+
 export interface PersonalRecord {
   exerciseId: number
   exerciseName: string

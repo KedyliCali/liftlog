@@ -45,6 +45,8 @@ export function errorMessage(error: unknown): string {
       return t.signedOutTitle
     case 'forbidden':
       return t.errorForbidden
+    case 'rateLimited':
+      return t.errorRateLimited
     case 'groupRule':
       return (error.detail && t.groupRules[error.detail]) || t.errorConflict
     case 'riotNoKey':

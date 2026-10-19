@@ -5,6 +5,7 @@ import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { Profile } from '../api/types'
 import { Sheet } from '../components/Sheet'
+import { BackupCard } from '../components/Passkey'
 import { RecoveryCodeCard } from '../components/RecoveryCard'
 import { ProfileSkeleton } from '../components/Skeletons'
 import { ErrorState } from '../components/StateViews'
@@ -14,6 +15,7 @@ import { locale, t } from '../lib/i18n'
 import { toAvatarJpeg } from '../lib/image'
 import { initials } from '../lib/workoutLogic'
 import { isStandalone } from '../lib/platform'
+import { passkeysSupported } from '../lib/webauthn'
 import { bmi, sanitizeDecimal, validateProfile, type ProfileField } from '../lib/validation'
 import { CameraIcon, PencilIcon } from '../components/Icons'
 
@@ -120,7 +122,15 @@ export function ProfilePage() {
         <BodyStat label={t.bmi} value={bodyMassIndex != null ? bodyMassIndex.toLocaleString(locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 }) : null} emphasized />
       </div>
 
-      <RecoveryCodeCard />
+      {/* With passkeys the Face ID backup leads and the code folds under it; without them, today's code card */}
+      {passkeysSupported() ? (
+        <>
+          <BackupCard />
+          <RecoveryCodeCard collapsible />
+        </>
+      ) : (
+        <RecoveryCodeCard />
+      )}
 
       <div className="info-card">
         <div className="info-row">

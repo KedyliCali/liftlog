@@ -2837,6 +2837,161 @@ body:has(.rest-timer) .set-groups {
   font-size: 14px;
 }
 
+/* ---------- Passkey backup ---------- */
+/* Card on an offset plate with a lime strip down its left edge and a "Passkey" tag overlapping the top */
+.backup-card {
+  position: relative;
+  margin: 10px 8px 22px 0;
+  padding: 18px 16px 16px 20px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: 8px 8px 0 var(--surface-high);
+}
+
+.backup-card::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: -1px;
+  width: 4px;
+  border-radius: 0 var(--radius-s) var(--radius-s) 0;
+  background: var(--primary);
+}
+
+.backup-tag {
+  position: absolute;
+  top: -10px;
+  right: 14px;
+  padding: 2px 8px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-s);
+  background: var(--bg);
+  color: var(--primary);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.backup-button {
+  margin-top: 14px;
+  gap: 8px;
+}
+
+.backup-done {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.backup-done strong {
+  font-family: var(--font-display);
+  font-size: 20px;
+  text-transform: uppercase;
+}
+
+.backup-done p {
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+
+.backup-again {
+  min-height: 32px;
+  margin-top: 6px;
+  padding: 0;
+  font-size: 14px;
+}
+
+/* Check badge: lime disc with a dark ring offset behind it */
+.backup-check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: 3px 3px 0 var(--primary-container);
+}
+
+/* Folded recovery code: one row with a small key tile and a chevron, still the #recovery anchor */
+.recovery-card.folded {
+  padding: 0;
+}
+
+.recovery-fold {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 14px;
+  border-radius: var(--radius-xl);
+  color: var(--text);
+  text-align: left;
+}
+
+.recovery-fold-label {
+  flex: 1;
+  font-weight: 600;
+}
+
+.recovery-fold svg:last-child {
+  color: var(--text-muted);
+}
+
+.recovery-fold-open {
+  width: 100%;
+  color: var(--text);
+  text-align: left;
+}
+
+.recovery-fold-open h2 {
+  flex: 1;
+}
+
+.recovery-fold-open > svg:last-child {
+  color: var(--text-muted);
+  transform: rotate(90deg);
+}
+
+.recovery-icon.small {
+  width: 28px;
+  height: 28px;
+  box-shadow: 3px 3px 0 var(--primary-container);
+}
+
+.passkey-restore {
+  gap: 6px;
+}
+
+.passkey-nudge .btn-primary {
+  gap: 6px;
+}
+
+/* "or with your code" between the Face ID button and the code form, on short hairlines */
+.recovery-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.recovery-divider::before,
+.recovery-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--outline-variant);
+}
+
 /* ---------- League groups ---------- */
 .lol-views {
   margin-bottom: 14px;
