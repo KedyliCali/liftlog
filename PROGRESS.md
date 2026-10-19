@@ -420,3 +420,16 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
 **Sıradaki adımlar:**
 1. PR aç; gerçek iPhone'da (Safari + ana ekran uygulaması) paylaşım sayfasını dene.
 2. Gram isteniyorsa `food_entries.grams` için migration (ayrı iş).
+
+## 2026-10-19 — Dört özellik canlıda (PR #27–#30)
+
+- #27 internetsiz set kaydı, #28 CSV/ZIP dışa aktarma, #29 kilo günlüğü (V18), #30 grup arkadaşlarıyla antrenman
+  karşılaştırma (V20, isteğe bağlı) sırayla main'e birleşti. Zincir birlikte doğrulandı: backend 253 test, web 396
+  test, lint, tsc, build; Docker'da V20'ye geçiş, tarayıcıda kilo kaydı, ZIP indirme, Spor görünümü.
+- Canlı: Render'da API ve web yeni sürümde; yeni uç noktalar api-docs'ta ve oturumsuz 401 dönüyor (Neon V20'de).
+- İptal edilenler: Türkçe hareket isimleri, hatırlatma bildirimi. Android kullanılmıyor.
+
+**Sıradaki adımlar:**
+1. LoL istatistiklerini detaylandırma (maç detayı, erken oyun farkları, rakip analizi, örüntüler, grafikler):
+   Behlül'ün seçimini bekliyor.
+2. Kullanıcı işleri: Render ücretli plan (uyku gecikmesi); Safari ve ana ekran hesabını Face ID ile birleştirme.
