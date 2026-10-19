@@ -1,4 +1,4 @@
-import { useQueryClient, type UseQueryResult } from '@tanstack/react-query'
+import { useQueryClient, type QueryClient, type UseQueryResult } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { AppError } from '../api/client'
@@ -28,27 +28,62 @@ const nameOf = (member: LolGroupMember) => member.displayName ?? t.memberFallbac
 const joinDate = (iso: string) =>
   new Date(iso.endsWith('Z') ? iso : `${iso}Z`).toLocaleDateString(locale, { day: 'numeric', month: 'short' })
 
+/**
+ * Puts a mutation's answer into the group cache. A board GET that started before the mutation (for example the
+ * refetch when the settings sheet opens) would otherwise finish afterwards and write the old state back, such as
+ * a revoked invite code, so it is cancelled first.
+ */
+async function storeGroup(queryClient: QueryClient, next: LolGroup | null) {
+  await queryClient.cancelQueries({ queryKey: queryKeys.lolGroup })
+  queryClient.setQueryData(queryKeys.lolGroup, next)
+}
+
+const isAlreadyInGroup = (error: unknown): error is AppError =>
+  error instanceof AppError && error.kind === 'groupRule' && error.detail === 'ALREADY_IN_GROUP'
+
 /** The group half of the League tab: start or join a group, or the board everyone in it shares. */
 export function LolGroupView({ group }: { group: UseQueryResult<LolGroup | null> }) {
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [, setSearchParams] = useSearchParams()
   const [sheet, setSheet] = useState<OpenSheet>(null)
 
   if (group.isPending) return <WorkoutListSkeleton />
-  if (group.isError) return <ErrorState error={group.error} onRetry={() => group.refetch()} />
+  // A failed refetch keeps the last answer (null too, which means "not in a group"), and replacing that board
+  // would also close the open sheet and lose what was typed in it; only a first load that failed has nothing
+  if (group.isError && group.data === undefined) return <ErrorState error={group.error} onRetry={() => group.refetch()} />
 
   const data = group.data
   const me = data?.members.find((member) => member.you)
-  const setGroup = (next: LolGroup | null) => queryClient.setQueryData(queryKeys.lolGroup, next)
+  const setGroup = (next: LolGroup | null) => storeGroup(queryClient, next)
   const close = () => setSheet(null)
+  // Without ?view= the default follows the data, and with no group left that would be the follow list;
+  // pinning the group view shows the create or join state instead
+  const stayOnGroupView = () => setSearchParams({ view: 'group' }, { replace: true })
+
+  // The cache said "not in a group" but the server has one (say a create whose answer was lost on mobile data):
+  // show that group, instead of an error that asks to leave a group the view does not show
+  const showExistingGroup = (error: AppError) => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.lolGroup })
+    toast({ message: errorMessage(error) })
+    close()
+  }
 
   const link = async (riotId: string, platform: string) => {
     try {
-      setGroup(await api.linkLolAccount(riotId, platform))
+      await setGroup(await api.linkLolAccount(riotId, platform))
     } catch (error) {
-      // Removed from the group while the sheet was open: refetching shows that
-      if (error instanceof AppError && error.kind === 'notFound') void queryClient.invalidateQueries({ queryKey: queryKeys.lolGroup })
-      throw error
+      if (!(error instanceof AppError && error.kind === 'notFound')) throw error
+      // The 404 is either a Riot ID on the wrong server or the owner removing us while the sheet was open;
+      // only the group as it is now tells them apart. fetchQuery would join a board request that is already
+      // running (say the one opening the settings started), whose answer can predate the removal, so that
+      // one is cancelled and the check always comes from a request sent after the 404
+      await queryClient.cancelQueries({ queryKey: queryKeys.lolGroup })
+      const fresh = await queryClient.fetchQuery({ queryKey: queryKeys.lolGroup, queryFn: api.lolGroup, staleTime: 0 })
+      if (fresh?.members.some((member) => member.you)) throw error
+      // Returning normally closes the sheet; the fresh answer already took the board away
+      stayOnGroupView()
+      toast({ message: t.removedFromGroup })
     }
   }
 
@@ -57,8 +92,14 @@ export function LolGroupView({ group }: { group: UseQueryResult<LolGroup | null>
       {data ? (
         <GroupBoard
           group={data}
-          onLink={() => setSheet('link')}
+          onLink={() => {
+            stayOnGroupView()
+            setSheet('link')
+          }}
           onManage={() => {
+            // Pinned before anything can take the group away (leaving, or a removal noticed while linking), so
+            // the view never falls back to the follow list for a render and fetches it for nothing
+            stayOnGroupView()
             setSheet('manage')
             // Members may have joined or left since the board loaded; the leave warning names the next owner
             void group.refetch()
@@ -80,8 +121,9 @@ export function LolGroupView({ group }: { group: UseQueryResult<LolGroup | null>
       {sheet === 'create' && (
         <CreateGroupSheet
           onClose={close}
-          onCreated={(created) => {
-            setGroup(created)
+          onAlreadyInGroup={showExistingGroup}
+          onCreated={async (created) => {
+            await setGroup(created)
             setSheet('link')
           }}
         />
@@ -89,15 +131,17 @@ export function LolGroupView({ group }: { group: UseQueryResult<LolGroup | null>
       {sheet === 'join' && (
         <JoinGroupSheet
           onClose={close}
-          onJoined={(joined) => {
-            setGroup(joined)
+          onAlreadyInGroup={showExistingGroup}
+          onJoined={async (joined) => {
+            await setGroup(joined)
             // The join answer is built from the cache; the GET also refreshes stale players
             void queryClient.invalidateQueries({ queryKey: queryKeys.lolGroup })
             setSheet('link')
           }}
         />
       )}
-      {sheet === 'link' && (
+      {/* Linking only means something inside a group; a member removed meanwhile must not keep the sheet */}
+      {sheet === 'link' && data && (
         <RiotIdSheet
           title={t.linkAccountTitle}
           submitLabel={t.linkButton}
@@ -112,8 +156,7 @@ export function LolGroupView({ group }: { group: UseQueryResult<LolGroup | null>
           group={data}
           onClose={close}
           onChangeAccount={() => setSheet('link')}
-          // Stay on the group view, which now offers to create or join a group
-          onLeft={() => setSearchParams({ view: 'group' }, { replace: true })}
+          onLeft={stayOnGroupView}
         />
       )}
     </>
@@ -159,7 +202,8 @@ function GroupBoard({ group, onLink, onManage }: { group: LolGroup; onLink: () =
             </button>
           </div>
           {updated && <p className="muted lol-group-updated">{t.updatedAgo(updated.value, updated.unit)}</p>}
-          <button className="invite-chip" onClick={() => void share()} aria-label={t.shareInvite}>
+          {/* The label replaces the visible text for screen readers, so it must carry the code too */}
+          <button className="invite-chip" onClick={() => void share()} aria-label={`${t.shareInvite}: ${formatInviteCode(group.inviteCode)}`}>
             <small>{t.inviteCodeLabel}</small>
             <span className="invite-code">{formatInviteCode(group.inviteCode)}</span>
             <ShareIcon />
@@ -199,7 +243,11 @@ function GroupBoard({ group, onLink, onManage }: { group: LolGroup; onLink: () =
   )
 }
 
-function CreateGroupSheet({ onCreated, onClose }: { onCreated: (group: LolGroup) => void; onClose: () => void }) {
+function CreateGroupSheet({ onCreated, onAlreadyInGroup, onClose }: {
+  onCreated: (group: LolGroup) => Promise<void>
+  onAlreadyInGroup: (error: AppError) => void
+  onClose: () => void
+}) {
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -207,8 +255,9 @@ function CreateGroupSheet({ onCreated, onClose }: { onCreated: (group: LolGroup)
   const submit = async () => {
     setSaving(true)
     try {
-      onCreated(await api.createLolGroup(name.trim()))
+      await onCreated(await api.createLolGroup(name.trim()))
     } catch (e) {
+      if (isAlreadyInGroup(e)) return onAlreadyInGroup(e)
       setError(errorMessage(e))
       setSaving(false)
     }
@@ -237,7 +286,11 @@ function CreateGroupSheet({ onCreated, onClose }: { onCreated: (group: LolGroup)
   )
 }
 
-function JoinGroupSheet({ onJoined, onClose }: { onJoined: (group: LolGroup) => void; onClose: () => void }) {
+function JoinGroupSheet({ onJoined, onAlreadyInGroup, onClose }: {
+  onJoined: (group: LolGroup) => Promise<void>
+  onAlreadyInGroup: (error: AppError) => void
+  onClose: () => void
+}) {
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -247,8 +300,9 @@ function JoinGroupSheet({ onJoined, onClose }: { onJoined: (group: LolGroup) => 
     if (!code) return
     setSaving(true)
     try {
-      onJoined(await api.joinLolGroup(code))
+      await onJoined(await api.joinLolGroup(code))
     } catch (e) {
+      if (isAlreadyInGroup(e)) return onAlreadyInGroup(e)
       setError(e instanceof AppError && e.kind === 'notFound' ? t.inviteCodeNotFound : errorMessage(e))
       setSaving(false)
     }
@@ -309,7 +363,7 @@ function ManageGroupSheet({ group, onClose, onChangeAccount, onLeft }: {
   const [busy, setBusy] = useState(false)
   const me = group.members.find((member) => member.you)
   const isOwner = me?.owner === true
-  const setGroup = (next: LolGroup | null) => queryClient.setQueryData(queryKeys.lolGroup, next)
+  const setGroup = (next: LolGroup | null) => storeGroup(queryClient, next)
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true)
@@ -329,7 +383,7 @@ function ManageGroupSheet({ group, onClose, onChangeAccount, onLeft }: {
   const rotate = () => {
     if (!window.confirm(t.newInviteCodeConfirm)) return
     void run(async () => {
-      setGroup(await api.rotateLolInviteCode())
+      await setGroup(await api.rotateLolInviteCode())
       toast({ message: t.inviteCodeChanged })
     })
   }
@@ -350,7 +404,7 @@ function ManageGroupSheet({ group, onClose, onChangeAccount, onLeft }: {
     if (!window.confirm(`${t.leaveConfirmTitle}\n${consequence}`)) return
     void run(async () => {
       await api.leaveLolGroup()
-      setGroup(null)
+      await setGroup(null)
       onLeft()
       onClose()
       toast({ message: t.leftGroup })
@@ -366,7 +420,7 @@ function ManageGroupSheet({ group, onClose, onChangeAccount, onLeft }: {
             onSubmit={(event) => {
               event.preventDefault()
               void run(async () => {
-                setGroup(await api.renameLolGroup(name.trim()))
+                await setGroup(await api.renameLolGroup(name.trim()))
               })
             }}
           >
