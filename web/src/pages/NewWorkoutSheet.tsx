@@ -3,20 +3,23 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
-import type { Page, WorkoutSummary } from '../api/types'
+import type { Page, Routine, WorkoutSummary } from '../api/types'
 import { Sheet } from '../components/Sheet'
 import { useToast } from '../components/contexts'
 import { errorMessage, formatShortDate, toIsoDate } from '../lib/format'
 import { t } from '../lib/i18n'
+import { routineSummary } from '../lib/routineLogic'
 import { pickTemplates } from '../lib/workoutLogic'
+import { useStartRoutine } from './useStartRoutine'
 
-export function NewWorkoutSheet({ onClose }: { onClose: () => void }) {
+export function NewWorkoutSheet({ routines = [], onClose }: { routines?: Routine[]; onClose: () => void }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const toast = useToast()
   const [date, setDate] = useState(() => toIsoDate(new Date()))
   const [notes, setNotes] = useState('')
   const [busy, setBusy] = useState<'creating' | 'copying' | null>(null)
+  const routine = useStartRoutine(onClose)
 
   const cached = queryClient.getQueryData<InfiniteData<Page<WorkoutSummary>>>(queryKeys.workouts)
   const templates = pickTemplates(cached?.pages.flatMap((page) => page.content) ?? [])
@@ -46,6 +49,26 @@ export function NewWorkoutSheet({ onClose }: { onClose: () => void }) {
   return (
     <Sheet title={t.newWorkout} onClose={onClose}>
       <div className="stack">
+        {routines.length > 0 && (
+          <>
+            <h3 className="section-title" style={{ margin: 0 }}>
+              {t.startWithRoutine}
+            </h3>
+            {routines.map((r) => (
+              <button
+                key={r.id}
+                className="template-item routine-template"
+                onClick={() => routine.start(r, date)}
+                disabled={busy !== null || routine.startingId !== null}
+              >
+                <strong>{r.name}</strong>
+                <span className="muted" style={{ fontSize: 13 }}>
+                  {routine.startingId === r.id ? t.starting : routineSummary(r.exercises)}
+                </span>
+              </button>
+            ))}
+          </>
+        )}
         <div className="field">
           <label htmlFor="workout-date">{t.date}</label>
           <input id="workout-date" type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />

@@ -1212,6 +1212,12 @@
   scrollbar-width: none;
 }
 
+/* The row scrolls sideways instead of squeezing: a shrunk button would break its label over two lines */
+.chip-row > * {
+  flex: none;
+  white-space: nowrap;
+}
+
 .filter-chip {
   flex: none;
   height: 36px;
@@ -3833,3 +3839,447 @@ button.lol-record:active {
   font-weight: 700;
   text-align: right;
 }
+
+/* ---------- Routines and workout mode ---------- */
+
+/* "Routines" sits at the header's bottom-right, beside the short subtitle: an outlined tab with a lime strip on its left edge */
+.routines-btn {
+  position: absolute;
+  right: 4px;
+  bottom: 8px;
+  height: 32px;
+  padding: 0 12px 0 14px;
+  border: 1px solid var(--outline);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.routine-strip {
+  margin: 0 0 14px;
+}
+
+.routine-strip-title {
+  margin: 0 4px 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.routine-chips {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  /* room for the offset plate under each chip */
+  padding: 0 8px 8px 0;
+  scrollbar-width: none;
+}
+
+/* Each chip: a dark tile lifted off a lime plate offset to the bottom-right, like the date block */
+.routine-chip {
+  position: relative;
+  flex: none;
+  padding: 0 6px 6px 0;
+  text-align: left;
+}
+
+.routine-chip::before {
+  content: '';
+  position: absolute;
+  inset: 6px 0 0 6px;
+  border-radius: var(--radius-m);
+  background: var(--primary);
+}
+
+.routine-chip-front {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+  max-width: 200px;
+  padding: 10px 14px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-m);
+  background: var(--surface-highest);
+  transition: transform 0.2s var(--ease-spring);
+}
+
+.routine-chip-front strong {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.routine-chip-front small {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+/* Pressing pushes the tile down onto its plate */
+.routine-chip:active:not(:disabled) .routine-chip-front,
+.routine-chip.starting .routine-chip-front {
+  transform: translate(4px, 4px);
+}
+
+.routine-chip:disabled:not(.starting) {
+  opacity: 0.5;
+}
+
+.routine-template {
+  border: 1px solid var(--outline-variant);
+  border-left: 3px solid var(--primary);
+}
+
+/* "Routine" label straddling the summary card's top edge */
+.summary-card {
+  position: relative;
+}
+
+.summary-routine-tag {
+  position: absolute;
+  top: -10px;
+  right: 18px;
+  padding: 3px 10px;
+  border-radius: var(--radius-s);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  box-shadow: 3px 3px 0 var(--primary-container);
+}
+
+/* Plan cards: the progression tag hangs over the card's top-right corner */
+.plan-card {
+  position: relative;
+  overflow: visible;
+  margin-top: 10px;
+}
+
+.plan-card .exercise-rail {
+  border-radius: var(--radius-l) 0 0 var(--radius-l);
+}
+
+.plan-card.done {
+  opacity: 0.85;
+}
+
+.suggestion-tag {
+  position: absolute;
+  top: -10px;
+  right: 12px;
+  padding: 3px 9px;
+  border-radius: var(--radius-s);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.suggestion-tag.increase {
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: 3px 3px 0 var(--primary-container);
+}
+
+.suggestion-tag.same {
+  border: 1px solid var(--outline);
+  background: var(--surface-highest);
+  color: var(--text);
+}
+
+.suggestion-tag.first {
+  border: 1px solid var(--tertiary);
+  background: var(--surface);
+  color: var(--tertiary);
+}
+
+.plan-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: -2px 0 6px;
+  font-size: 12px;
+}
+
+.plan-progress {
+  color: var(--primary);
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+/* A planned row: dashed outline (not done yet), large tappable values and a big ✓ */
+.planned-row {
+  margin: 6px 0;
+  border: 1px dashed var(--outline);
+  border-radius: var(--radius-m);
+}
+
+.planned-row.open {
+  border-style: solid;
+  border-color: var(--primary);
+}
+
+.planned-row-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 8px;
+}
+
+.set-number.planned {
+  border: 1px dashed var(--outline);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.planned-value {
+  min-height: 44px;
+  padding: 0 6px;
+  border-radius: var(--radius-s);
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  white-space: nowrap;
+  border-bottom: 2px solid var(--outline-variant);
+}
+
+.planned-value:first-of-type {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.planned-value.reps {
+  color: var(--text-muted);
+}
+
+.planned-value.bodyweight {
+  color: var(--tertiary);
+  font-size: 20px;
+}
+
+.planned-value.empty {
+  color: var(--text-muted);
+  border-bottom-color: var(--primary);
+}
+
+.planned-value:active {
+  background: var(--surface-high);
+}
+
+/* ✓: lime square on a darker offset plate; pressing sinks it onto the plate */
+.tick-btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin: 0 3px 3px 0;
+  border-radius: var(--radius-m);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 26px;
+  font-weight: 900;
+  box-shadow: 3px 3px 0 var(--primary-container);
+  transition: transform 0.25s var(--ease-spring), box-shadow 0.25s var(--ease-spring);
+}
+
+.tick-btn:active:not(:disabled) {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 var(--primary-container);
+  transition-duration: 0.06s;
+}
+
+.tick-btn:disabled {
+  opacity: 0.6;
+}
+
+.planned-steppers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 4px 8px 10px;
+}
+
+.planned-error {
+  grid-column: 1 / -1;
+}
+
+.stepper.invalid {
+  box-shadow: 0 0 0 1px var(--error);
+}
+
+.field .stepper .stepper-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  font-family: var(--font-display);
+  font-size: 22px;
+}
+
+.planned-steppers .stepper button {
+  width: 40px;
+  margin: 0 3px;
+}
+
+/* ---------- Routines sheet ---------- */
+.routine-item {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--outline-variant);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+}
+
+.routine-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  text-align: left;
+}
+
+.routine-item-body strong {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.routine-item-summary {
+  color: var(--text-muted);
+  font-size: 13px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.routine-item-delete {
+  align-self: center;
+  margin-right: 4px;
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+.routine-exercises {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0 0 0 10px;
+  list-style: none;
+}
+
+/* Each exercise card with its number on a lime tab overlapping the left edge */
+.routine-exercise {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 10px 12px 22px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+}
+
+.routine-exercise-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.routine-exercise-index {
+  position: absolute;
+  left: -10px;
+  top: 10px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 28px;
+  border-radius: var(--radius-s);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  box-shadow: 2px 2px 0 var(--primary-container);
+}
+
+.routine-exercise-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.icon-btn.small {
+  width: 36px;
+  height: 36px;
+  font-size: 17px;
+}
+
+.icon-btn.small:disabled {
+  opacity: 0.3;
+}
+
+.icon-btn.danger {
+  color: var(--error);
+}
+
+.add-exercise-btn {
+  min-height: 48px;
+  border: 1px dashed var(--primary);
+  border-radius: var(--radius-m);
+  color: var(--primary);
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.add-exercise-btn.invalid {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.add-exercise-btn:disabled {
+  opacity: 0.4;
+}
+
+/* Machines and cable stations: a muted steel tone, so they read apart from the calisthenics badge */
+.badge-machine {
+  color: #b9c3cf;
+  background: color-mix(in srgb, #b9c3cf 14%, transparent);
+}
+

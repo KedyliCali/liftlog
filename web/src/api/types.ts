@@ -7,6 +7,8 @@ export interface Exercise {
   custom: boolean
   /** Calisthenics: the logged weight is the added load, and body weight counts in stats */
   bodyweight: boolean
+  /** BARBELL, DUMBBELL, MACHINE, CABLE or BODYWEIGHT for built-ins; null (or missing from older servers) for custom ones */
+  equipment?: 'BARBELL' | 'DUMBBELL' | 'MACHINE' | 'CABLE' | 'BODYWEIGHT' | null
 }
 
 export interface WorkoutSummary {
@@ -38,6 +40,47 @@ export interface WorkoutDetail {
   /** Includes body weight for bodyweight exercises, so the client cannot simply sum reps × weight */
   totalVolumeKg: number
   sets: WorkoutSet[]
+  /** Set when the workout was started from a routine (workout mode); older servers leave it out */
+  routineId?: number | null
+}
+
+export interface RoutineExercise {
+  exerciseId: number
+  name: string
+  bodyweight: boolean
+  sets: number
+  targetReps: number
+}
+
+/** A saved plan: exercises in order, each with a number of sets and the reps to aim for. */
+export interface Routine {
+  id: number
+  name: string
+  exercises: RoutineExercise[]
+}
+
+export interface RoutineInput {
+  name: string
+  exercises: { exerciseId: number; sets: number; targetReps: number }[]
+}
+
+export type ProgressionSuggestion = 'INCREASE' | 'SAME' | 'FIRST'
+
+/** One routine exercise inside a started workout: what is planned, what is logged, what to lift next. */
+export interface PlanItem {
+  exerciseId: number
+  name: string
+  bodyweight: boolean
+  plannedSets: number
+  loggedSets: number
+  targetReps: number
+  suggestedWeightKg: number | null
+  lastWeightKg: number | null
+  lastReps: number[]
+  suggestion: ProgressionSuggestion
+  increaseKg: number | null
+  /** Bodyweight exercises without added load progress by one rep instead of 2.5 kg */
+  suggestedReps?: number | null
 }
 
 export interface Page<T> {

@@ -39,6 +39,11 @@ public class Workout {
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    /** The routine this workout was started from; null for a free workout or once the routine is deleted. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "routine_id")
+    private Routine routine;
+
     @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("setOrder ASC")
     private List<WorkoutSet> sets = new ArrayList<>();
@@ -50,6 +55,11 @@ public class Workout {
         this.user = user;
         this.workoutDate = workoutDate;
         this.notes = notes;
+    }
+
+    public Workout(User user, LocalDate workoutDate, String notes, Routine routine) {
+        this(user, workoutDate, notes);
+        this.routine = routine;
     }
 
     public void addSet(WorkoutSet set) {
@@ -88,6 +98,10 @@ public class Workout {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public Routine getRoutine() {
+        return routine;
     }
 
     public LocalDateTime getCreatedAt() {

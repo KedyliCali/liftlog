@@ -1,9 +1,9 @@
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useViewTransitionState } from 'react-router'
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
-import type { WorkoutSummary } from '../api/types'
+import type { Routine, WorkoutSummary } from '../api/types'
 import { RecoveryNudge } from '../components/RecoveryNudge'
 import { WorkoutListSkeleton } from '../components/Skeletons'
 import { ErrorState, MessageState } from '../components/StateViews'
@@ -11,13 +11,19 @@ import { SwipeToDelete } from '../components/SwipeToDelete'
 import { useToast } from '../components/contexts'
 import { formatKg, monthShort, parseDate, weekdayShort } from '../lib/format'
 import { t } from '../lib/i18n'
+import { routineSummary } from '../lib/routineLogic'
 import { NewWorkoutSheet } from './NewWorkoutSheet'
+import { RoutinesSheet } from './RoutinesSheet'
+import { useStartRoutine } from './useStartRoutine'
 import { DumbbellIcon } from '../components/Icons'
 
 export function WorkoutsPage() {
   const queryClient = useQueryClient()
   const toast = useToast()
   const [creating, setCreating] = useState(false)
+  const [managingRoutines, setManagingRoutines] = useState(false)
+  // An older server has no routines endpoint: the error just hides the strip
+  const routines = useQuery({ queryKey: queryKeys.routines, queryFn: api.routines, retry: false })
   // Hidden while their undo window is open; the server delete happens when the toast expires
   const [pendingDelete, setPendingDelete] = useState<Set<number>>(new Set())
 
@@ -69,7 +75,14 @@ export function WorkoutsPage() {
       <header className="page-header">
         <h1 className="page-title">{t.workoutsTitle}</h1>
         <p className="page-subtitle">{t.workoutsSubtitle}</p>
+        {routines.isSuccess && (
+          <button className="routines-btn" onClick={() => setManagingRoutines(true)} data-testid="manage-routines">
+            {t.routines}
+          </button>
+        )}
       </header>
+
+      {routines.data && routines.data.length > 0 && <RoutineStrip routines={routines.data} />}
 
       {query.isPending ? (
         <WorkoutListSkeleton />
@@ -95,8 +108,35 @@ export function WorkoutsPage() {
       <button className="fab" onClick={() => setCreating(true)} data-testid="fab-new-workout">
         <span className="fab-plus">+</span> {t.newWorkout}
       </button>
-      {creating && <NewWorkoutSheet onClose={() => setCreating(false)} />}
+      {creating && <NewWorkoutSheet routines={routines.data ?? []} onClose={() => setCreating(false)} />}
+      {managingRoutines && <RoutinesSheet onClose={() => setManagingRoutines(false)} />}
     </div>
+  )
+}
+
+/** "Start a routine": one chip per routine, each a tile with a lime plate offset behind it. */
+function RoutineStrip({ routines }: { routines: Routine[] }) {
+  const { start, startingId } = useStartRoutine()
+  return (
+    <section className="routine-strip" aria-label={t.startWithRoutine}>
+      <h2 className="routine-strip-title">{t.startWithRoutine}</h2>
+      <div className="routine-chips">
+        {routines.map((routine) => (
+          <button
+            key={routine.id}
+            className={startingId === routine.id ? 'routine-chip starting' : 'routine-chip'}
+            onClick={() => start(routine)}
+            disabled={startingId !== null}
+            title={routineSummary(routine.exercises)}
+          >
+            <span className="routine-chip-front">
+              <strong>{routine.name}</strong>
+              <small>{startingId === routine.id ? t.starting : t.exercises(routine.exercises.length)}</small>
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   )
 }
 

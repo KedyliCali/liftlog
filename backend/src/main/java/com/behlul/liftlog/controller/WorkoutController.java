@@ -1,11 +1,13 @@
 package com.behlul.liftlog.controller;
 
 import com.behlul.liftlog.dto.PageResponse;
+import com.behlul.liftlog.dto.RoutineDtos.PlanItemResponse;
 import com.behlul.liftlog.dto.SetRequest;
 import com.behlul.liftlog.dto.SetResponse;
 import com.behlul.liftlog.dto.WorkoutDetailResponse;
 import com.behlul.liftlog.dto.WorkoutRequest;
 import com.behlul.liftlog.dto.WorkoutSummaryResponse;
+import com.behlul.liftlog.service.RoutineService;
 import com.behlul.liftlog.service.WorkoutService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -20,14 +22,18 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/workouts")
 public class WorkoutController {
 
     private final WorkoutService workoutService;
+    private final RoutineService routineService;
 
-    public WorkoutController(WorkoutService workoutService) {
+    public WorkoutController(WorkoutService workoutService, RoutineService routineService) {
         this.workoutService = workoutService;
+        this.routineService = routineService;
     }
 
     @GetMapping
@@ -56,6 +62,12 @@ public class WorkoutController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id) {
         workoutService.deleteWorkout(id);
+    }
+
+    /** Planned sets of a workout started from a routine; 404 for a workout without one. */
+    @GetMapping("/{id}/plan")
+    public List<PlanItemResponse> plan(@PathVariable Long id) {
+        return routineService.plan(id);
     }
 
     @PostMapping("/{id}/sets")

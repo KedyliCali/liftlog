@@ -15,8 +15,10 @@ import { useToast } from '../components/contexts'
 import { unlockAudio, vibrate } from '../lib/feedback'
 import { errorMessage, formatKg, formatLoad, formatLongDate } from '../lib/format'
 import { t } from '../lib/i18n'
-import { groupByExercise, visibleVolume } from '../lib/workoutLogic'
+import { ROUTINE_NAME_MAX } from '../lib/routineLogic'
+import { groupByExercise, visibleVolume, type ExerciseGroup } from '../lib/workoutLogic'
 import { SetEditorSheet, type SetEditorProps } from './SetEditorSheet'
+import { WorkoutMode } from './WorkoutMode'
 import { DumbbellIcon } from '../components/Icons'
 
 type Editor = { mode: 'add' } | { mode: 'edit'; set: WorkoutSet }
@@ -32,6 +34,7 @@ export function WorkoutDetailPage() {
   const [saving, setSaving] = useState(false)
   const [editingWorkout, setEditingWorkout] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [savingRoutine, setSavingRoutine] = useState(false)
   const [celebrate, setCelebrate] = useState(false)
   const [newSetId, setNewSetId] = useState<number | null>(null)
   // The API flags a record only in the add response, so this page remembers which sets earned one
@@ -43,9 +46,13 @@ export function WorkoutDetailPage() {
   // Sets do not carry the muscle group; the exercise catalog (shared with the picker) does
   const exercises = useQuery({ queryKey: queryKeys.exercises, queryFn: api.exercises, staleTime: 5 * 60_000 })
   const muscleOf = (exerciseId: number) => exercises.data?.find((e) => e.id === exerciseId)?.muscleGroup ?? null
+  // Workout mode: only a workout started from a routine has a plan (older servers never send routineId)
+  const routineId = query.data?.routineId ?? null
+  const plan = useQuery({ queryKey: queryKeys.workoutPlan(id), queryFn: () => api.workoutPlan(id), enabled: routineId != null })
 
   const refreshAll = async () => {
     await Promise.all([
+      // Also refetches the plan, whose key sits under the workout's
       queryClient.invalidateQueries({ queryKey: queryKeys.workout(id) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.workouts }),
       queryClient.invalidateQueries({ queryKey: queryKeys.stats }),
@@ -62,18 +69,7 @@ export function WorkoutDetailPage() {
         // If one fails, the sets already saved stay and the list is refreshed in `finally`.
         const saved: WorkoutSet[] = []
         for (let i = 0; i < count; i++) saved.push(await api.addSet(id, input))
-        const records = saved.filter((s) => s.newPersonalRecord)
-        setNewSetId(saved.at(-1)!.id)
-        restTimer.start()
-        if (records.length > 0) {
-          setRecordSetIds((ids) => new Set([...ids, ...records.map((s) => s.id)]))
-          setCelebrate(true)
-          vibrate([30, 40, 30, 40, 80])
-          setTimeout(() => setCelebrate(false), 1800)
-          toast({ message: t.newPr(records[0].exerciseName), durationMs: 4500 })
-        } else {
-          vibrate(20)
-        }
+        afterSetsAdded(saved)
       } else {
         await api.updateSet(editor.set.id, input)
       }
@@ -83,6 +79,34 @@ export function WorkoutDetailPage() {
     } finally {
       await refreshAll()
       setSaving(false)
+    }
+  }
+
+  /** Highlights the newest set, starts the rest timer and celebrates any personal record. */
+  const afterSetsAdded = (saved: WorkoutSet[]) => {
+    const records = saved.filter((s) => s.newPersonalRecord)
+    setNewSetId(saved.at(-1)!.id)
+    restTimer.start()
+    if (records.length > 0) {
+      setRecordSetIds((ids) => new Set([...ids, ...records.map((s) => s.id)]))
+      setCelebrate(true)
+      vibrate([30, 40, 30, 40, 80])
+      setTimeout(() => setCelebrate(false), 1800)
+      toast({ message: t.newPr(records[0].exerciseName), durationMs: 4500 })
+    } else {
+      vibrate(20)
+    }
+  }
+
+  /** Workout mode's ✓: the planned row is logged exactly as shown, in one request. */
+  const logPlannedSet = async (input: SetInput) => {
+    unlockAudio()
+    try {
+      afterSetsAdded([await api.addSet(id, input)])
+    } catch (error) {
+      toast({ message: errorMessage(error) })
+    } finally {
+      await refreshAll()
     }
   }
 
@@ -127,6 +151,39 @@ export function WorkoutDetailPage() {
   const preview = query.isPending ? cachedSummary(queryClient.getQueryData(queryKeys.workouts), id) : undefined
   const visibleSets = workout?.sets.filter((s) => !pendingDelete.has(s.id)) ?? []
 
+  const renderSet = (set: WorkoutSet, i: number, exerciseName: string) => (
+    <SwipeToDelete key={set.id} label={`${exerciseName} #${i + 1}`} onDelete={() => deleteSet(set)}>
+      <button className={set.id === newSetId ? 'set-row new' : 'set-row'} onClick={() => setEditor({ mode: 'edit', set })}>
+        <span className="set-number num">
+          #{i + 1}
+          {recordSetIds.has(set.id) && <span className="pr-badge">{t.prBadge}</span>}
+        </span>
+        <span className={set.bodyweight ? 'set-weight num bodyweight' : 'set-weight num'}>{formatLoad(set.weightKg, set.bodyweight)}</span>
+        <span className="set-reps num">× {set.reps}</span>
+        <span className="set-rpe">{set.rpe != null ? t.rpe(formatKg(set.rpe)) : ''}</span>
+        {set.id === newSetId && <SavedCheck />}
+      </button>
+    </SwipeToDelete>
+  )
+
+  const renderGroup = (group: ExerciseGroup, index: number) => (
+    <section
+      key={group.exerciseId}
+      className="exercise-group"
+      data-muscle={muscleOf(group.exerciseId) ?? undefined}
+      style={{ animationDelay: `${index * 40}ms` }}
+    >
+      <div className="exercise-rail" aria-hidden />
+      <div className="exercise-group-body">
+        <h3 className="exercise-group-title">
+          {group.exerciseName}
+          {muscleOf(group.exerciseId) && <span className="muscle-tag">{t.muscleGroups[muscleOf(group.exerciseId)!] ?? muscleOf(group.exerciseId)}</span>}
+        </h3>
+        {group.sets.map((set, i) => renderSet(set, i, group.exerciseName))}
+      </div>
+    </section>
+  )
+
   return (
     <div className="page">
       <div className="top-bar">
@@ -142,6 +199,7 @@ export function WorkoutDetailPage() {
             {menuOpen && (
               <div className="menu">
                 <button onClick={() => (setMenuOpen(false), setEditingWorkout(true))}>{t.editWorkout}</button>
+                {visibleSets.length > 0 && <button onClick={() => (setMenuOpen(false), setSavingRoutine(true))}>{t.saveAsRoutine}</button>}
                 <button className="danger" onClick={deleteWorkout}>
                   {t.deleteWorkout}
                 </button>
@@ -170,42 +228,14 @@ export function WorkoutDetailPage() {
             setCount={visibleSets.length}
             exerciseCount={new Set(visibleSets.map((s) => s.exerciseId)).size}
             volume={visibleVolume(workout!, pendingDelete, profile.data?.bodyWeightKg ?? null)}
+            fromRoutine={routineId != null}
           />
-          {visibleSets.length === 0 ? (
+          {plan.data && plan.data.length > 0 ? (
+            <WorkoutMode plan={plan.data} sets={visibleSets} muscleOf={muscleOf} renderSet={renderSet} renderExtra={renderGroup} onLog={logPlannedSet} />
+          ) : visibleSets.length === 0 ? (
             <MessageState icon={<DumbbellIcon size={32} />} title={t.detailEmptyTitle} body={t.detailEmptyBody} />
           ) : (
-            <div className="set-groups">
-              {groupByExercise(visibleSets).map((group, index) => (
-                <section
-                  key={group.exerciseId}
-                  className="exercise-group"
-                  data-muscle={muscleOf(group.exerciseId) ?? undefined}
-                  style={{ animationDelay: `${index * 40}ms` }}
-                >
-                  <div className="exercise-rail" aria-hidden />
-                  <div className="exercise-group-body">
-                    <h3 className="exercise-group-title">
-                      {group.exerciseName}
-                      {muscleOf(group.exerciseId) && <span className="muscle-tag">{t.muscleGroups[muscleOf(group.exerciseId)!] ?? muscleOf(group.exerciseId)}</span>}
-                    </h3>
-                    {group.sets.map((set, i) => (
-                      <SwipeToDelete key={set.id} label={`${group.exerciseName} #${i + 1}`} onDelete={() => deleteSet(set)}>
-                        <button className={set.id === newSetId ? 'set-row new' : 'set-row'} onClick={() => setEditor({ mode: 'edit', set })}>
-                          <span className="set-number num">
-                            #{i + 1}
-                            {recordSetIds.has(set.id) && <span className="pr-badge">{t.prBadge}</span>}
-                          </span>
-                          <span className={set.bodyweight ? 'set-weight num bodyweight' : 'set-weight num'}>{formatLoad(set.weightKg, set.bodyweight)}</span>
-                          <span className="set-reps num">× {set.reps}</span>
-                          <span className="set-rpe">{set.rpe != null ? t.rpe(formatKg(set.rpe)) : ''}</span>
-                          {set.id === newSetId && <SavedCheck />}
-                        </button>
-                      </SwipeToDelete>
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
+            <div className="set-groups">{groupByExercise(visibleSets).map(renderGroup)}</div>
           )}
           <button className="fab" onClick={() => setEditor({ mode: 'add' })} data-testid="fab-add-set">
             <span className="fab-plus">+</span> {t.addSet}
@@ -216,6 +246,7 @@ export function WorkoutDetailPage() {
       {editor && workout && (
         <SetEditorSheet {...editorProps(editor, visibleSets, saving)} onSave={saveSet} onDelete={editor.mode === 'edit' ? () => deleteSet(editor.set) : undefined} onClose={() => setEditor(null)} />
       )}
+      {savingRoutine && workout && <SaveAsRoutineSheet workout={workout} onClose={() => setSavingRoutine(false)} />}
       {editingWorkout && workout && <EditWorkoutSheet workout={workout} onClose={() => setEditingWorkout(false)} onSaved={refreshAll} />}
       {celebrate && <Confetti />}
     </div>
@@ -260,12 +291,14 @@ interface SummaryProps {
   setCount: number
   exerciseCount: number
   volume: number
+  fromRoutine?: boolean
 }
 
-function Summary({ date, notes, setCount, exerciseCount, volume }: SummaryProps) {
+function Summary({ date, notes, setCount, exerciseCount, volume, fromRoutine }: SummaryProps) {
   return (
     <div className="summary">
       <div className="summary-card" style={{ viewTransitionName: 'workout-hero' }}>
+        {fromRoutine && <span className="summary-routine-tag">{t.routineTag}</span>}
         <div className="summary-date">{formatLongDate(date)}</div>
         <h2 className="summary-title">{notes ?? t.untitledWorkout}</h2>
         <div className="summary-stats">
@@ -326,6 +359,57 @@ function EditWorkoutSheet({ workout, onClose, onSaved }: { workout: WorkoutDetai
           {saving ? <span className="spinner small" /> : t.save}
         </button>
       </div>
+    </Sheet>
+  )
+}
+
+/** Turns this workout into a routine: the server takes each exercise's set count and most common reps. */
+function SaveAsRoutineSheet({ workout, onClose }: { workout: WorkoutDetail; onClose: () => void }) {
+  const queryClient = useQueryClient()
+  const toast = useToast()
+  const [name, setName] = useState(() => (workout.notes ?? '').trim().slice(0, ROUTINE_NAME_MAX))
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    const trimmed = name.trim()
+    if (trimmed.length === 0 || trimmed.length > ROUTINE_NAME_MAX) {
+      setError(t.errorRoutineName)
+      return
+    }
+    setSaving(true)
+    try {
+      const routine = await api.routineFromWorkout(workout.id, trimmed)
+      await queryClient.invalidateQueries({ queryKey: queryKeys.routines })
+      toast({ message: t.routineSaved(routine.name) })
+      onClose()
+    } catch (e) {
+      setError(errorMessage(e))
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Sheet title={t.saveAsRoutine} onClose={onClose}>
+      <form
+        className="stack"
+        onSubmit={(event) => {
+          event.preventDefault()
+          void save()
+        }}
+      >
+        <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+          {t.saveAsRoutineBody}
+        </p>
+        <div className={error ? 'field invalid' : 'field'}>
+          <label htmlFor="routine-from-workout-name">{t.routineName}</label>
+          <input id="routine-from-workout-name" value={name} maxLength={ROUTINE_NAME_MAX} onChange={(e) => (setName(e.target.value), setError(null))} />
+          {error && <span className="field-error">{error}</span>}
+        </div>
+        <button type="submit" className="btn btn-primary btn-block" disabled={saving} data-testid="save-routine">
+          {saving ? <span className="spinner small" /> : t.save}
+        </button>
+      </form>
     </Sheet>
   )
 }

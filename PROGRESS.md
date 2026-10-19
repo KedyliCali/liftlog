@@ -306,3 +306,21 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
 - **Not:** passkey PR'ı (#19, V12/V13) önce birleşmeli; sonra bu dala main birleştirilip `endpoints.ts` import
   satırındaki küçük çakışma çözülecek.
 
+## 2026-10-19 — Daha kolay antrenman girişi (branch `feature/workout-flow`)
+
+- Behlül "antrenman girişi nasıl kolaylaşır" diye sordu; rutinler + tik atarak antrenman modu + ilerleme önerisi
+  seçildi. Ardından "makine seçenekleri yok" dedi: hareket listesine makine/kablo hareketleri eklendi.
+- **Backend:** V15 rutinler (`routines`, `routine_exercises`, `workouts.routine_id`), `/routines` CRUD, antrenmandan
+  rutin, rutinle başlatma, `GET /workouts/{id}/plan` (Progression: tüm setler hedefe ulaştıysa +2,5 kg, vücut
+  ağırlığında en düşük tekrar + 1, yoksa aynı ağırlık, ilk kez boş). V16 ekipman kolonu ve 46 yeni hareket.
+- **Web:** Antrenmanlar'da "Rutinle başla" şeridi ve Rutinler sayfası; rutinli antrenmanda hazır doldurulmuş
+  planlı setler, ± ayarlayıcılar, ✓ ile tek dokunuşta kayıt ve otomatik dinlenme sayacı; öneri etiketleri; "Rutin
+  olarak kaydet"; seçicide "Makine" filtresi. Rutin telefonun kendi tarihiyle başlıyor (sunucu UTC).
+- Doğrulama: backend 182 test, web 226 test, build. Yerel Docker ile tarayıcıda: antrenmandan rutin → şeritten başlat →
+  "↑ 2,5 kg" ve 62,5 kg × 8 hazır satırlar → ✓ ile set + rekor bildirimi + dinlenme sayacı; Makine filtresi.
+
+**Sıradaki adımlar:**
+1. PR'ları sırayla birleştir: #19 (passkey, V12/V13) → #20 (League, V14) → #21 (antrenman, V15/V16). Dallar üst üste
+   kurulu; her biri bir öncekini içeriyor.
+2. Canlıda kontrol: migration'lar, Face ID, League sayfası, rutinler.
+
