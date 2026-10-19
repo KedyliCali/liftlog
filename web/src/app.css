@@ -4283,3 +4283,382 @@ button.lol-record:active {
   background: color-mix(in srgb, #b9c3cf 14%, transparent);
 }
 
+
+/* ---------- Barcode scanner ---------- */
+
+/* Entry point in the food search: a lime edge strip and an offset plate behind, so it reads as a tool */
+.scan-entry {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 14px 10px 18px;
+  margin: 0 6px 6px 0;
+  border-radius: var(--radius-m);
+  background: var(--surface-high);
+  text-align: left;
+  isolation: isolate;
+  transition: transform 0.45s var(--ease-spring);
+}
+
+.scan-entry::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--primary-container);
+  transform: translate(6px, 6px);
+}
+
+.scan-entry::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 4px;
+  border-radius: 0 2px 2px 0;
+  background: var(--primary);
+}
+
+.scan-entry:active {
+  transform: translate(3px, 3px);
+  transition-duration: 0.08s;
+}
+
+.scan-entry-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-s);
+  background: var(--primary);
+  color: var(--on-primary);
+  transform: rotate(-4deg);
+}
+
+.scan-entry strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.scan-entry small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.scanner-stage {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  margin: 0 8px 8px 0;
+  border-radius: var(--radius-l);
+  background: #050506;
+  isolation: isolate;
+}
+
+/* Offset lime plate behind the viewfinder */
+.scanner-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--primary);
+  transform: translate(8px, 8px);
+}
+
+.scanner-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background: #050506;
+}
+
+.scanner-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+.scanner-stage.denied .scanner-video,
+.scanner-stage.unavailable .scanner-video {
+  visibility: hidden;
+}
+
+/* A wide, short window: 1D barcodes are wide, and a tight frame nudges the user to fill it */
+.scanner-frame {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 30%;
+  bottom: 30%;
+  box-shadow: 0 0 0 100vmax rgb(0 0 0 / 45%);
+  border-radius: var(--radius-m);
+}
+
+.scanner-frame .corner {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border: 0 solid var(--primary);
+}
+
+.scanner-frame .tl { left: -3px; top: -3px; border-width: 4px 0 0 4px; border-top-left-radius: 8px; }
+.scanner-frame .tr { right: -3px; top: -3px; border-width: 4px 4px 0 0; border-top-right-radius: 8px; }
+.scanner-frame .bl { left: -3px; bottom: -3px; border-width: 0 0 4px 4px; border-bottom-left-radius: 8px; }
+.scanner-frame .br { right: -3px; bottom: -3px; border-width: 0 4px 4px 0; border-bottom-right-radius: 8px; }
+
+.scanner-laser {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 50%;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--primary);
+  box-shadow: 0 0 12px var(--primary);
+  animation: scanner-sweep 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes scanner-sweep {
+  from { transform: translateY(-28px); }
+  to { transform: translateY(28px); }
+}
+
+/* Tag hanging over the top-left edge of the viewfinder */
+.scanner-tag {
+  position: absolute;
+  left: 12px;
+  top: -10px;
+  padding: 3px 10px;
+  border-radius: var(--radius-s);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  transform: rotate(-2deg);
+}
+
+.scanner-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.scanner-btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgb(10 10 11 / 70%);
+  color: #fff;
+  font-size: 18px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.scanner-btn.on {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.scanner-message {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 14px;
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-m);
+  background: var(--surface-highest);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.scanner-message[role='status'] {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.scanner-message span:not(.spinner) {
+  color: var(--text-muted);
+}
+
+.scanner-hint {
+  margin: 0;
+  font-size: 13px;
+  text-align: center;
+}
+
+.scanner-manual-row {
+  display: flex;
+  gap: 8px;
+}
+
+.scanner-manual-row input {
+  flex: 1;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+}
+
+/* Product looked up by barcode: name card with the code tag overlapping its corner */
+.scanned-product {
+  position: relative;
+  padding: 14px 14px 12px 18px;
+  margin: 8px 6px 4px 0;
+  border-radius: var(--radius-m);
+  background: var(--surface-high);
+  isolation: isolate;
+}
+
+.scanned-product::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--surface-highest);
+  transform: translate(6px, 6px);
+}
+
+.scanned-product::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 4px;
+  border-radius: 0 2px 2px 0;
+  background: var(--primary);
+}
+
+.scanned-product-code {
+  position: absolute;
+  right: 10px;
+  top: -10px;
+  padding: 2px 8px;
+  border-radius: var(--radius-s);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.lookup-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 0;
+  text-align: center;
+}
+
+.manual-notice {
+  position: relative;
+  margin: 4px 4px 4px 0;
+  padding: 10px 12px 10px 16px;
+  border-radius: var(--radius-m);
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 4px 4px 0 var(--surface-highest);
+}
+
+.manual-notice::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 4px;
+  border-radius: 0 2px 2px 0;
+  background: var(--primary);
+}
+
+/* ---------- Copy the previous day ---------- */
+.day-actions {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 4px;
+}
+
+.day-actions .menu {
+  top: 40px;
+}
+
+/* Call to action under the empty state: lime slab on an offset dark plate, with a "tag" over its edge */
+.copy-day-cta {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: min(100%, 320px);
+  margin: 4px 8px 8px 0;
+  padding: 14px 16px;
+  border-radius: var(--radius-m);
+  background: var(--primary);
+  color: var(--on-primary);
+  text-align: left;
+  box-shadow: 8px 8px 0 var(--primary-container);
+  transition: transform 0.45s var(--ease-spring), box-shadow 0.45s var(--ease-spring);
+}
+
+.copy-day-cta:active {
+  transform: translate(4px, 4px);
+  box-shadow: 4px 4px 0 var(--primary-container);
+  transition-duration: 0.08s;
+}
+
+.copy-day-cta:disabled {
+  opacity: 0.6;
+}
+
+.copy-day-cta strong {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.copy-day-cta small {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+.copy-day-cta-tag {
+  position: absolute;
+  right: 12px;
+  top: -10px;
+  padding: 2px 8px;
+  border-radius: var(--radius-s);
+  background: var(--surface-highest);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  transform: rotate(2deg);
+}
