@@ -5,6 +5,7 @@ import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { Profile } from '../api/types'
 import { Sheet } from '../components/Sheet'
+import { ExportCard } from '../components/ExportCard'
 import { BackupCard } from '../components/Passkey'
 import { RecoveryCodeCard } from '../components/RecoveryCard'
 import { ProfileSkeleton } from '../components/Skeletons'
@@ -134,6 +135,8 @@ export function ProfilePage() {
       ) : (
         <RecoveryCodeCard />
       )}
+
+      <ExportCard />
 
       <div className="info-card">
         <div className="info-row">

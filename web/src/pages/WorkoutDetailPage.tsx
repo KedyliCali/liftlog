@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { AppError } from '../api/client'
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { Page, SetInput, WorkoutDetail, WorkoutSet, WorkoutSummary } from '../api/types'
@@ -12,19 +13,26 @@ import { DetailSkeleton, SetListSkeleton } from '../components/Skeletons'
 import { ErrorState, MessageState } from '../components/StateViews'
 import { SwipeToDelete } from '../components/SwipeToDelete'
 import { useToast } from '../components/contexts'
+import { useFlushOutbox, useOutbox } from '../components/useOutbox'
 import { unlockAudio, vibrate } from '../lib/feedback'
 import { errorMessage, formatKg, formatLoad, formatLongDate } from '../lib/format'
 import { t } from '../lib/i18n'
 import { musclesOfSets } from '../lib/muscles'
 import { RecapMuscles } from '../components/MuscleMapCard'
 import { ROUTINE_NAME_MAX } from '../lib/routineLogic'
-import { groupByExercise, visibleVolume, type ExerciseGroup } from '../lib/workoutLogic'
+import { hasWaitingFor, maxSetOrder, outbox, overlaySets } from '../lib/outbox'
+import { effectiveLoad, groupByExercise, visibleVolume, type ExerciseGroup } from '../lib/workoutLogic'
 import { SetEditorSheet, type SetEditorProps } from './SetEditorSheet'
 import { WorkoutMode } from './WorkoutMode'
 import { WorkoutRecapSheet } from './WorkoutRecapSheet'
-import { CheckIcon, DumbbellIcon } from '../components/Icons'
+import { CheckIcon, CloudUploadIcon, DumbbellIcon } from '../components/Icons'
 
 type Editor = { mode: 'add' } | { mode: 'edit'; set: WorkoutSet }
+
+/** A new set either reached the server or is waiting on the phone under a negative local id. */
+type AddResult = { saved: WorkoutSet } | { queuedId: number }
+
+const isNetworkError = (error: unknown) => error instanceof AppError && error.kind === 'network'
 
 export function WorkoutDetailPage() {
   const id = Number(useParams().id)
@@ -53,6 +61,8 @@ export function WorkoutDetailPage() {
   // Workout mode: only a workout started from a routine has a plan (older servers never send routineId)
   const routineId = query.data?.routineId ?? null
   const plan = useQuery({ queryKey: queryKeys.workoutPlan(id), queryFn: () => api.workoutPlan(id), enabled: routineId != null })
+  const queue = useOutbox()
+  const flushOutbox = useFlushOutbox()
 
   const refreshAll = async () => {
     await Promise.all([
@@ -63,34 +73,93 @@ export function WorkoutDetailPage() {
     ])
   }
 
+  /** Name and bodyweight flag for a waiting row; the request body only carries the exercise id. */
+  const describeExercise = (exerciseId: number) => {
+    const known =
+      exercises.data?.find((e) => e.id === exerciseId) ??
+      plan.data?.find((p) => p.exerciseId === exerciseId) ??
+      query.data?.sets.find((s) => s.exerciseId === exerciseId)
+    return { exerciseName: known && 'exerciseName' in known ? known.exerciseName : (known?.name ?? ''), bodyweight: known?.bodyweight ?? false }
+  }
+
+  /**
+   * Posts a set, or keeps it on the phone when there is no connection. While sets of this workout
+   * are already waiting, a new one joins the queue instead of overtaking them (set order matters).
+   */
+  const addOrQueue = async (input: SetInput): Promise<AddResult> => {
+    const display = describeExercise(input.exerciseId)
+    if (hasWaitingFor(outbox.items(), id)) {
+      const queuedId = outbox.addCreate(id, input, display)
+      void flushOutbox()
+      return { queuedId }
+    }
+    // Where the server would put it, in case the request arrived but its answer was lost
+    const expectedSetOrder = maxSetOrder(queryClient.getQueryData<WorkoutDetail>(queryKeys.workout(id))?.sets ?? []) + 1
+    try {
+      return { saved: await api.addSet(id, input) }
+    } catch (error) {
+      if (!isNetworkError(error)) throw error
+      // With the phone offline the request never left; otherwise it may have arrived, so the
+      // flush checks the server before sending it again
+      return { queuedId: outbox.addCreate(id, input, display, navigator.onLine ? { expectedSetOrder } : undefined) }
+    }
+  }
+
+  /** Edits and deletes follow the same rule: a waiting set, or a workout with waiting changes, goes through the queue. */
+  const changeOrQueue = async (setId: number, input: SetInput | null) => {
+    const enqueue = () =>
+      input ? outbox.addUpdate(id, setId, input, describeExercise(input.exerciseId)) : outbox.addDelete(id, setId)
+    if (setId < 0 || hasWaitingFor(outbox.items(), id)) {
+      enqueue()
+      void flushOutbox()
+      return
+    }
+    try {
+      await (input ? api.updateSet(setId, input) : api.deleteSet(setId))
+    } catch (error) {
+      if (!isNetworkError(error)) throw error
+      enqueue()
+    }
+  }
+
   const saveSet = async (input: SetInput, count: number) => {
     if (!editor) return
     unlockAudio() // inside a tap, so iOS allows the rest timer's beep later
     setSaving(true)
+    let reachedServer = true
     try {
       if (editor.mode === 'add') {
         // One request per set, in order, so set numbers and the PR check match adding them by hand.
         // If one fails, the sets already saved stay and the list is refreshed in `finally`.
-        const saved: WorkoutSet[] = []
-        for (let i = 0; i < count; i++) saved.push(await api.addSet(id, input))
-        afterSetsAdded(saved)
+        const results: AddResult[] = []
+        for (let i = 0; i < count; i++) results.push(await addOrQueue(input))
+        reachedServer = afterSetsAdded(results)
       } else {
-        await api.updateSet(editor.set.id, input)
+        await changeOrQueue(editor.set.id, input)
       }
       setEditor(null)
     } catch (error) {
       toast({ message: errorMessage(error) })
     } finally {
-      await refreshAll()
+      // Offline a refetch would only fail (after retries); the overlay already shows the change
+      if (reachedServer) await refreshAll()
       setSaving(false)
     }
   }
 
-  /** Highlights the newest set, starts the rest timer and celebrates any personal record. */
-  const afterSetsAdded = (saved: WorkoutSet[]) => {
-    const records = saved.filter((s) => s.newPersonalRecord)
-    setNewSetId(saved.at(-1)!.id)
+  /**
+   * Highlights the newest set, starts the rest timer and celebrates any personal record.
+   * Returns false when every set is waiting on the phone, so there is nothing to refetch.
+   */
+  const afterSetsAdded = (results: AddResult[]): boolean => {
+    const saved = results.flatMap((r) => ('saved' in r ? [r.saved] : []))
+    const last = results.at(-1)!
+    setNewSetId('saved' in last ? last.saved.id : last.queuedId)
     restTimer.start()
+    const queued = results.length - saved.length
+    // Explained once, when the queue starts; after that the banner keeps the count
+    if (queued > 0 && outbox.items().length === queued) toast({ message: t.setSavedOffline, durationMs: 4500 })
+    const records = saved.filter((s) => s.newPersonalRecord)
     if (records.length > 0) {
       setRecordSetIds((ids) => new Set([...ids, ...records.map((s) => s.id)]))
       setCelebrate(true)
@@ -100,17 +169,19 @@ export function WorkoutDetailPage() {
     } else {
       vibrate(20)
     }
+    return saved.length > 0
   }
 
-  /** Workout mode's ✓: the planned row is logged exactly as shown, in one request. */
+  /** Workout mode's ✓: the planned row is logged exactly as shown, in one request (or queued offline). */
   const logPlannedSet = async (input: SetInput) => {
     unlockAudio()
+    let reachedServer = true
     try {
-      afterSetsAdded([await api.addSet(id, input)])
+      reachedServer = afterSetsAdded([await addOrQueue(input)])
     } catch (error) {
       toast({ message: errorMessage(error) })
     } finally {
-      await refreshAll()
+      if (reachedServer) await refreshAll()
     }
   }
 
@@ -130,8 +201,7 @@ export function WorkoutDetailPage() {
       durationMs: 5000,
       onAction: restore,
       onTimeout: () =>
-        api
-          .deleteSet(set.id)
+        changeOrQueue(set.id, null)
           .then(refreshAll)
           .catch((error) => toast({ message: errorMessage(error) }))
           .finally(restore),
@@ -153,22 +223,43 @@ export function WorkoutDetailPage() {
   const workout = query.data
   // The list already knows date, name and totals, so the hero card can render (and be morphed into) at once
   const preview = query.isPending ? cachedSummary(queryClient.getQueryData(queryKeys.workouts), id) : undefined
-  const visibleSets = workout?.sets.filter((s) => !pendingDelete.has(s.id)) ?? []
+  // The server's sets with the changes still waiting on this phone drawn on top
+  const overlaid = overlaySets(workout?.sets ?? [], queue, id)
+  const visibleSets = overlaid.sets.filter((s) => !pendingDelete.has(s.id))
+  const bodyWeightKg = profile.data?.bodyWeightKg ?? null
+  const volume = workout
+    ? visibleVolume(workout, new Set([...pendingDelete, ...overlaid.replacedServerIds]), bodyWeightKg) +
+      visibleSets.filter((s) => overlaid.pendingIds.has(s.id)).reduce((sum, s) => sum + s.reps * effectiveLoad(s, bodyWeightKg), 0)
+    : 0
 
-  const renderSet = (set: WorkoutSet, i: number, exerciseName: string) => (
-    <SwipeToDelete key={set.id} label={`${exerciseName} #${i + 1}`} onDelete={() => deleteSet(set)}>
-      <button className={set.id === newSetId ? 'set-row new' : 'set-row'} onClick={() => setEditor({ mode: 'edit', set })}>
-        <span className="set-number num">
-          #{i + 1}
-          {recordSetIds.has(set.id) && <span className="pr-badge">{t.prBadge}</span>}
-        </span>
-        <span className={set.bodyweight ? 'set-weight num bodyweight' : 'set-weight num'}>{formatLoad(set.weightKg, set.bodyweight)}</span>
-        <span className="set-reps num">× {set.reps}</span>
-        <span className="set-rpe">{set.rpe != null ? t.rpe(formatKg(set.rpe)) : ''}</span>
-        {set.id === newSetId && <SavedCheck />}
-      </button>
-    </SwipeToDelete>
-  )
+  const renderSet = (set: WorkoutSet, i: number, exerciseName: string) => {
+    const waiting = overlaid.pendingIds.has(set.id)
+    return (
+      <SwipeToDelete key={set.id} label={`${exerciseName} #${i + 1}`} onDelete={() => deleteSet(set)}>
+        <button
+          className={['set-row', set.id === newSetId && 'new', waiting && 'pending'].filter(Boolean).join(' ')}
+          onClick={() => setEditor({ mode: 'edit', set })}
+          data-testid={waiting ? 'pending-set' : 'saved-set'}
+        >
+          <span className="set-number num">
+            #{i + 1}
+            {recordSetIds.has(set.id) && <span className="pr-badge">{t.prBadge}</span>}
+          </span>
+          <span className={set.bodyweight ? 'set-weight num bodyweight' : 'set-weight num'}>{formatLoad(set.weightKg, set.bodyweight)}</span>
+          <span className="set-reps num">× {set.reps}</span>
+          <span className="set-rpe">{set.rpe != null ? t.rpe(formatKg(set.rpe)) : ''}</span>
+          {waiting ? (
+            <span className="pending-badge">
+              <CloudUploadIcon size={13} />
+              {t.waitingBadge}
+            </span>
+          ) : (
+            set.id === newSetId && <SavedCheck />
+          )}
+        </button>
+      </SwipeToDelete>
+    )
+  }
 
   const renderGroup = (group: ExerciseGroup, index: number) => (
     <section
@@ -223,16 +314,17 @@ export function WorkoutDetailPage() {
         ) : (
           <DetailSkeleton />
         )
-      ) : query.isError ? (
+      ) : !workout ? (
+        // A failed refetch keeps the loaded workout on screen (offline in the gym); only a first load shows the error
         <ErrorState error={query.error} onRetry={() => query.refetch()} />
       ) : (
         <>
           <Summary
-            date={workout!.workoutDate}
-            notes={workout!.notes}
+            date={workout.workoutDate}
+            notes={workout.notes}
             setCount={visibleSets.length}
             exerciseCount={new Set(visibleSets.map((s) => s.exerciseId)).size}
-            volume={visibleVolume(workout!, pendingDelete, profile.data?.bodyWeightKg ?? null)}
+            volume={volume}
             fromRoutine={routineId != null}
           />
           {plan.data && plan.data.length > 0 ? (
