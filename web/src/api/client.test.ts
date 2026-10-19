@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { LolGroup } from './types'
-import { AppError, request } from './client'
+import { AppError, configureAuth, request, requestFile } from './client'
 import { api } from './endpoints'
 
 function jsonResponse(status: number, body: unknown) {
@@ -48,5 +48,31 @@ describe('api.lolGroup', () => {
     const group: LolGroup = { name: 'Duo Queue', inviteCode: 'K7QXM2PFD9', maxMembers: 20, members: [] }
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(200, group)))
     await expect(api.lolGroup()).resolves.toEqual(group)
+  })
+})
+
+describe('requestFile', () => {
+  afterEach(() => configureAuth({ getToken: () => null, onUnauthorized: () => {} }))
+
+  it('sends the bearer token and returns the blob with the server-chosen name', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      new Response('\uFEFFTarih;Yemek\r\n', {
+        status: 200,
+        headers: { 'Content-Type': 'text/csv;charset=UTF-8', 'Content-Disposition': 'attachment; filename="liftlog-beslenme-2026-10-19.csv"' },
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+    configureAuth({ getToken: () => 'my-token', onUnauthorized: () => {} })
+
+    const file = await requestFile('/api/v1/export/nutrition.csv')
+
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/api\/v1\/export\/nutrition\.csv$/)
+    expect((fetchMock.mock.calls[0][1]!.headers as Record<string, string>).Authorization).toBe('Bearer my-token')
+    expect(file.filename).toBe('liftlog-beslenme-2026-10-19.csv')
+    expect(file.blob.type).toBe('text/csv;charset=utf-8')
+  })
+
+  it('fails with the usual error kinds', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(500, { status: 500 })))
+    await expect(requestFile('/api/v1/export/all.zip')).rejects.toMatchObject({ kind: 'server' })
   })
 })
