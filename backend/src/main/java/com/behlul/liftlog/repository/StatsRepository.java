@@ -33,6 +33,30 @@ public interface StatsRepository extends Repository<WorkoutSet, Long> {
             """)
     List<SetFact> findFactsForExercise(@Param("userId") Long userId, @Param("exerciseId") Long exerciseId);
 
+    /** Every set of the given exercises on the user's timeline: by date, then workout (creation order), then set. */
+    @Query("""
+            select new com.behlul.liftlog.repository.TimelineSet(
+                w.id, w.workoutDate, s.setOrder, e.id, e.name, s.reps,
+                s.weightKg + case when e.bodyweight = true then coalesce(u.bodyWeightKg, 0) else 0 end)
+            from WorkoutSet s join s.workout w join w.user u join s.exercise e
+            where u.id = :userId and e.id in :exerciseIds
+            order by w.workoutDate, w.id, s.setOrder
+            """)
+    List<TimelineSet> findTimeline(@Param("userId") Long userId,
+                                   @Param("exerciseIds") java.util.Collection<Long> exerciseIds);
+
+    /** Per workout and exercise: set count and volume, for every workout of the user that has sets. */
+    @Query("""
+            select new com.behlul.liftlog.repository.WorkoutExerciseVolume(
+                w.id, w.workoutDate, r.id, e.id, count(s.id),
+                sum(s.reps * (s.weightKg + case when e.bodyweight = true then coalesce(u.bodyWeightKg, 0) else 0 end)))
+            from WorkoutSet s join s.workout w join w.user u join s.exercise e left join w.routine r
+            where u.id = :userId
+            group by w.id, w.workoutDate, r.id, e.id
+            order by w.workoutDate, w.id
+            """)
+    List<WorkoutExerciseVolume> findWorkoutExerciseVolumes(@Param("userId") Long userId);
+
     /** Dates of all the user's workouts, one entry per workout (empty workouts included). */
     @Query("select w.workoutDate from Workout w where w.user.id = :userId")
     List<LocalDate> findWorkoutDates(@Param("userId") Long userId);
