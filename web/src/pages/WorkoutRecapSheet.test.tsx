@@ -119,6 +119,37 @@ describe('workout recap sheet', () => {
     expect(sheet.queryByRole('img', { name: /./ })).not.toBeInTheDocument()
   })
 
+  it("draws this workout's muscles front and back with single-workout bands", async () => {
+    server({
+      summary: {
+        ...recap,
+        muscles: [
+          { muscle: 'QUADS', sets: 5 },
+          { muscle: 'ADDUCTORS', sets: 1 },
+          { muscle: 'CHEST', sets: 3 },
+          { muscle: 'GLUTES', sets: 1.5 },
+        ],
+      },
+    })
+    const sheet = await openRecap(renderDetail())
+
+    const map = within(await sheet.findByTestId('recap-muscles'))
+    expect(map.getByRole('group', { name: t.muscleMapFigure('front') })).toBeInTheDocument()
+    expect(map.getByRole('group', { name: t.muscleMapFigure('back') })).toBeInTheDocument()
+    expect(map.getByRole('img', { name: t.muscleAria(t.muscleNames.QUADS, t.muscleSets('6')) })).toHaveAttribute('data-band', 'high')
+    expect(map.getByRole('img', { name: new RegExp(t.muscleNames.CHEST) })).toHaveAttribute('data-band', 'mid')
+    expect(map.getByRole('img', { name: new RegExp(t.muscleNames.GLUTES) })).toHaveAttribute('data-band', 'low')
+    // Only for looking: the summary map is not tappable
+    expect(map.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('leaves the map out when the server sends no muscles', async () => {
+    server({ summary: { ...recap, muscles: [] } })
+    const sheet = await openRecap(renderDetail())
+    expect(await sheet.findByTestId('recap-delta')).toBeInTheDocument()
+    expect(sheet.queryByTestId('recap-muscles')).not.toBeInTheDocument()
+  })
+
   it('hides the finish button while the workout has no sets', async () => {
     server({ detail: { ...workout, sets: [], totalVolumeKg: 0 } })
     renderDetail()
