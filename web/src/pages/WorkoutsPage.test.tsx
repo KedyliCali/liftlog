@@ -4,10 +4,12 @@ import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider, useParams } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Exercise, Routine } from '../api/types'
+import { ConfirmProvider } from '../components/Confirm'
 import { ToastContext, type ToastOptions } from '../components/contexts'
 import { t } from '../lib/i18n'
 import { todayIso } from '../lib/nutrition'
 import { fakeServer, jsonResponse } from '../test/fakeServer'
+import { swipeRowLeft } from '../test/swipe'
 import { WorkoutsPage } from './WorkoutsPage'
 
 const push: Routine = {
@@ -37,7 +39,9 @@ function renderWorkouts(toast: (o: ToastOptions) => void = () => {}) {
   render(
     <QueryClientProvider client={client}>
       <ToastContext.Provider value={toast}>
-        <RouterProvider router={router} />
+        <ConfirmProvider>
+          <RouterProvider router={router} />
+        </ConfirmProvider>
       </ToastContext.Provider>
     </QueryClientProvider>,
   )
@@ -255,5 +259,45 @@ describe('weekly streak chip', () => {
     renderWorkouts()
     expect(await screen.findByText(t.workoutsEmptyTitle)).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('img', { name: /./ })).not.toBeInTheDocument())
+  })
+})
+
+describe('swipe to delete a workout', () => {
+  const legDay = { id: 7, workoutDate: '2026-10-18', notes: 'Leg day', setCount: 4, exerciseCount: 2, totalVolumeKg: 1200 }
+  const onePage = { ...emptyPage, content: [legDay], totalElements: 1, totalPages: 1 }
+
+  it('asks first; Cancel keeps the workout and never calls the server', async () => {
+    const toast = vi.fn()
+    const calls = fakeServer({
+      'GET /api/v1/workouts': () => jsonResponse(200, onePage),
+      'GET /api/v1/routines': () => jsonResponse(200, []),
+    })
+    const user = renderWorkouts(toast)
+
+    await swipeRowLeft('Leg day')
+    expect(await screen.findByRole('alertdialog', { name: t.confirmDeleteTitle })).toHaveTextContent('Leg day')
+    await user.click(screen.getByRole('button', { name: t.cancel }))
+
+    expect(screen.getByLabelText('Leg day')).toBeInTheDocument()
+    expect(toast).not.toHaveBeenCalled()
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
+  })
+
+  it('deletes after the confirm, still behind the undo toast', async () => {
+    const toast = vi.fn()
+    const calls = fakeServer({
+      'GET /api/v1/workouts': () => jsonResponse(200, onePage),
+      'GET /api/v1/routines': () => jsonResponse(200, []),
+      'DELETE /api/v1/workouts/7': () => new Response(null, { status: 204 }),
+    })
+    const user = renderWorkouts(toast)
+
+    await swipeRowLeft('Leg day')
+    await user.click(await screen.findByRole('button', { name: t.delete }))
+
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ message: t.workoutDeleted, actionLabel: t.undo })))
+    expect(screen.queryByLabelText('Leg day')).toBeNull()
+    toast.mock.calls[0][0].onTimeout()
+    await waitFor(() => expect(calls).toContainEqual({ method: 'DELETE', path: '/api/v1/workouts/7', body: undefined }))
   })
 })

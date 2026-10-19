@@ -9,7 +9,7 @@ import { WorkoutListSkeleton } from '../components/Skeletons'
 import { ErrorState, MessageState } from '../components/StateViews'
 import { StreakChip } from '../components/StreakChip'
 import { SwipeToDelete } from '../components/SwipeToDelete'
-import { useToast } from '../components/contexts'
+import { useConfirm, useToast } from '../components/contexts'
 import { formatKg, monthShort, parseDate, weekdayShort } from '../lib/format'
 import { t } from '../lib/i18n'
 import { routineSummary } from '../lib/routineLogic'
@@ -23,6 +23,7 @@ import { DumbbellIcon } from '../components/Icons'
 export function WorkoutsPage() {
   const queryClient = useQueryClient()
   const toast = useToast()
+  const confirm = useConfirm()
   const [creating, setCreating] = useState(false)
   const [managingRoutines, setManagingRoutines] = useState(false)
   // A template tapped in the empty strip opens the Routines sheet on its preview
@@ -105,7 +106,12 @@ export function WorkoutsPage() {
           <RecoveryNudge />
           <div className="workout-list">
             {workouts.map((workout, index) => (
-              <SwipeToDelete key={workout.id} label={workout.notes ?? t.untitledWorkout} onDelete={() => removeWorkout(workout)}>
+              <SwipeToDelete
+                key={workout.id}
+                label={workout.notes ?? t.untitledWorkout}
+                confirm={() => confirm({ item: workout.notes ?? t.untitledWorkout, message: t.deleteWorkoutConsequence })}
+                onDelete={() => removeWorkout(workout)}
+              >
                 <WorkoutCard workout={workout} index={index} />
               </SwipeToDelete>
             ))}

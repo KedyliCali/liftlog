@@ -2,11 +2,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
-import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LolGroup, LolGroupMember, LolPlayer } from '../api/types'
+import { ConfirmProvider } from '../components/Confirm'
 import { ToastContext, type ToastOptions } from '../components/contexts'
 import { t } from '../lib/i18n'
 import { inviteMessage } from '../lib/lolGroup'
+import { swipeRowLeft } from '../test/swipe'
 import { GamePage } from './GamePage'
 
 function jsonResponse(status: number, body: unknown) {
@@ -45,7 +47,9 @@ function renderGame(path: string, toast: (options: ToastOptions) => void = () =>
   render(
     <QueryClientProvider client={client}>
       <ToastContext.Provider value={toast}>
-        <RouterProvider router={router} />
+        <ConfirmProvider>
+          <RouterProvider router={router} />
+        </ConfirmProvider>
       </ToastContext.Provider>
     </QueryClientProvider>,
   )
@@ -381,6 +385,23 @@ describe('League tab', () => {
     expect(toast).toHaveBeenCalledWith({ message: t.groupRules.ALREADY_IN_GROUP })
   })
 
+  it('asks before unfollowing; Cancel keeps the player and never calls the server', async () => {
+    const toast = vi.fn()
+    const calls = fakeServer({
+      'GET /api/v1/lol/group': () => jsonResponse(204, undefined),
+      'GET /api/v1/lol/players': () => jsonResponse(200, [player('swiped', 'GOLD')]),
+    })
+    const user = renderGame('/game?view=following', toast)
+
+    await swipeRowLeft('swiped')
+    expect(await screen.findByRole('alertdialog', { name: t.lolUnfollowTitle })).toHaveTextContent('swiped#TR1')
+    await user.click(screen.getByRole('button', { name: t.cancel }))
+
+    expect(screen.getByLabelText('swiped')).toBeInTheDocument()
+    expect(toast).not.toHaveBeenCalled()
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
+  })
+
   it('keeps a swiped-away player hidden during the undo window, even after switching views and back', async () => {
     // The spy never times out, so the undo window stays open for the whole test
     const toast = vi.fn()
@@ -511,16 +532,9 @@ describe('League group table', () => {
   })
 })
 
-/** Drags a follow-list row to the left far enough to unfollow, as a finger would. */
+/** Drags a follow-list row to the left far enough to unfollow and confirms, as a finger would. */
 async function swipeAway(label: string) {
-  // jsdom has no pointer capture, which the row asks for once a drag turns horizontal
-  Element.prototype.setPointerCapture = () => {}
-  onTestFinished(() => {
-    delete (Element.prototype as Partial<Element>).setPointerCapture
-  })
-  const row = await screen.findByLabelText(label)
-  fireEvent.pointerDown(row, { clientX: 300, clientY: 10 })
-  fireEvent.pointerMove(row, { clientX: 100, clientY: 10 })
-  fireEvent.pointerUp(row)
+  await swipeRowLeft(label)
+  fireEvent.click(await screen.findByRole('button', { name: t.lolUnfollowAction }))
   await waitFor(() => expect(screen.queryByLabelText(label)).toBeNull())
 }
