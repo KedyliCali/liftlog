@@ -163,6 +163,15 @@ export function ChevronIcon({ size = 18 }: { size?: number }) {
   )
 }
 
+export function DownloadIcon({ size = 18 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M12 3v12M8 11l4 4 4-4" />
+      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+    </Icon>
+  )
+}
+
 export function ShareIcon({ size = 18 }: { size?: number }) {
   return (
     <Icon size={size}>
@@ -190,6 +199,26 @@ export function StreakIcon({ size = 18 }: { size?: number }) {
     <Icon size={size}>
       <path d="M12 3c.8 3.4 5 5.6 5 10.2A5 5 0 0 1 12 18.5a5 5 0 0 1-5-5.3c0-2.4 1.3-3.9 2.6-5 .2 1.7 1 2.7 2.2 3-.6-2.8-.4-5.6.2-8.2z" />
       <path d="M12 18.5c-1.2 0-2-.9-2-2 0-1.2.9-1.9 2-3 1.1 1.1 2 1.8 2 3 0 1.1-.8 2-2 2z" />
+    </Icon>
+  )
+}
+
+/** Cloud with an arrow up: a change waiting to be sent */
+export function CloudUploadIcon({ size }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5a4 4 0 0 1-1 7.9" />
+      <path d="M12 20v-7M9 15.5l3-3 3 3" />
+    </Icon>
+  )
+}
+
+/** Crossed-out cloud: no connection */
+export function CloudOffIcon({ size }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M8 8.3a6 6 0 0 0-1.6.74A4.5 4.5 0 0 0 7 18h10M18 9.5a6 6 0 0 0-7.5-4.3M18 9.5a4 4 0 0 1 2.6 6.7" />
+      <path d="M3 3l18 18" />
     </Icon>
   )
 }

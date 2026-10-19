@@ -14,6 +14,9 @@ export const queryKeys = {
   groupTraining: (days: number, today: string) => ['stats', 'group-training', days, today] as const,
   groupTrainingAll: ['stats', 'group-training'] as const,
   profile: ['profile'] as const,
+  weight: ['weight'] as const,
+  // Under weight, so saving an entry refreshes every range at once
+  weightHistory: (days: number) => ['weight', days] as const,
   passkeys: ['passkeys'] as const,
   nutrition: ['nutrition'] as const,
   nutritionDay: (date: string) => ['nutrition', 'day', date] as const,

@@ -2779,6 +2779,164 @@ body:has(.rest-timer) .set-groups {
   font-size: 14px;
 }
 
+/* ---------- Data export ---------- */
+/* Card on an offset plate with a tag over its top edge; each format chip overlaps its tile's corner */
+.export-card {
+  position: relative;
+  margin: 10px 8px 22px 0;
+  padding: 18px 16px 16px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: 8px 8px 0 var(--surface-high);
+}
+
+.export-tag {
+  position: absolute;
+  top: -10px;
+  right: 14px;
+  padding: 2px 8px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-s);
+  background: var(--bg);
+  color: var(--primary);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.export-text {
+  margin: 10px 0 0;
+  font-size: 13px;
+}
+
+.export-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 10px;
+  margin-top: 18px;
+}
+
+.export-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 2px;
+  min-height: 64px;
+  padding: 12px;
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-l);
+  background: var(--surface-high);
+  color: var(--text);
+  text-align: left;
+  transition: transform 120ms var(--ease-out), box-shadow 120ms var(--ease-out);
+}
+
+.export-tile strong {
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.export-tile small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.export-tile:active:not(:disabled) {
+  transform: translate(2px, 2px);
+}
+
+.export-tile:disabled {
+  opacity: 0.6;
+}
+
+/* The ZIP tile spans the row in lime, lifted off a darker plate */
+.export-tile.all {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: 4px 4px 0 var(--primary-container);
+}
+
+.export-tile.all small {
+  color: var(--on-primary);
+  opacity: 0.75;
+}
+
+.export-tile.all:active:not(:disabled) {
+  box-shadow: 2px 2px 0 var(--primary-container);
+}
+
+.export-format {
+  position: absolute;
+  top: -8px;
+  right: 10px;
+  padding: 1px 6px;
+  border-radius: var(--radius-s);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.export-tile.all .export-format {
+  background: var(--on-primary);
+  color: var(--primary);
+}
+
+.export-tile-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-m);
+  background: var(--on-primary);
+  color: var(--primary);
+}
+
+.export-tile .spinner.small {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.export-ready {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-m);
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  font-size: 13px;
+}
+
+.export-ready span {
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+}
+
+.export-ready .btn {
+  flex: none;
+}
+
 /* ---------- Passkey backup ---------- */
 /* Card on an offset plate with a lime strip down its left edge and a "Passkey" tag overlapping the top */
 .backup-card {
@@ -5598,6 +5756,384 @@ body:has(.rest-timer) .finish-btn {
   -webkit-touch-callout: none;
 }
 
+/* ---------- Offline: sync banner and waiting sets ---------- */
+
+/* Banner: a lime icon tile overlapping a dark card that has a second card peeking out behind it,
+   so the queue reads as "stacked up, waiting" */
+.sync-status {
+  position: sticky;
+  top: calc(var(--safe-top) + 8px);
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  margin: 8px 20px 4px 16px;
+  animation: sync-status-in 0.25s var(--ease-out);
+}
+
+@keyframes sync-status-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+.sync-status-tile {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  margin-right: -10px;
+  border-radius: var(--radius-m);
+  background: var(--primary);
+  color: var(--on-primary);
+  transform: rotate(-4deg);
+  box-shadow: 3px 3px 0 var(--primary-container);
+}
+
+.sync-status-card {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  padding: 8px 12px 8px 20px;
+  border: 1px solid var(--outline);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-m);
+  background: var(--surface-highest);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* The second card of the stack, offset down-right behind the first */
+.sync-status-card::before {
+  content: '';
+  position: absolute;
+  inset: 4px -5px -5px 4px;
+  z-index: -1;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+}
+
+.sync-status-title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.sync-status-count {
+  color: var(--text-muted);
+}
+
+/* Offline: the tile turns hollow, the signal is gone */
+.sync-status.offline .sync-status-tile {
+  background: var(--surface-high);
+  color: var(--primary);
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+/* A waiting set: dashed number chip and a small cloud badge; the row stays tappable */
+.set-row.pending .set-number {
+  outline: 1px dashed var(--primary);
+  outline-offset: -1px;
+  background: transparent;
+}
+
+.pending-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px 2px 5px;
+  border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
+  border-radius: 999px;
+  background: var(--primary-container);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* New workout sheet while offline: a lime-edged note with its icon */
+.new-workout-offline {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--outline);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-m);
+  background: var(--surface-high);
+  font-size: 14px;
+}
+
+.new-workout-offline svg {
+  flex: none;
+  color: var(--primary);
+}
+
+/* ---------- Weight log ---------- */
+/* Card with the signal rule on top and an offset plate behind its lower right, like a stacked weight plate */
+.weight-card {
+  position: relative;
+  padding: 20px;
+  margin: 0 6px 22px 0;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: 6px 6px 0 var(--surface-low), 6px 6px 0 1px var(--outline-variant);
+  scroll-margin-top: 16px;
+}
+
+.weight-card::before {
+  content: '';
+  display: block;
+  width: 28px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--primary);
+  margin-bottom: 10px;
+}
+
+.weight-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.weight-head h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.weight-head p {
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+
+/* Lime slab on a darker offset plate, with the date tag hanging over its top edge */
+.weight-latest {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  margin-top: 4px;
+  padding: 14px 14px 6px;
+  border-radius: var(--radius-m);
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: 4px 4px 0 var(--primary-container);
+}
+
+.weight-latest strong {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.weight-latest small {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.weight-latest-tag {
+  position: absolute;
+  top: -9px;
+  left: -6px;
+  padding: 1px 6px;
+  border: 1px solid var(--primary);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.weight-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 4px;
+}
+
+/* Direction is shown by the edge color only: down and up are neither good nor bad without a goal */
+.weight-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border-left: 3px solid var(--outline);
+  border-radius: var(--radius-s);
+  background: var(--surface-high);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.weight-chip.down {
+  border-left-color: var(--tertiary);
+}
+
+.weight-chip.up {
+  border-left-color: var(--primary);
+}
+
+.weight-chip.average {
+  border: 1px dashed var(--outline);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.weight-entry {
+  margin-top: 14px;
+}
+
+/* Coarse ±0.5 steps sit outside the fine ±0.1 ones, lighter, so the common tap is the bigger target */
+.weight-stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 60px;
+  padding: 0 4px;
+  border-radius: var(--radius-m);
+  background: var(--surface-highest);
+  box-shadow: 0 3px 0 var(--primary-container);
+}
+
+.weight-stepper.invalid {
+  outline: 2px solid var(--error);
+}
+
+.weight-step {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius-m);
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+  font-size: 15px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  transition: transform 0.45s var(--ease-spring);
+}
+
+.weight-step.coarse {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--outline);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.weight-step:active {
+  transform: scale(0.88);
+  transition-duration: 0.08s;
+}
+
+.weight-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.weight-input:focus {
+  outline: none;
+}
+
+.weight-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 18px;
+}
+
+.weight-actions .btn {
+  flex: none;
+}
+
+.weight-ranges {
+  margin-bottom: 12px;
+}
+
+.weight-chart {
+  height: 220px;
+}
+
+.weight-note {
+  margin: 0;
+  padding: 16px 0 4px;
+  font-size: 14px;
+}
+
+/* Nutrition header: current weight as a tag; the lime label overlaps its left edge */
+.weight-link-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-top: 12px;
+  padding: 3px 10px 3px 3px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-s);
+  background: var(--surface-high);
+  color: var(--text);
+  text-decoration: none;
+  box-shadow: 0 3px 0 var(--primary-container);
+  transition: transform 0.12s;
+}
+
+.weight-link-chip:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--primary-container);
+}
+
+.weight-link-chip-tag {
+  align-self: center;
+  margin-left: -7px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.weight-link-chip strong {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.weight-link-chip small {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
 
 /* ---------- Group training comparison ---------- */
 /* League / Training switch under the group card: a track on an offset plate, the chosen half a lime block */

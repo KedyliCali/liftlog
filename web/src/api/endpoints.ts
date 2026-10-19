@@ -1,6 +1,6 @@
 import type { CreationOptionsJson, CredentialJson, RequestOptionsJson } from '../lib/webauthn'
-import { request } from './client'
-import type { AuthResponse, GroupTraining, LolGroup, LolPlayer, LolPlayerDetail, LolRankPoint, CatalogFood, MuscleStats, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, Passkey, PasskeyCeremony, PersonalRecord, PlanItem, Profile, ProgressPoint, Routine, RoutineInput, SetInput, Streak, WeeklyVolume, WorkoutDetail, WorkoutRecap, WorkoutSet, WorkoutSummary } from './types'
+import { request, requestFile } from './client'
+import type { AuthResponse, GroupTraining, LolGroup, LolPlayer, LolPlayerDetail, LolRankPoint, CatalogFood, MuscleStats, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, Passkey, PasskeyCeremony, PersonalRecord, PlanItem, Profile, ProgressPoint, Routine, RoutineInput, SetInput, Streak, WeeklyVolume, WeightEntry, WeightHistory, WorkoutDetail, WorkoutRecap, WorkoutSet, WorkoutSummary } from './types'
 
 export const api = {
   register: (email: string, password: string) =>
@@ -105,4 +105,13 @@ export const api = {
   uploadAvatar: (jpeg: Blob) => request<Profile>('/api/v1/profile/avatar', { method: 'PUT', blob: jpeg }),
   avatar: () => request<Blob>('/api/v1/profile/avatar', { responseType: 'blob' }),
   deleteAvatar: () => request<void>('/api/v1/profile/avatar', { method: 'DELETE', responseType: 'none' }),
+
+  /** `today` is the phone's date, so the window ends on the user's day */
+  weightHistory: (days: 30 | 90 | 365, today: string) => request<WeightHistory>(`/api/v1/weight?days=${days}&today=${today}`),
+  /** One entry per day: saving the same date again replaces it */
+  saveWeight: (date: string, weightKg: number) => request<WeightEntry>(`/api/v1/weight/${date}`, { method: 'PUT', body: { weightKg } }),
+  deleteWeight: (date: string) => request<void>(`/api/v1/weight/${date}`, { method: 'DELETE', responseType: 'none' }),
+  exportWorkouts: () => requestFile('/api/v1/export/workouts.csv'),
+  exportNutrition: () => requestFile('/api/v1/export/nutrition.csv'),
+  exportAll: () => requestFile('/api/v1/export/all.zip'),
 }

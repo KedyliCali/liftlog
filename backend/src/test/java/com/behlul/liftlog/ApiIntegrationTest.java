@@ -853,6 +853,131 @@ class ApiIntegrationTest {
     }
 
     @Test
+    void weightLogKeepsOneEntryPerDayWithTrendAndWindow() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+
+        authed(put("/api/v1/weight/" + today), token, "{\"weightKg\":80.4}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.date").value(today.toString()))
+                .andExpect(jsonPath("$.weightKg").value(80.4));
+        // Same day again replaces rather than adds
+        authed(put("/api/v1/weight/" + today), token, "{\"weightKg\":80.0}").andExpect(status().isOk());
+        authed(put("/api/v1/weight/" + today.minusDays(7)), token, "{\"weightKg\":82.0}").andExpect(status().isOk());
+        authed(put("/api/v1/weight/" + today.minusDays(40)), token, "{\"weightKg\":85.0}").andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/weight").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries.length()").value(2))
+                .andExpect(jsonPath("$.entries[0].date").value(today.minusDays(7).toString()))
+                .andExpect(jsonPath("$.entries[1].weightKg").value(80.0))
+                .andExpect(jsonPath("$.latest.date").value(today.toString()))
+                .andExpect(jsonPath("$.latest.weightKg").value(80.0))
+                .andExpect(jsonPath("$.change7d").value(-2.0))
+                // The entry 40 days back is outside the 30-day chart but still the 30-day baseline
+                .andExpect(jsonPath("$.change30d").value(-5.0))
+                .andExpect(jsonPath("$.average7d").value(80.0));
+
+        mockMvc.perform(get("/api/v1/weight?days=90&today=" + today).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.entries.length()").value(3));
+    }
+
+    @Test
+    void savingAndDeletingTheNewestWeightUpdatesTheProfile() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+
+        authed(put("/api/v1/weight/" + today.minusDays(3)), token, "{\"weightKg\":81.5}").andExpect(status().isOk());
+        authed(put("/api/v1/weight/" + today), token, "{\"weightKg\":80.5}").andExpect(status().isOk());
+        // An older entry is history, not the current weight
+        authed(put("/api/v1/weight/" + today.minusDays(5)), token, "{\"weightKg\":90.0}").andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/profile").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.bodyWeightKg").value(80.5));
+
+        mockMvc.perform(delete("/api/v1/weight/" + today).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/v1/profile").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.bodyWeightKg").value(81.5));
+        mockMvc.perform(delete("/api/v1/weight/" + today).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void editingTheProfileWeightLogsTodaysEntry() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+
+        authed(put("/api/v1/profile"), token, "{\"heightCm\":180,\"bodyWeightKg\":79.5}").andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/weight").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.latest.date").value(today.toString()))
+                .andExpect(jsonPath("$.latest.weightKg").value(79.5));
+
+        // A logged weigh-in survives saving the profile without changing the weight
+        authed(put("/api/v1/weight/" + today), token, "{\"weightKg\":79.1}").andExpect(status().isOk());
+        authed(put("/api/v1/profile"), token, "{\"displayName\":\"Behlul\",\"heightCm\":180,\"bodyWeightKg\":79.10}")
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/weight").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.entries.length()").value(1))
+                .andExpect(jsonPath("$.latest.weightKg").value(79.1));
+
+        // Clearing the profile weight keeps the history
+        authed(put("/api/v1/profile"), token, "{\"heightCm\":180}").andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/weight").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.entries.length()").value(1));
+    }
+
+    @Test
+    void weightEntriesArePrivateToTheirOwner() throws Exception {
+        String owner = register(randomEmail(), "s3cret-pass", null);
+        String other = register(randomEmail(), "s3cret-pass", null);
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        authed(put("/api/v1/weight/" + today), owner, "{\"weightKg\":70}").andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/weight").header(HttpHeaders.AUTHORIZATION, "Bearer " + other))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries", empty()))
+                .andExpect(jsonPath("$.latest").value(nullValue()))
+                .andExpect(jsonPath("$.change7d").value(nullValue()))
+                .andExpect(jsonPath("$.average7d").value(nullValue()));
+        mockMvc.perform(delete("/api/v1/weight/" + today).header(HttpHeaders.AUTHORIZATION, "Bearer " + other))
+                .andExpect(status().isNotFound());
+        // The other user's own entry for the same day is separate, not a conflict
+        authed(put("/api/v1/weight/" + today), other, "{\"weightKg\":95}").andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/weight").header(HttpHeaders.AUTHORIZATION, "Bearer " + owner))
+                .andExpect(jsonPath("$.latest.weightKg").value(70.0));
+        mockMvc.perform(get("/api/v1/weight")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void weightInputIsValidated() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+
+        authed(put("/api/v1/weight/" + today), token, "{\"weightKg\":19.9}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.weightKg").exists());
+        authed(put("/api/v1/weight/" + today), token, "{\"weightKg\":400.01}")
+                .andExpect(status().isBadRequest());
+        authed(put("/api/v1/weight/" + today), token, "{\"weightKg\":80.123}")
+                .andExpect(status().isBadRequest());
+        authed(put("/api/v1/weight/" + today), token, "{}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.weightKg").exists());
+        authed(put("/api/v1/weight/" + today.plusDays(5)), token, "{\"weightKg\":80}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.date").exists());
+        authed(put("/api/v1/weight/not-a-date"), token, "{\"weightKg\":80}")
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/weight?days=7").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.days").exists());
+
+        // Tomorrow is allowed: a phone east of UTC is already there
+        authed(put("/api/v1/weight/" + today.plusDays(1)), token, "{\"weightKg\":80}").andExpect(status().isOk());
+    }
+
+    @Test
     void nutritionDayTotalsGoalsAndFrequentFoods() throws Exception {
         String token = register(randomEmail(), "s3cret-pass", null);
         String today = LocalDate.now(ZoneOffset.UTC).toString();
