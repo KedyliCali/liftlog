@@ -68,7 +68,7 @@ public class FakeRiotClient implements RiotClient {
     }
 
     @Override
-    public Match match(LolPlatform platform, String matchId) {
+    public Optional<Match> match(LolPlatform platform, String matchId) {
         Random random = seeded(matchId);
         int number = Integer.parseInt(matchId.substring(matchId.lastIndexOf('_') + 1));
         boolean win = random.nextInt(100) < 53;
@@ -78,7 +78,8 @@ public class FakeRiotClient implements RiotClient {
         // Newest match ended about an hour ago, the rest four hours apart, so lists read like real recent play
         long hour = 3_600_000L;
         long endedAt = (System.currentTimeMillis() / hour) * hour - (500 - number) * 4 * hour - hour;
-        return new Match(matchId, random.nextInt(4) == 0 ? 440 : 420, endedAt, 1_300 + random.nextInt(1_100), List.of(owner));
+        return Optional.of(new Match(matchId, random.nextInt(4) == 0 ? 440 : 420, endedAt, 1_300 + random.nextInt(1_100),
+                List.of(owner)));
     }
 
     private static Random seeded(String text) {

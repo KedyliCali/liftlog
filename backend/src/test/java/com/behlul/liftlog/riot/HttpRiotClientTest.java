@@ -59,11 +59,30 @@ class HttpRiotClientTest {
     }
 
     @Test
-    void missingMatchIsRiotError() {
+    void missingMatchIsEmpty() {
+        // Riot's match list can still name a match it no longer serves
         riot.expect(requestTo("https://europe.api.riotgames.com/lol/match/v5/matches/TR1_404"))
                 .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
-        assertThatThrownBy(() -> client.match(LolPlatform.TR1, "TR1_404"))
+        assertThat(client.match(LolPlatform.TR1, "TR1_404")).isEmpty();
+    }
+
+    @Test
+    void failingMatchIsRiotError() {
+        riot.expect(requestTo("https://europe.api.riotgames.com/lol/match/v5/matches/TR1_500"))
+                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
+
+        assertThatThrownBy(() -> client.match(LolPlatform.TR1, "TR1_500"))
+                .isInstanceOfSatisfying(RiotUnavailableException.class,
+                        e -> assertThat(e.reason()).isEqualTo(RiotUnavailableException.Reason.RIOT_ERROR));
+    }
+
+    @Test
+    void matchWithoutInfoIsRiotError() {
+        riot.expect(requestTo("https://europe.api.riotgames.com/lol/match/v5/matches/TR1_1"))
+                .andRespond(withSuccess("{\"metadata\":{\"matchId\":\"TR1_1\"}}", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> client.match(LolPlatform.TR1, "TR1_1"))
                 .isInstanceOfSatisfying(RiotUnavailableException.class,
                         e -> assertThat(e.reason()).isEqualTo(RiotUnavailableException.Reason.RIOT_ERROR));
     }
@@ -95,7 +114,7 @@ class HttpRiotClientTest {
                                    "totalDamageDealtToChampions":25000,"win":true,"goldEarned":12000}]}}
                         """, MediaType.APPLICATION_JSON));
 
-        RiotClient.Match match = client.match(LolPlatform.TR1, "TR1_123");
+        RiotClient.Match match = client.match(LolPlatform.TR1, "TR1_123").orElseThrow();
         assertThat(match.queueId()).isEqualTo(420);
         assertThat(match.participants()).singleElement().satisfies(p -> {
             assertThat(p.championName()).isEqualTo("Ahri");

@@ -59,7 +59,10 @@ public class LolService {
     static final int MAX_NEW_MATCHES_PER_REFRESH = 10;
     /** Requests a full refresh may need (profile, rank, match list and new matches), checked before starting. */
     static final int REQUESTS_PER_REFRESH = 3 + MAX_NEW_MATCHES_PER_REFRESH;
-    /** One page view refreshes at most this many players, stalest first; the rest show cached data. */
+    /**
+     * One page view makes at most this many refresh attempts, stalest first; the rest show cached data. Every
+     * attempt that reached Riot counts, including one that found no profile or failed, since each spent requests.
+     */
     static final int MAX_REFRESHES_PER_VIEW = 4;
     /** Left for actions after background refreshes: one account lookup plus one refresh (a follow or a link). */
     static final int RESERVED_FOR_ACTIONS = 1 + REQUESTS_PER_REFRESH;
@@ -164,27 +167,37 @@ public class LolService {
     }
 
     /**
-     * Background refresh for a page view: stalest players first, at most {@link #MAX_REFRESHES_PER_VIEW},
-     * and never below the reserve for actions. Riot problems are logged and the cached data is shown.
+     * Background refresh for a page view: stalest players first, at most {@link #MAX_REFRESHES_PER_VIEW} refresh
+     * attempts, and never below the reserve for actions. A refresh, a player with no profile on their server and
+     * a Riot error for one player each count as an attempt; a player another request holds does not. Riot
+     * problems are logged and the cached data is shown.
      */
     public void refreshSomeStale(Collection<LolPlayer> players) {
-        int refreshed = 0;
+        int attempts = 0;
         for (LolPlayer player : staleFirst(players, now().minus(STALE_AFTER))) {
-            if (refreshed == MAX_REFRESHES_PER_VIEW || limiter.remaining() < REQUESTS_PER_REFRESH + RESERVED_FOR_ACTIONS) {
+            if (attempts == MAX_REFRESHES_PER_VIEW || limiter.remaining() < REQUESTS_PER_REFRESH + RESERVED_FOR_ACTIONS) {
                 return;
             }
             try {
                 switch (refreshIfStale(player, STALE_AFTER)) {
-                    case REFRESHED -> refreshed++;
-                    case NO_PROFILE -> log.info("Riot has no League profile for {} on {}; showing cached data",
-                            player.getPuuid(), player.getPlatform());
+                    case REFRESHED -> attempts++;
+                    case NO_PROFILE -> {
+                        attempts++;
+                        log.info("Riot has no League profile for {} on {}; showing cached data",
+                                player.getPuuid(), player.getPlatform());
+                    }
                     // Another viewer holds this player; theirs is refreshed by them, so move on to the next one
                     case SKIPPED -> { }
                 }
             } catch (RiotUnavailableException e) {
-                // Riot down, key missing or budget gone: the remaining players would fail the same way
-                log.info("Showing cached League data: {}", e.getMessage());
-                return;
+                if (e.reason() != Reason.RIOT_ERROR) {
+                    // Key missing or rejected, or budget gone: every remaining player would fail the same way
+                    log.info("Showing cached League data: {}", e.getMessage());
+                    return;
+                }
+                // A Riot error can be about this player alone, so the next one still gets its turn
+                attempts++;
+                log.info("Could not refresh {}; showing cached data: {}", player.getPuuid(), e.getMessage());
             }
         }
     }
@@ -231,10 +244,32 @@ public class LolService {
         List<String> ids = riot.recentMatchIds(platform, player.getPuuid(), MATCHES_SHOWN);
         Set<String> stored = ids.isEmpty() ? Set.of() : matchRepository.findStoredIds(player.getPuuid(), ids);
         ids.stream().filter(id -> !stored.contains(id)).limit(MAX_NEW_MATCHES_PER_REFRESH)
-                .forEach(id -> storeMatch(riot.match(platform, id), player.getPuuid()));
+                .forEach(id -> fetchMatch(platform, id).ifPresent(match -> storeMatch(match, player.getPuuid())));
         player.markRefreshed(now());
         playerRepository.save(player);
         return RefreshOutcome.REFRESHED;
+    }
+
+    /**
+     * Empty when Riot no longer has the match or fails on this one match. Skipping it instead of failing the
+     * refresh matters: a player whose refresh always failed would never be marked refreshed, so they would stay
+     * first in line on every view. The skipped match is not stored, so the next refresh asks for it again.
+     * Key and budget problems still propagate, since every other request would fail the same way.
+     */
+    private Optional<Match> fetchMatch(LolPlatform platform, String matchId) {
+        try {
+            Optional<Match> match = riot.match(platform, matchId);
+            if (match.isEmpty()) {
+                log.info("Riot no longer has match {}; skipping it", matchId);
+            }
+            return match;
+        } catch (RiotUnavailableException e) {
+            if (e.reason() != Reason.RIOT_ERROR) {
+                throw e;
+            }
+            log.info("Skipping match {} for now: {}", matchId, e.getMessage());
+            return Optional.empty();
+        }
     }
 
     private void storeMatch(Match match, String puuid) {

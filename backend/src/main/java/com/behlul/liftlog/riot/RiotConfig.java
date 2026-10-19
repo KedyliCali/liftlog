@@ -70,7 +70,7 @@ public class RiotConfig {
         }
 
         @Override
-        public Match match(LolPlatform platform, String matchId) {
+        public Optional<Match> match(LolPlatform platform, String matchId) {
             throw missing();
         }
     }

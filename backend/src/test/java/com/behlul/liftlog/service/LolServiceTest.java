@@ -1,6 +1,7 @@
 package com.behlul.liftlog.service;
 
 import com.behlul.liftlog.dto.LolDtos.TrackPlayerRequest;
+import com.behlul.liftlog.entity.LolMatchPlayer;
 import com.behlul.liftlog.entity.LolPlayer;
 import com.behlul.liftlog.exception.RiotIdNotFoundException;
 import com.behlul.liftlog.repository.LolMatchPlayerRepository;
@@ -15,6 +16,9 @@ import com.behlul.liftlog.security.CurrentUserProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -157,16 +161,107 @@ class LolServiceTest {
         verify(riot).summoner(LolPlatform.TR1, "a");
     }
 
-    @Test
-    void stopsAtTheFirstRiotError() {
+    @ParameterizedTest
+    @EnumSource(value = Reason.class, names = {"RATE_LIMITED", "KEY_REJECTED", "NO_KEY"})
+    void stopsAtOnceWhenTheKeyOrBudgetFails(Reason reason) {
         when(limiter.remaining()).thenReturn(90);
         everyClaimSucceeds();
-        doThrow(new RiotUnavailableException(Reason.RATE_LIMITED, "budget used up"))
+        doThrow(new RiotUnavailableException(reason, "every request would fail"))
                 .when(riot).summoner(LolPlatform.TR1, "a");
 
         service.refreshSomeStale(List.of(player("a", 60), player("b", 50), player("c", 40)));
 
         verify(riot, times(1)).summoner(any(), anyString());
+    }
+
+    @Test
+    void aRiotErrorForOnePlayerMovesOnToTheNext() {
+        when(limiter.remaining()).thenReturn(90);
+        everyClaimSucceeds();
+        doThrow(new RiotUnavailableException(Reason.RIOT_ERROR, "Riot request failed with 500"))
+                .when(riot).summoner(LolPlatform.TR1, "a");
+        List<LolPlayer> players = List.of(player("a", 60), player("b", 50), player("c", 40), player("d", 30),
+                player("e", 20), player("f", 15));
+
+        service.refreshSomeStale(players);
+
+        // The failed attempt still counts, so three more players are refreshed, not four
+        assertThat(players).filteredOn(p -> NOW.equals(p.getRefreshedAt()))
+                .extracting(LolPlayer::getPuuid).containsExactly("b", "c", "d");
+        verify(riot, never()).summoner(LolPlatform.TR1, "e");
+    }
+
+    @Test
+    void aPlayerWithoutProfileCountsAsAnAttemptWithoutStoppingTheLoop() {
+        when(limiter.remaining()).thenReturn(90);
+        everyClaimSucceeds();
+        doReturn(Optional.empty()).when(riot).summoner(LolPlatform.TR1, "moved");
+        List<LolPlayer> players = List.of(player("moved", 60), player("b", 50), player("c", 40), player("d", 30),
+                player("e", 20));
+
+        service.refreshSomeStale(players);
+
+        assertThat(players).filteredOn(p -> NOW.equals(p.getRefreshedAt()))
+                .extracting(LolPlayer::getPuuid).containsExactly("b", "c", "d");
+        verify(riot, never()).summoner(LolPlatform.TR1, "e");
+    }
+
+    @Test
+    void aBrokenMatchIsSkippedAndThePlayerIsStillRefreshed() {
+        when(limiter.remaining()).thenReturn(90);
+        everyClaimSucceeds();
+        LolPlayer player = player("a", 60);
+        // The fake hands out the same ids on every call, and two of the new ones break
+        List<String> ids = riot.recentMatchIds(LolPlatform.TR1, "a", LolService.MATCHES_SHOWN);
+        String gone = ids.get(0);
+        String failing = ids.get(1);
+        doReturn(Optional.empty()).when(riot).match(LolPlatform.TR1, gone);
+        doThrow(new RiotUnavailableException(Reason.RIOT_ERROR, "Riot request failed with 500"))
+                .when(riot).match(LolPlatform.TR1, failing);
+
+        service.refreshSomeStale(List.of(player));
+
+        ArgumentCaptor<LolMatchPlayer> saved = ArgumentCaptor.forClass(LolMatchPlayer.class);
+        verify(matchRepository, times(LolService.MAX_NEW_MATCHES_PER_REFRESH - 2)).save(saved.capture());
+        assertThat(saved.getAllValues()).extracting(LolMatchPlayer::getMatchId).doesNotContain(gone, failing);
+        assertThat(player.getRefreshedAt()).isEqualTo(NOW);
+        verify(playerRepository).save(player);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = Reason.class, names = {"RATE_LIMITED", "KEY_REJECTED", "NO_KEY"})
+    void aKeyOrBudgetErrorOnOneMatchStillStopsTheBackgroundRefresh(Reason reason) {
+        when(limiter.remaining()).thenReturn(90);
+        everyClaimSucceeds();
+        LolPlayer first = player("a", 60);
+        // Only RIOT_ERROR is about one match; the budget running out partway through must not be skipped like it
+        String failing = riot.recentMatchIds(LolPlatform.TR1, "a", LolService.MATCHES_SHOWN).get(2);
+        doThrow(new RiotUnavailableException(reason, "every request would fail"))
+                .when(riot).match(LolPlatform.TR1, failing);
+
+        service.refreshSomeStale(List.of(first, player("b", 50), player("c", 40)));
+
+        assertThat(first.getRefreshedAt()).isEqualTo(NOW.minusMinutes(60));
+        verify(playerRepository, never()).save(any(LolPlayer.class));
+        verify(riot, never()).summoner(LolPlatform.TR1, "b");
+        verify(riot, never()).summoner(LolPlatform.TR1, "c");
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = Reason.class, names = {"RATE_LIMITED", "KEY_REJECTED", "NO_KEY"})
+    void aKeyOrBudgetErrorOnOneMatchFailsTheManualRefresh(Reason reason) {
+        LolPlayer player = player("a", 30);
+        when(playerRepository.isVisibleTo(USER_ID, "a")).thenReturn(true);
+        when(playerRepository.findById("a")).thenReturn(Optional.of(player));
+        everyClaimSucceeds();
+        String failing = riot.recentMatchIds(LolPlatform.TR1, "a", LolService.MATCHES_SHOWN).get(2);
+        doThrow(new RiotUnavailableException(reason, "every request would fail"))
+                .when(riot).match(LolPlatform.TR1, failing);
+
+        // Reported as is (a 503 with this reason), not hidden behind a refresh that is missing matches
+        assertThatThrownBy(() -> service.refreshNow("a"))
+                .isInstanceOfSatisfying(RiotUnavailableException.class, e -> assertThat(e.reason()).isEqualTo(reason));
+        assertThat(player.getRefreshedAt()).isEqualTo(NOW.minusMinutes(30));
     }
 
     @Test

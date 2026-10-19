@@ -21,7 +21,8 @@ public interface RiotClient {
     /** Newest first. */
     List<String> recentMatchIds(LolPlatform platform, String puuid, int count);
 
-    Match match(LolPlatform platform, String matchId);
+    /** Empty when Riot no longer has the match, although its match list may still name it. */
+    Optional<Match> match(LolPlatform platform, String matchId);
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Account(String puuid, String gameName, String tagLine) {
