@@ -434,6 +434,27 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
    Behlül'ün seçimini bekliyor.
 2. Kullanıcı işleri: Render ücretli plan (uyku gecikmesi); Safari ve ana ekran hesabını Face ID ile birleştirme.
 
+## 2026-10-19 — LoL detaylı istatistikler (branch `feature/lol-deep-stats`)
+
+- **Backend:** V21 ile maçlar artık bütün olarak saklanıyor: `lol_matches`, `lol_match_teams` (hedefler, banlar),
+  `lol_match_participants` (10 oyuncu) ve `lol_match_frames` (zaman çizelgesi; maç sayfası ilk açılınca Riot'tan bir
+  kez çekilir). Oyuncu başına 100 maç tutuluyor (yenileme başına hâlâ en fazla 10 indirme). Eski maçlar boş kalan
+  bütçeyle yeniden indiriliyor. Yeni uç noktalar: `GET /lol/players/{puuid}/stats?queue=&games=&tzOffsetMinutes=`,
+  `GET /lol/matches/{id}`, `GET /lol/matches/{id}/timeline`, `GET /lol/group/duos`.
+- **Web:** oyuncu sayfası sekmeli (Genel, Şampiyonlar, Duo, Rakipler, Build, Maçlar), kuyruk ve 20/50/100 filtreleri,
+  duo tablosu ve "Takip et", koridor rakipleri, karşılaşılan/yanında oynanan şampiyonlar, eşya/rün/büyü/yama,
+  taraf/süre/saat/gün kazanma oranları, eğilim grafiği. Maç sayfası: iki takımın skor tablosu, hedefler, banlar,
+  altın farkı grafiği, 10. ve 15. dakika koridor farkları.
+- Duo, Riot'un hazır duo bilgisi değil: en az 2 maçta aynı takımda olunan kişiler.
+- Doğrulama: backend 284 test (`mvnw verify`), web 424 test, tsc, lint, build. Docker'da V21, sahte Riot verisiyle
+  375 px'te tüm sekmeler ve maç sayfası.
+- Docker Desktop bu bilgisayarda kapanınca silinemeyen soket dosyaları bırakıyor (`Docker\run`,
+  `docker-secrets-engine`); çözüm iki klasörü yeniden adlandırıp Docker'ı başlatmak.
+
+**Sıradaki adımlar:**
+1. PR'ı birleştir; canlıda V21'i ve gerçek Riot verisiyle duo/maç sayfasını kontrol et.
+2. #31 (silme onayı) birleştirme onayı bekliyor.
+
 ## 2026-10-19 — Silmeden önce onay (`feature/delete-confirm`, sadece web)
 
 - Ortak onay sayfası: `components/Confirm.tsx` (`ConfirmProvider`) + `useConfirm()` (`contexts.ts`).

@@ -4,6 +4,7 @@ import com.behlul.liftlog.dto.LolDtos.GroupNameRequest;
 import com.behlul.liftlog.dto.LolDtos.JoinGroupRequest;
 import com.behlul.liftlog.dto.LolDtos.LolGroupResponse;
 import com.behlul.liftlog.dto.LolDtos.TrackPlayerRequest;
+import com.behlul.liftlog.dto.LolMatchDtos.GroupDuo;
 import com.behlul.liftlog.service.LolGroupService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * The caller's League group. A singular resource: a user is in at most one group, so group ids never
@@ -36,6 +39,12 @@ public class LolGroupController {
     @GetMapping
     public ResponseEntity<LolGroupResponse> myGroup() {
         return groupService.myGroup().map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    /** Members who played together on one team in stored matches, most games first; 204 outside a group. */
+    @GetMapping("/duos")
+    public ResponseEntity<List<GroupDuo>> duos() {
+        return groupService.duos().map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @PostMapping

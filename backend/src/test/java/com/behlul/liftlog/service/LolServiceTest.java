@@ -65,6 +65,7 @@ class LolServiceTest {
     @Mock private LolPlayerRepository playerRepository;
     @Mock private LolMatchPlayerRepository matchRepository;
     @Mock private LolRankHistoryRepository rankHistoryRepository;
+    @Mock private LolMatchStore matchStore;
     @Mock private RiotRateLimiter limiter;
     @Mock private CurrentUserProvider currentUser;
 
@@ -74,8 +75,8 @@ class LolServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new LolService(playerRepository, matchRepository, rankHistoryRepository, riot, limiter, currentUser,
-                clock);
+        service = new LolService(playerRepository, matchRepository, rankHistoryRepository, matchStore, riot, limiter,
+                currentUser, clock);
         lenient().when(currentUser.currentUserId()).thenReturn(USER_ID);
     }
 
@@ -219,7 +220,7 @@ class LolServiceTest {
         everyClaimSucceeds();
         LolPlayer player = player("a", 60);
         // The fake hands out the same ids on every call, and two of the new ones break
-        List<String> ids = riot.recentMatchIds(LolPlatform.TR1, "a", LolService.MATCHES_SHOWN);
+        List<String> ids = riot.recentMatchIds(LolPlatform.TR1, "a", LolService.MATCH_IDS_REQUESTED);
         String gone = ids.get(0);
         String failing = ids.get(1);
         doReturn(Optional.empty()).when(riot).match(LolPlatform.TR1, gone);
@@ -242,7 +243,7 @@ class LolServiceTest {
         everyClaimSucceeds();
         LolPlayer first = player("a", 60);
         // Only RIOT_ERROR is about one match; the budget running out partway through must not be skipped like it
-        String failing = riot.recentMatchIds(LolPlatform.TR1, "a", LolService.MATCHES_SHOWN).get(2);
+        String failing = riot.recentMatchIds(LolPlatform.TR1, "a", LolService.MATCH_IDS_REQUESTED).get(2);
         doThrow(new RiotUnavailableException(reason, "every request would fail"))
                 .when(riot).match(LolPlatform.TR1, failing);
 
@@ -261,7 +262,7 @@ class LolServiceTest {
         when(playerRepository.isVisibleTo(USER_ID, "a")).thenReturn(true);
         when(playerRepository.findById("a")).thenReturn(Optional.of(player));
         everyClaimSucceeds();
-        String failing = riot.recentMatchIds(LolPlatform.TR1, "a", LolService.MATCHES_SHOWN).get(2);
+        String failing = riot.recentMatchIds(LolPlatform.TR1, "a", LolService.MATCH_IDS_REQUESTED).get(2);
         doThrow(new RiotUnavailableException(reason, "every request would fail"))
                 .when(riot).match(LolPlatform.TR1, failing);
 
@@ -322,7 +323,7 @@ class LolServiceTest {
         when(limiter.remaining()).thenReturn(90);
         everyClaimSucceeds();
         LolPlayer player = player("a", 60);
-        List<String> ids = riot.recentMatchIds(LolPlatform.TR1, "a", LolService.MATCHES_SHOWN);
+        List<String> ids = riot.recentMatchIds(LolPlatform.TR1, "a", LolService.MATCH_IDS_REQUESTED);
         // Five new matches on top; the fifteen below are stored, all from before the details
         List<String> storedIds = ids.subList(5, ids.size());
         when(matchRepository.findStoredIds(eq("a"), any())).thenReturn(Set.copyOf(storedIds));
@@ -356,13 +357,31 @@ class LolServiceTest {
         }
         assertThat(rows.get(ids.get(10)).getGoldEarned()).isNull();
         assertThat(player.getRefreshedAt()).isEqualTo(NOW);
+
+        // Every downloaded match, new or re-downloaded, is also stored whole
+        ArgumentCaptor<RiotClient.Match> whole = ArgumentCaptor.forClass(RiotClient.Match.class);
+        verify(matchStore, times(LolService.MAX_NEW_MATCHES_PER_REFRESH)).storeIfAbsent(whole.capture(), eq(LolPlatform.TR1));
+        assertThat(whole.getAllValues()).extracting(RiotClient.Match::matchId)
+                .containsExactlyInAnyOrderElementsOf(ids.subList(0, LolService.MAX_NEW_MATCHES_PER_REFRESH));
+    }
+
+    @Test
+    void asksForAHundredMatchIdsButDownloadsAtMostTenPerRefresh() {
+        when(limiter.remaining()).thenReturn(90);
+        everyClaimSucceeds();
+
+        service.refreshSomeStale(List.of(player("a", 60)));
+
+        verify(riot).recentMatchIds(LolPlatform.TR1, "a", 100);
+        verify(riot, times(LolService.MAX_NEW_MATCHES_PER_REFRESH)).match(any(), anyString());
+        verify(matchStore, times(LolService.MAX_NEW_MATCHES_PER_REFRESH)).storeIfAbsent(any(), eq(LolPlatform.TR1));
     }
 
     @Test
     void noBackfillWhenNewMatchesUseTheWholeBudget() {
         when(limiter.remaining()).thenReturn(90);
         everyClaimSucceeds();
-        List<String> ids = riot.recentMatchIds(LolPlatform.TR1, "a", LolService.MATCHES_SHOWN);
+        List<String> ids = riot.recentMatchIds(LolPlatform.TR1, "a", LolService.MATCH_IDS_REQUESTED);
         when(matchRepository.findStoredIds(eq("a"), any())).thenReturn(Set.copyOf(ids.subList(10, ids.size())));
 
         service.refreshSomeStale(List.of(player("a", 60)));

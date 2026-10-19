@@ -12,6 +12,7 @@ import com.behlul.liftlog.exception.LolGroupConflictException.Rule;
 import com.behlul.liftlog.exception.ResourceNotFoundException;
 import com.behlul.liftlog.repository.LolGroupMemberRepository;
 import com.behlul.liftlog.repository.LolGroupRepository;
+import com.behlul.liftlog.repository.LolMatchParticipantRepository;
 import com.behlul.liftlog.repository.LolPlayerRepository;
 import com.behlul.liftlog.repository.UserRepository;
 import com.behlul.liftlog.security.CurrentUserProvider;
@@ -49,6 +50,7 @@ class LolGroupServiceTest {
     @Mock private LolGroupMemberRepository memberRepository;
     @Mock private UserRepository userRepository;
     @Mock private LolPlayerRepository playerRepository;
+    @Mock private LolMatchParticipantRepository participantRepository;
     @Mock private LolService lolService;
     @Mock private CurrentUserProvider currentUser;
 
@@ -59,8 +61,8 @@ class LolGroupServiceTest {
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(group, "id", GROUP_ID);
-        service = new LolGroupService(groupRepository, memberRepository, userRepository, playerRepository, lolService,
-                currentUser, clock);
+        service = new LolGroupService(groupRepository, memberRepository, userRepository, playerRepository,
+                participantRepository, lolService, currentUser, clock);
     }
 
     private static LolGroupMember member(long userId, long groupId) {

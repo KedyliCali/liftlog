@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react'
+import { Link } from 'react-router'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { LolChampionStats, LolMatch, LolRankPoint, LolRecord, LolRecords, LolStreak, LolSummary } from '../api/types'
 import { formatKg } from '../lib/format'
-import { locale, t } from '../lib/i18n'
+import { t } from '../lib/i18n'
 import { formatDuration, kdaRatio, ladderAxis, ladderLabel, queueKey, timeAgo } from '../lib/lol'
-import { findMatch, itemSlots, multikillKey, perMinute, queueRows, rankChartPoints, roleRows, roundTo, toPercent, winPercent } from '../lib/lolStats'
+import { findMatch, itemSlots, multikillKey, queueRows, rankChartPoints, roleRows, roundTo, toPercent, winPercent } from '../lib/lolStats'
+import { compact, DASH, decimal, percentText, shortDate } from '../lib/lolFormat'
 import { CountUp } from './CountUp'
 import { ChampionIcon, ItemIcon, SpellIcon } from './LolBits'
 import { SortableTable, type SortableColumn } from './SortableTable'
@@ -12,14 +14,6 @@ import { SortableTable, type SortableColumn } from './SortableTable'
 // The sections of the League player page below the hero, top to bottom. Each one copes with older answers
 // from the server that lack the detailed numbers: it shows what there is, or nothing.
 
-const DASH = '–'
-
-/** The API sends UTC without a zone suffix. */
-const utcDate = (iso: string) => new Date(iso.endsWith('Z') ? iso : `${iso}Z`)
-const shortDate = (iso: string) => utcDate(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short' })
-const compact = (n: number) => new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 }).format(n)
-const decimal = (n: number | null | undefined, digits = 1) => (n == null ? DASH : formatKg(roundTo(n, digits)))
-const percentText = (pct: number | null) => (pct == null ? DASH : t.percent(pct))
 
 export function StreakChip({ streak }: { streak: LolStreak | null }) {
   // A single game is not a streak worth a chip
@@ -105,7 +99,7 @@ export function StatTiles({ summary }: { summary: LolSummary }) {
   )
 }
 
-function BarRow({ label, share, games, wins }: { label: string; share: number; games: number; wins: number }) {
+export function BarRow({ label, share, games, wins }: { label: string; share: number; games: number; wins: number }) {
   const winRate = winPercent(wins, games) ?? 0
   return (
     <li className="lol-bar-row">
@@ -202,7 +196,7 @@ function recordValue(key: (typeof RECORD_KEYS)[number], record: LolRecord): stri
   }
 }
 
-/** Best single games; a tap jumps to that match in the list below and opens it, when it is on the page. */
+/** Best single games; a tap opens that match's page, when the match is still among the stored ones. */
 export function RecordList({ records, matches, version, onShowMatch }: {
   records: LolRecords | null | undefined
   matches: LolMatch[]
@@ -243,31 +237,36 @@ export function RecordList({ records, matches, version, onShowMatch }: {
   )
 }
 
-/** One stored game: the result as a colored edge, items and spells, and a tap opens all the numbers. */
-export function MatchRow({ match, version, spells, index, expanded, onToggle }: {
+/** One stored game: the result as a colored edge, items and spells; a tap opens the full match page. */
+export function MatchRow({ match, version, spells, index, to }: {
   match: LolMatch
   version: string | null
   spells: Record<number, string> | null
   index: number
-  expanded: boolean
-  onToggle: () => void
+  /** The match page, which carries the player along so their row stands out */
+  to: string
 }) {
   const ago = timeAgo(match.endedAt)
   const kda = kdaRatio(match.kills, match.deaths, match.assists)
   const items = itemSlots(match.items)
   const badge = multikillKey(match.largestMultiKill)
   const kp = toPercent(match.killParticipation)
-  const detailsId = `match-details-${match.matchId}`
   const extras: { key: string; label: string; value: string }[] = []
   if (kp != null) extras.push({ key: 'kp', label: 'KP', value: t.percent(kp) })
   if (match.damage != null) extras.push({ key: 'damage', label: t.detailDamage, value: compact(match.damage) })
   if (match.gold != null) extras.push({ key: 'gold', label: t.detailGold, value: compact(match.gold) })
   if (match.vision != null) extras.push({ key: 'vision', label: t.visionShort, value: String(match.vision) })
 
-  const className = ['lol-match', match.win ? 'win' : 'loss', expanded ? 'expanded' : ''].filter(Boolean).join(' ')
   return (
-    <div id={`match-${match.matchId}`} className={className} style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }} data-testid="match-row">
-      <button type="button" className="lol-match-head" onClick={onToggle} aria-expanded={expanded} aria-controls={detailsId}>
+    <Link
+      to={to}
+      viewTransition
+      id={`match-${match.matchId}`}
+      className={match.win ? 'lol-match win' : 'lol-match loss'}
+      style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}
+      data-testid="match-row"
+    >
+      <span className="lol-match-head">
         <span className="lol-match-champ">
           <ChampionIcon version={version} champion={match.champion} />
           {match.champLevel != null && <span className="lol-match-level num">{match.champLevel}</span>}
@@ -294,10 +293,10 @@ export function MatchRow({ match, version, spells, index, expanded, onToggle }: 
           </span>
         </span>
         {badge && <span className={`multikill-badge ${badge}`}>{t.multikills[badge]}</span>}
-      </button>
+      </span>
 
       {(items || extras.length > 0) && (
-        <div className="lol-match-extra">
+        <span className="lol-match-extra">
           {items && (
             <span className="lol-match-items" aria-label={t.itemsLabel}>
               {items.map((itemId, i) => (
@@ -314,39 +313,8 @@ export function MatchRow({ match, version, spells, index, expanded, onToggle }: 
               ))}
             </span>
           )}
-        </div>
+        </span>
       )}
-
-      {expanded && <MatchDetails id={detailsId} match={match} kda={kda} />}
-    </div>
-  )
-}
-
-function MatchDetails({ id, match, kda }: { id: string; match: LolMatch; kda: number }) {
-  const csPerMin = perMinute(match.cs, match.durationS)
-  const rows: [string, string][] = [
-    [t.detailKda, `${match.kills} / ${match.deaths} / ${match.assists} · ${formatKg(roundTo(kda, 2))}`],
-    [t.detailCs, csPerMin == null ? String(match.cs) : `${match.cs} · ${formatKg(roundTo(csPerMin, 1))}${t.perMinSuffix}`],
-    [t.detailDamage, formatKg(match.damage)],
-  ]
-  const optional = (label: string, value: number | null | undefined, format: (n: number) => string = formatKg) => {
-    if (value != null) rows.push([label, format(value)])
-  }
-  optional(t.detailDamageShare, toPercent(match.damageShare), t.percent)
-  optional(t.detailKillParticipation, toPercent(match.killParticipation), t.percent)
-  optional(t.detailDamageTaken, match.damageTaken)
-  optional(t.detailGold, match.gold)
-  optional(t.detailVision, match.vision, String)
-  optional(t.detailWards, match.wardsPlaced, String)
-  optional(t.detailLevel, match.champLevel, String)
-  return (
-    <dl id={id} className="lol-match-details" aria-label={t.matchDetails}>
-      {rows.map(([label, value]) => (
-        <div key={label}>
-          <dt>{label}</dt>
-          <dd className="num">{value}</dd>
-        </div>
-      ))}
-    </dl>
+    </Link>
   )
 }

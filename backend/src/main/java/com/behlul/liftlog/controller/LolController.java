@@ -4,6 +4,9 @@ import com.behlul.liftlog.dto.LolDtos.LolPlayerDetailResponse;
 import com.behlul.liftlog.dto.LolDtos.LolPlayerResponse;
 import com.behlul.liftlog.dto.LolDtos.RankHistoryPoint;
 import com.behlul.liftlog.dto.LolDtos.TrackPlayerRequest;
+import com.behlul.liftlog.dto.LolMatchDtos.LolDeepStats;
+import com.behlul.liftlog.service.LolMatchService;
+import com.behlul.liftlog.service.LolQueueFilter;
 import com.behlul.liftlog.service.LolService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -13,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,9 +27,11 @@ import java.util.List;
 public class LolController {
 
     private final LolService lolService;
+    private final LolMatchService matchService;
 
-    public LolController(LolService lolService) {
+    public LolController(LolService lolService, LolMatchService matchService) {
         this.lolService = lolService;
+        this.matchService = matchService;
     }
 
     @GetMapping
@@ -48,6 +54,20 @@ public class LolController {
     @GetMapping("/{puuid}/rank-history")
     public List<RankHistoryPoint> rankHistory(@PathVariable String puuid) {
         return lolService.rankHistory(puuid);
+    }
+
+    /**
+     * Detailed stats over the newest {@code games} stored games in the queue; never calls Riot. 400 for a queue,
+     * window or offset outside the allowed values, 404 for players the detail page would hide.
+     *
+     * @param tzOffsetMinutes the viewer's offset from UTC (180 for Türkiye), for the time-of-day and weekday charts
+     */
+    @GetMapping("/{puuid}/stats")
+    public LolDeepStats stats(@PathVariable String puuid,
+                              @RequestParam(defaultValue = "ALL") LolQueueFilter queue,
+                              @RequestParam(defaultValue = "20") int games,
+                              @RequestParam(defaultValue = "0") int tzOffsetMinutes) {
+        return matchService.deepStats(puuid, queue, games, tzOffsetMinutes);
     }
 
     @PostMapping("/{puuid}/refresh")

@@ -1,6 +1,6 @@
 import type { CreationOptionsJson, CredentialJson, RequestOptionsJson } from '../lib/webauthn'
 import { request, requestFile } from './client'
-import type { AuthResponse, GroupTraining, LolGroup, LolPlayer, LolPlayerDetail, LolRankPoint, CatalogFood, MuscleStats, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, Passkey, PasskeyCeremony, PersonalRecord, PlanItem, Profile, ProgressPoint, Routine, RoutineInput, SetInput, Streak, WeeklyVolume, WeightEntry, WeightHistory, WorkoutDetail, WorkoutRecap, WorkoutSet, WorkoutSummary } from './types'
+import type { AuthResponse, GroupTraining, LolDeepStats, LolGroup, LolGroupDuo, LolMatchDetail, LolPlayer, LolPlayerDetail, LolRankPoint, LolStatsQueue, LolStatsWindow, LolTimeline, CatalogFood, MuscleStats, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, Passkey, PasskeyCeremony, PersonalRecord, PlanItem, Profile, ProgressPoint, Routine, RoutineInput, SetInput, Streak, WeeklyVolume, WeightEntry, WeightHistory, WorkoutDetail, WorkoutRecap, WorkoutSet, WorkoutSummary } from './types'
 
 export const api = {
   register: (email: string, password: string) =>
@@ -65,9 +65,17 @@ export const api = {
   lolRankHistory: (puuid: string) => request<LolRankPoint[]>(`/api/v1/lol/players/${encodeURIComponent(puuid)}/rank-history`),
   untrackLolPlayer: (puuid: string) =>
     request<void>(`/api/v1/lol/players/${encodeURIComponent(puuid)}`, { method: 'DELETE', responseType: 'none' }),
+  /** tzOffsetMinutes (east of UTC, e.g. 180 for Turkey) puts the time-of-day and weekday split on the phone's clock */
+  lolStats: (puuid: string, queue: LolStatsQueue, games: LolStatsWindow, tzOffsetMinutes: number) =>
+    request<LolDeepStats>(`/api/v1/lol/players/${encodeURIComponent(puuid)}/stats?queue=${queue}&games=${games}&tzOffsetMinutes=${tzOffsetMinutes}`),
+  lolMatch: (matchId: string) => request<LolMatchDetail>(`/api/v1/lol/matches/${encodeURIComponent(matchId)}`),
+  /** The first request asks Riot (503 when it is unavailable, 404 when it no longer has the match) */
+  lolTimeline: (matchId: string) => request<LolTimeline>(`/api/v1/lol/matches/${encodeURIComponent(matchId)}/timeline`),
 
   // Not being in a group is a 204, which arrives as undefined; TanStack Query rejects undefined data, so it becomes null
   lolGroup: () => request<LolGroup | undefined>('/api/v1/lol/group').then((group) => group ?? null),
+  /** Group members who played together; 204 (not in a group) becomes null, like lolGroup */
+  lolGroupDuos: () => request<LolGroupDuo[] | undefined>('/api/v1/lol/group/duos').then((duos) => duos ?? null),
   createLolGroup: (name: string) => request<LolGroup>('/api/v1/lol/group', { method: 'POST', body: { name } }),
   joinLolGroup: (code: string) => request<LolGroup>('/api/v1/lol/group/join', { method: 'POST', body: { code } }),
   renameLolGroup: (name: string) => request<LolGroup>('/api/v1/lol/group', { method: 'PUT', body: { name } }),

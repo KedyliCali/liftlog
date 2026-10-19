@@ -154,3 +154,15 @@ export function parseSummonerSpells(json: unknown): Record<number, string> {
 
 /** Match data uses Data Dragon ids ("MonkeyKing" for Wukong), so the name maps straight to the file. */
 export const championIconUrl = (version: string, champion: string) => `${DDRAGON}/cdn/${version}/img/champion/${champion}.png`
+
+/** Item and rune names in the phone's language when Data Dragon has it; champion.json only serves ids, so English. */
+export const ddragonLanguage = (locale: string) => (locale.toLowerCase().startsWith('tr') ? 'tr_TR' : 'en_US')
+
+export const itemDataUrl = (version: string, language: string) => `${DDRAGON}/cdn/${version}/data/${language}/item.json`
+
+export const runesDataUrl = (version: string, language: string) => `${DDRAGON}/cdn/${version}/data/${language}/runesReforged.json`
+
+export const championDataUrl = (version: string) => `${DDRAGON}/cdn/${version}/data/en_US/champion.json`
+
+/** Rune icons live outside the versioned folders; runesReforged.json gives the path below /cdn/img/. */
+export const runeIconUrl = (iconPath: string) => `${DDRAGON}/cdn/img/${iconPath}`

@@ -6,6 +6,8 @@ import com.behlul.liftlog.dto.LolDtos.LolGroupMemberResponse;
 import com.behlul.liftlog.dto.LolDtos.LolGroupResponse;
 import com.behlul.liftlog.dto.LolDtos.LolPlayerResponse;
 import com.behlul.liftlog.dto.LolDtos.TrackPlayerRequest;
+import com.behlul.liftlog.dto.LolMatchDtos.GroupDuo;
+import com.behlul.liftlog.dto.LolMatchDtos.GroupDuoMember;
 import com.behlul.liftlog.entity.LolGroup;
 import com.behlul.liftlog.entity.LolGroupMember;
 import com.behlul.liftlog.entity.LolPlayer;
@@ -16,6 +18,7 @@ import com.behlul.liftlog.exception.LolGroupConflictException.Rule;
 import com.behlul.liftlog.exception.ResourceNotFoundException;
 import com.behlul.liftlog.repository.LolGroupMemberRepository;
 import com.behlul.liftlog.repository.LolGroupRepository;
+import com.behlul.liftlog.repository.LolMatchParticipantRepository;
 import com.behlul.liftlog.repository.LolPlayerRepository;
 import com.behlul.liftlog.repository.UserRepository;
 import com.behlul.liftlog.security.CurrentUserProvider;
@@ -25,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,18 +55,21 @@ public class LolGroupService {
     private final LolGroupMemberRepository memberRepository;
     private final UserRepository userRepository;
     private final LolPlayerRepository playerRepository;
+    private final LolMatchParticipantRepository participantRepository;
     private final LolService lolService;
     private final CurrentUserProvider currentUser;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
     public LolGroupService(LolGroupRepository groupRepository, LolGroupMemberRepository memberRepository,
-                           UserRepository userRepository, LolPlayerRepository playerRepository, LolService lolService,
+                           UserRepository userRepository, LolPlayerRepository playerRepository,
+                           LolMatchParticipantRepository participantRepository, LolService lolService,
                            CurrentUserProvider currentUser, Clock clock) {
         this.groupRepository = groupRepository;
         this.memberRepository = memberRepository;
         this.userRepository = userRepository;
         this.playerRepository = playerRepository;
+        this.participantRepository = participantRepository;
         this.lolService = lolService;
         this.currentUser = currentUser;
         this.clock = clock;
@@ -74,6 +81,44 @@ public class LolGroupService {
         return memberRepository.findById(currentUser.currentUserId())
                 .flatMap(member -> groupRepository.findById(member.getGroupId()))
                 .map(group -> toResponse(group, true));
+    }
+
+    /**
+     * Pairs of members whose linked accounts played on the same team in a stored match, most games first; empty
+     * when the caller is in no group. Only matches stored whole count, and never calls Riot. In each pair, a is
+     * the member who joined first.
+     */
+    @Transactional(readOnly = true)
+    public Optional<List<GroupDuo>> duos() {
+        return memberRepository.findById(currentUser.currentUserId()).map(me -> {
+            List<LolGroupMember> linked = memberRepository.findByGroupIdOrderByJoinedAtAscUserIdAsc(me.getGroupId())
+                    .stream().filter(m -> m.getPuuid() != null).toList();
+            if (linked.size() < 2) {
+                return List.of();
+            }
+            Map<String, LolGroupMember> byPuuid = new HashMap<>();
+            Map<String, Integer> joinOrder = new HashMap<>();
+            for (int i = 0; i < linked.size(); i++) {
+                byPuuid.put(linked.get(i).getPuuid(), linked.get(i));
+                joinOrder.put(linked.get(i).getPuuid(), i);
+            }
+            Map<Long, String> names = new HashMap<>();
+            for (User user : userRepository.findAllById(linked.stream().map(LolGroupMember::getUserId).toList())) {
+                names.put(user.getId(), user.getDisplayName());
+            }
+            return participantRepository.countPairs(byPuuid.keySet()).stream()
+                    .map(pair -> {
+                        boolean aFirst = joinOrder.get(pair.getPuuidA()) < joinOrder.get(pair.getPuuidB());
+                        LolGroupMember a = byPuuid.get(aFirst ? pair.getPuuidA() : pair.getPuuidB());
+                        LolGroupMember b = byPuuid.get(aFirst ? pair.getPuuidB() : pair.getPuuidA());
+                        return new GroupDuo(new GroupDuoMember(a.getUserId(), names.get(a.getUserId())),
+                                new GroupDuoMember(b.getUserId(), names.get(b.getUserId())),
+                                (int) pair.getGames(), (int) pair.getWins());
+                    })
+                    .sorted(Comparator.comparingInt(GroupDuo::games).reversed()
+                            .thenComparing(Comparator.comparingInt(GroupDuo::wins).reversed()))
+                    .toList();
+        });
     }
 
     @Transactional

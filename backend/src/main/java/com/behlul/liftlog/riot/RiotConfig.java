@@ -73,5 +73,10 @@ public class RiotConfig {
         public Optional<Match> match(LolPlatform platform, String matchId) {
             throw missing();
         }
+
+        @Override
+        public Optional<Timeline> timeline(LolPlatform platform, String matchId) {
+            throw missing();
+        }
     }
 }

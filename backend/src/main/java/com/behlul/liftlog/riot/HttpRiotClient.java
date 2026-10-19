@@ -71,8 +71,26 @@ public class HttpRiotClient implements RiotClient {
         if (dto == null || dto.info() == null) {
             throw new RiotUnavailableException(Reason.RIOT_ERROR, "Riot returned an empty match " + matchId);
         }
-        return Optional.of(new Match(dto.metadata().matchId(), dto.info().queueId(), dto.info().gameEndTimestamp(),
-                dto.info().gameDuration(), dto.info().gameMode(), dto.info().participants()));
+        MatchDto.Info info = dto.info();
+        return Optional.of(new Match(dto.metadata().matchId(), info.queueId(), info.gameEndTimestamp(),
+                info.gameDuration(), info.gameMode(), info.participants(), info.gameVersion(),
+                info.teams() == null ? List.of() : info.teams()));
+    }
+
+    @Override
+    public Optional<Timeline> timeline(LolPlatform platform, String matchId) {
+        // Same rules as match(): a 404 means Riot no longer has it, a 200 without frames is Riot failing
+        Optional<ResponseEntity<TimelineDto>> found = find(() -> restClient.get()
+                .uri("https://{region}.api.riotgames.com/lol/match/v5/matches/{id}/timeline", platform.matchRegion(), matchId)
+                .retrieve().toEntity(TimelineDto.class));
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+        TimelineDto dto = found.get().getBody();
+        if (dto == null || dto.info() == null || dto.info().frames() == null) {
+            throw new RiotUnavailableException(Reason.RIOT_ERROR, "Riot returned an empty timeline " + matchId);
+        }
+        return Optional.of(new Timeline(matchId, dto.info().frames()));
     }
 
     /** Riot nests the match id under "metadata" and everything else under "info". */
@@ -84,7 +102,15 @@ public class HttpRiotClient implements RiotClient {
 
         @JsonIgnoreProperties(ignoreUnknown = true)
         private record Info(int queueId, long gameEndTimestamp, long gameDuration, String gameMode,
-                            List<Participant> participants) {
+                            List<Participant> participants, String gameVersion, List<Team> teams) {
+        }
+    }
+
+    /** The timeline nests its frames under "info" too. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record TimelineDto(Info info) {
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        private record Info(List<Frame> frames) {
         }
     }
 
