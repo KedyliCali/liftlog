@@ -13,7 +13,8 @@ public interface RiotClient {
 
     Optional<Account> findAccount(LolPlatform platform, String gameName, String tagLine);
 
-    Summoner summoner(LolPlatform platform, String puuid);
+    /** Empty when the account has no League profile on that server. */
+    Optional<Summoner> summoner(LolPlatform platform, String puuid);
 
     List<LeagueEntry> leagueEntries(LolPlatform platform, String puuid);
 

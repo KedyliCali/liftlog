@@ -50,6 +50,25 @@ class HttpRiotClientTest {
     }
 
     @Test
+    void summonerNotFoundIsEmpty() {
+        // What a Riot ID picked with the wrong server looks like: the account exists, the profile does not
+        riot.expect(requestTo("https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/abc"))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND));
+
+        assertThat(client.summoner(LolPlatform.EUW1, "abc")).isEmpty();
+    }
+
+    @Test
+    void missingMatchIsRiotError() {
+        riot.expect(requestTo("https://europe.api.riotgames.com/lol/match/v5/matches/TR1_404"))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND));
+
+        assertThatThrownBy(() -> client.match(LolPlatform.TR1, "TR1_404"))
+                .isInstanceOfSatisfying(RiotUnavailableException.class,
+                        e -> assertThat(e.reason()).isEqualTo(RiotUnavailableException.Reason.RIOT_ERROR));
+    }
+
+    @Test
     void rejectedKeyAndRateLimitBecomeUnavailable() {
         riot.expect(requestTo("https://tr1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/abc"))
                 .andRespond(withStatus(HttpStatus.FORBIDDEN));

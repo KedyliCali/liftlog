@@ -39,9 +39,9 @@ public class FakeRiotClient implements RiotClient {
     }
 
     @Override
-    public Summoner summoner(LolPlatform platform, String puuid) {
+    public Optional<Summoner> summoner(LolPlatform platform, String puuid) {
         Random random = seeded(puuid);
-        return new Summoner(random.nextInt(30), 30 + random.nextInt(470));
+        return Optional.of(new Summoner(random.nextInt(30), 30 + random.nextInt(470)));
     }
 
     @Override

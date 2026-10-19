@@ -25,19 +25,16 @@ public class HttpRiotClient implements RiotClient {
 
     @Override
     public Optional<Account> findAccount(LolPlatform platform, String gameName, String tagLine) {
-        try {
-            return Optional.ofNullable(call(() -> restClient.get()
-                    .uri("https://{region}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{name}/{tag}",
-                            platform.accountRegion(), gameName, tagLine)
-                    .retrieve().body(Account.class)));
-        } catch (HttpClientErrorException.NotFound e) {
-            return Optional.empty();
-        }
+        return find(() -> restClient.get()
+                .uri("https://{region}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{name}/{tag}",
+                        platform.accountRegion(), gameName, tagLine)
+                .retrieve().body(Account.class));
     }
 
     @Override
-    public Summoner summoner(LolPlatform platform, String puuid) {
-        return call(() -> restClient.get()
+    public Optional<Summoner> summoner(LolPlatform platform, String puuid) {
+        // A Riot ID picked with the wrong server has an account (account-v1 is regional) but no profile here
+        return find(() -> restClient.get()
                 .uri("https://{host}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}", platform.host(), puuid)
                 .retrieve().body(Summoner.class));
     }
@@ -84,12 +81,21 @@ public class HttpRiotClient implements RiotClient {
         }
     }
 
+    /** For lookups, where a 404 is an answer ("no such account or profile"), not a failure. */
+    private <T> Optional<T> find(Supplier<T> request) {
+        return call(() -> {
+            try {
+                return Optional.ofNullable(request.get());
+            } catch (HttpClientErrorException.NotFound e) {
+                return Optional.empty();
+            }
+        });
+    }
+
     private <T> T call(Supplier<T> request) {
         limiter.acquire();
         try {
             return request.get();
-        } catch (HttpClientErrorException.NotFound e) {
-            throw e;
         } catch (HttpClientErrorException e) {
             HttpStatusCode status = e.getStatusCode();
             if (status.value() == 401 || status.value() == 403) {

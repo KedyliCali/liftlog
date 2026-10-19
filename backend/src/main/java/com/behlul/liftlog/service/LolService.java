@@ -16,8 +16,10 @@ import com.behlul.liftlog.riot.LolPlatform;
 import com.behlul.liftlog.riot.RiotClient;
 import com.behlul.liftlog.riot.RiotClient.LeagueEntry;
 import com.behlul.liftlog.riot.RiotClient.Match;
+import com.behlul.liftlog.riot.RiotClient.Summoner;
 import com.behlul.liftlog.riot.RiotRateLimiter;
 import com.behlul.liftlog.riot.RiotUnavailableException;
+import com.behlul.liftlog.riot.RiotUnavailableException.Reason;
 import com.behlul.liftlog.security.CurrentUserProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +33,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -91,8 +94,10 @@ public class LolService {
         player.rename(account.gameName(), account.tagLine());
         // Stored before the refresh: its match rows reference the player
         playerRepository.saveAndFlush(player);
-        if (isStale(player)) {
-            refresh(player);
+        // The account exists (account-v1 is regional) but has no profile on the chosen server: same answer as a
+        // missing Riot ID, and the exception rolls the new row back
+        if (isStale(player) && !refresh(player)) {
+            throw new RiotIdNotFoundException(gameName + "#" + tagLine, platform.name());
         }
         playerRepository.track(userId, player.getPuuid());
         return toResponse(player);
@@ -123,8 +128,9 @@ public class LolService {
         LolPlayer player = loadTracked(puuid);
         boolean recentlyRefreshed = player.getRefreshedAt() != null
                 && player.getRefreshedAt().isAfter(now().minus(MIN_MANUAL_REFRESH));
-        if (!recentlyRefreshed) {
-            refresh(player);
+        if (!recentlyRefreshed && !refresh(player)) {
+            throw new RiotUnavailableException(Reason.RIOT_ERROR,
+                    "Riot has no League profile for this player on " + player.getPlatform());
         }
         List<LolMatchPlayer> matches = recentMatches(puuid);
         return new LolPlayerDetailResponse(toResponse(player, matches), LolStats.summarize(matches),
@@ -151,16 +157,23 @@ public class LolService {
             return;
         }
         try {
-            refresh(player);
+            if (!refresh(player)) {
+                log.info("Riot has no League profile for {} on {}; showing cached data", player.getPuuid(),
+                        player.getPlatform());
+            }
         } catch (RiotUnavailableException e) {
             log.info("Showing cached League data for {}: {}", player.getPuuid(), e.getMessage());
         }
     }
 
-    private void refresh(LolPlayer player) {
+    /** False when Riot has no League profile for the player on their server; nothing is changed then. */
+    private boolean refresh(LolPlayer player) {
         LolPlatform platform = LolPlatform.parse(player.getPlatform()).orElseThrow();
-        RiotClient.Summoner summoner = riot.summoner(platform, player.getPuuid());
-        player.updateProfile(summoner.profileIconId(), summoner.summonerLevel());
+        Optional<Summoner> found = riot.summoner(platform, player.getPuuid());
+        if (found.isEmpty()) {
+            return false;
+        }
+        player.updateProfile(found.get().profileIconId(), found.get().summonerLevel());
 
         LeagueEntry solo = riot.leagueEntries(platform, player.getPuuid()).stream()
                 .filter(e -> SOLO_QUEUE.equals(e.queueType())).findFirst().orElse(null);
@@ -176,6 +189,7 @@ public class LolService {
                 .forEach(id -> storeMatch(riot.match(platform, id), player.getPuuid()));
         player.markRefreshed(now());
         playerRepository.save(player);
+        return true;
     }
 
     private void storeMatch(Match match, String puuid) {
