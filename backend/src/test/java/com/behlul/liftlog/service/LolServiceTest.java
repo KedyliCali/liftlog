@@ -264,6 +264,46 @@ class LolServiceTest {
         assertThat(player.getRefreshedAt()).isEqualTo(NOW.minusMinutes(30));
     }
 
+    /** Like the real claim: only a row that is stale or was never refreshed can be claimed. */
+    private void claimsFollowTheRow(LolPlayer player) {
+        when(playerRepository.claimForRefresh(eq(player.getPuuid()), any())).thenAnswer(call -> {
+            LocalDateTime staleBefore = call.getArgument(1);
+            boolean stale = player.getRefreshedAt() == null || player.getRefreshedAt().isBefore(staleBefore);
+            return stale ? Optional.of(player.getPuuid()) : Optional.empty();
+        });
+    }
+
+    @Test
+    void aCachedPlayerAskedForOnAnotherServerMovesThere() {
+        // Fresh, so without the move the claim would skip them and they would stay on EUW1
+        LolPlayer cached = new LolPlayer("moved", "EUW1", "Moved", "TAG");
+        cached.markRefreshed(NOW.minusMinutes(2));
+        when(playerRepository.findById(anyString())).thenReturn(Optional.of(cached));
+        claimsFollowTheRow(cached);
+
+        LolPlayer player = service.findAndCache(new TrackPlayerRequest("Moved#TAG", "TR1"));
+
+        assertThat(player.getPlatform()).isEqualTo("TR1");
+        assertThat(player.getRefreshedAt()).isEqualTo(NOW);
+        verify(riot).summoner(LolPlatform.TR1, "moved");
+        verify(riot, never()).summoner(eq(LolPlatform.EUW1), anyString());
+    }
+
+    @Test
+    void aCachedPlayerAskedForOnAServerWithoutTheirProfileIsNotFound() {
+        LolPlayer cached = new LolPlayer("stays", "TR1", "Stays", "TAG");
+        cached.markRefreshed(NOW.minusMinutes(2));
+        when(playerRepository.findById(anyString())).thenReturn(Optional.of(cached));
+        claimsFollowTheRow(cached);
+        doReturn(Optional.empty()).when(riot).summoner(LolPlatform.EUW1, "stays");
+
+        // In the app this exception also rolls the transaction back, so the row stays on TR1
+        assertThatThrownBy(() -> service.findAndCache(new TrackPlayerRequest("Stays#TAG", "EUW1")))
+                .isInstanceOf(RiotIdNotFoundException.class)
+                .hasMessage("Riot ID Stays#TAG was not found on EUW1");
+        verify(riot).summoner(LolPlatform.EUW1, "stays");
+    }
+
     @Test
     void staleFirstOrdersNeverRefreshedThenOldest() {
         List<LolPlayer> players = new ArrayList<>(List.of(player("recent", 11), player("fresh", 9), player("never", null),

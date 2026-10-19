@@ -429,6 +429,24 @@ class ApiIntegrationTest {
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
+    @Test
+    void followingACachedPlayerOnAnotherServerMovesThem() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        String riotId = uniqueRiotId("Move");
+        authed(post("/api/v1/lol/players"), token, "{\"riotId\":\"" + riotId + "\",\"platform\":\"TR1\"}")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.platform").value("TR1"));
+
+        // Same account (the fake keeps the PUUID, as Riot does across a transfer), now asked for on EUW1
+        authed(post("/api/v1/lol/players"), token, "{\"riotId\":\"" + riotId + "\",\"platform\":\"EUW1\"}")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.platform").value("EUW1"))
+                .andExpect(jsonPath("$.refreshedAt").isNotEmpty());
+        mockMvc.perform(get("/api/v1/lol/players").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].platform").value("EUW1"));
+    }
+
     private static final String GROUP = "/api/v1/lol/group";
 
     @Test

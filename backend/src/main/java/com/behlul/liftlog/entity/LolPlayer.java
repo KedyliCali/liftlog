@@ -80,6 +80,12 @@ public class LolPlayer implements Persistable<String> {
         this.tagLine = tagLine;
     }
 
+    /** The player is on another server now; their data counts as stale, so the next refresh checks the new one. */
+    public void moveTo(String platform) {
+        this.platform = platform;
+        this.refreshedAt = null;
+    }
+
     public void updateProfile(int profileIconId, long summonerLevel) {
         this.profileIconId = profileIconId;
         this.summonerLevel = (int) summonerLevel;

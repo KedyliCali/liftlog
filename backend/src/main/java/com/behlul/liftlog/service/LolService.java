@@ -123,10 +123,16 @@ public class LolService {
         LolPlayer player = playerRepository.findById(account.puuid())
                 .orElseGet(() -> new LolPlayer(account.puuid(), platform.name(), account.gameName(), account.tagLine()));
         player.rename(account.gameName(), account.tagLine());
+        if (!player.getPlatform().equals(platform.name())) {
+            // A PUUID stays the same across a server transfer, so a cached player asked for on another server has
+            // most likely moved there. Moving also makes them stale, so the claim below succeeds and the refresh
+            // checks the requested server; if they have no profile there, the 404 below rolls the move back
+            player.moveTo(platform.name());
+        }
         // Stored before the refresh: its match rows reference the player
         playerRepository.saveAndFlush(player);
         // The account exists (account-v1 is regional) but has no profile on the chosen server: same answer as a
-        // missing Riot ID, and the exception rolls the new row back
+        // missing Riot ID, and the exception rolls the new row (or the move) back
         if (refreshIfStale(player, STALE_AFTER) == RefreshOutcome.NO_PROFILE) {
             throw new RiotIdNotFoundException(gameName + "#" + tagLine, platform.name());
         }
