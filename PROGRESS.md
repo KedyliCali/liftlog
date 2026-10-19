@@ -324,3 +324,23 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
    kurulu; her biri bir öncekini içeriyor.
 2. Canlıda kontrol: migration'lar, Face ID, League sayfası, rutinler.
 
+
+## 2026-10-19 — Antrenman özeti + haftalık seri (branch `feature/workout-summary`)
+
+- **Backend:** `GET /api/v1/workouts/{id}/summary` (sahibi değilse 404): toplam hacim, set, hareket, bu antrenmanda
+  kırılan rekorlar (o ana kadarki en ağır set ya da en iyi tahmini 1RM; hareketin ilk kez yapılışı rekor sayılmaz,
+  hareket başına en güçlü set), karşılaştırma (aynı rutinin önceki antrenmanı, yoksa birebir aynı hareketlerle
+  yapılan önceki antrenman) ve haftalık seri. `GET /api/v1/stats/streak` → `{weeks, thisWeekWorkouts, longestWeeks}`:
+  ISO haftası (pazartesi başlar); bu hafta antrenman yoksa sayım geçen haftadan başlar, pazartesi sabahı 0'a düşmez.
+  Saf mantık `WeekStreak` ve `WorkoutRecap` sınıflarında, birim testli. Migration gerekmedi (V17 yok).
+- **Web:** Antrenman sayfasında "Antrenmanı bitir" (⋮ menüsünde ve set varsa listenin altında) → özet sayfası:
+  "Bugün 4.015 kg kaldırdın", "geçen seferden +1.330 kg" etiketi, set/hareket kutuları, seri çipi, rekor listesi,
+  Paylaş (navigator.share, yoksa panoya kopyalama). Antrenmanlar başlığında katmanlı "4 HAFTA SERİ" çipi (alevli SVG
+  ikon, "bu hafta 1×" etiketi). Not: League sayfasında zaten `.streak-chip` sınıfı vardı; yeni çip `.week-streak`.
+- Süre gösterilmiyor: antrenmanın bitiş zamanı tutulmuyor.
+- Doğrulama: backend 203 test (`mvnw verify`), web 242 test, tsc, lint, build. Yerel Postgres + backend + Vite ile
+  tarayıcıda (375 px): seri çipi başlıkta, bitir butonu, özet sayfası gerçek API verisiyle.
+
+**Sıradaki adımlar:**
+1. PR aç ve birleştir; canlıda özet ve seri uçlarını kontrol et.
+2. Android'e aynı özet ve seri (isteğe bağlı).
