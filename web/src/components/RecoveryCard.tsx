@@ -6,7 +6,7 @@ import { currentRecoveryCode, hasPendingPassword, NUDGE_KEY, regenerateRecoveryC
 import { errorMessage } from '../lib/format'
 import { t } from '../lib/i18n'
 import { shareText } from '../lib/recoveryCode'
-import { useToast } from './contexts'
+import { useConfirm, useToast } from './contexts'
 import { ChevronIcon, KeyIcon } from './Icons'
 import { RestoreForm } from './Recovery'
 import { Sheet } from './Sheet'
@@ -27,6 +27,7 @@ function markSaved() {
  */
 export function RecoveryCodeCard({ collapsible = false }: { collapsible?: boolean }) {
   const toast = useToast()
+  const confirm = useConfirm()
   const queryClient = useQueryClient()
   const [code, setCode] = useState(currentRecoveryCode)
   // Came back with Face ID: the stored password is a device secret, which must not pass for the code
@@ -71,7 +72,7 @@ export function RecoveryCodeCard({ collapsible = false }: { collapsible?: boolea
   }
 
   const regenerate = async () => {
-    if (!window.confirm(t.newCodeConfirm)) return
+    if (!(await confirm({ title: t.newCodeTitle, message: t.newCodeBody, confirmLabel: t.newCode, tone: 'neutral' }))) return
     setSaving(true)
     try {
       setCode(await regenerateRecoveryCode())
