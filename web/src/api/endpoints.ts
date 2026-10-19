@@ -45,6 +45,8 @@ export const api = {
 
   nutritionDay: (date: string) => request<NutritionDay>(`/api/v1/nutrition/days/${date}`),
   addFood: (input: FoodInput) => request<FoodEntry>('/api/v1/nutrition/entries', { method: 'POST', body: input }),
+  /** Copies every entry of sourceDate onto date and returns the new entries (for undo). */
+  copyDay: (date: string, sourceDate: string) => request<FoodEntry[]>(`/api/v1/nutrition/days/${date}/copy-from/${sourceDate}`, { method: 'POST' }),
   deleteFood: (id: number) => request<void>(`/api/v1/nutrition/entries/${id}`, { method: 'DELETE', responseType: 'none' }),
   frequentFoods: () => request<FrequentFood[]>('/api/v1/nutrition/frequent'),
   // The response is cached for a day; the app version in the URL makes each release fetch the list anew

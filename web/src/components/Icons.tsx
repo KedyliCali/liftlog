@@ -92,6 +92,16 @@ export function BodyweightIcon({ size = 16 }: { size?: number }) {
   )
 }
 
+/** Bars of different weights, like a real barcode, rather than evenly spaced lines. */
+export function BarcodeIcon({ size = 20 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M3 5v14M6 5v14M10 5v14M13 5v14M17 5v14M21 5v14" />
+      <path d="M8 5v14M19 5v14" strokeWidth="1" />
+    </Icon>
+  )
+}
+
 export function CameraIcon({ size = 16 }: { size?: number }) {
   return (
     <Icon size={size}>

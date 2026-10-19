@@ -8,6 +8,7 @@ import com.behlul.liftlog.dto.NutritionDtos.NutritionDayResponse;
 import com.behlul.liftlog.dto.NutritionDtos.NutritionGoals;
 import com.behlul.liftlog.entity.FoodEntry;
 import com.behlul.liftlog.entity.User;
+import com.behlul.liftlog.exception.FieldValidationException;
 import com.behlul.liftlog.exception.ResourceNotFoundException;
 import com.behlul.liftlog.repository.FoodEntryRepository;
 import com.behlul.liftlog.repository.FoodRepository;
@@ -63,6 +64,26 @@ public class NutritionService {
                 request.entryDate(), request.name().trim(), request.caloriesKcal(), request.proteinG(),
                 request.carbsG(), request.fatG());
         return FoodEntryResponse.from(entryRepository.save(entry));
+    }
+
+    /**
+     * Copies every entry of {@code sourceDate} onto {@code targetDate} in one transaction, so a failure never
+     * leaves half a day copied. Entries already on the target day stay; the copies are returned so the
+     * client can offer an undo that deletes exactly them.
+     */
+    @Transactional
+    public List<FoodEntryResponse> copyDay(LocalDate targetDate, LocalDate sourceDate) {
+        if (targetDate.equals(sourceDate)) {
+            throw new FieldValidationException("sourceDate", "must be a different day");
+        }
+        Long userId = currentUser.currentUserId();
+        User user = userRepository.getReferenceById(userId);
+        List<FoodEntry> copies = entryRepository.findByUserIdAndEntryDateOrderByIdAsc(userId, sourceDate)
+                .stream()
+                .map(source -> new FoodEntry(user, targetDate, source.getName(), source.getCaloriesKcal(),
+                        source.getProteinG(), source.getCarbsG(), source.getFatG()))
+                .toList();
+        return entryRepository.saveAll(copies).stream().map(FoodEntryResponse::from).toList();
     }
 
     @Transactional

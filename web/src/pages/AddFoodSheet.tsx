@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { CatalogFood, FoodInput } from '../api/types'
+import { BarcodeScanner } from '../components/BarcodeScanner'
 import { Sheet } from '../components/Sheet'
 import { ErrorState } from '../components/StateViews'
 import { amountInGrams, entryName, nutritionFor, searchFoods, sortByCategory, stepServings, type Amount } from '../lib/foodCatalog'
@@ -10,7 +11,8 @@ import { formatKg } from '../lib/format'
 import { locale, t } from '../lib/i18n'
 import { validateFood, type FoodField, type FoodForm } from '../lib/nutrition'
 import { sanitizeDecimal } from '../lib/validation'
-import { PencilIcon } from '../components/Icons'
+import { lookupBarcode, productAsCatalogFood, type ScannedProduct } from '../lib/openFoodFacts'
+import { BarcodeIcon, PencilIcon } from '../components/Icons'
 
 type FoodDraft = Omit<FoodInput, 'entryDate'>
 
@@ -18,23 +20,93 @@ const isTurkish = locale.toLowerCase().startsWith('tr')
 const nameOf = (food: CatalogFood) => (isTurkish ? food.nameTr : food.nameEn)
 const servingOf = (food: CatalogFood) => (isTurkish ? food.servingTr : food.servingEn)
 
-/** Search the built-in list first; typing values by hand is the fallback for anything not in it. */
+type Step =
+  | { kind: 'search' }
+  | { kind: 'scan' }
+  | { kind: 'lookup'; code: string }
+  | { kind: 'lookupFailed'; code: string }
+  | { kind: 'amount'; food: CatalogFood; product?: ScannedProduct }
+  | { kind: 'manual'; name: string; notice?: string }
+
+/**
+ * Search the built-in list first; a packaged food can be scanned instead, and typing values by hand is
+ * the fallback for anything else. A scanned product goes through the same amount step as a catalog food.
+ */
 export function AddFoodSheet({ onSave, onClose }: { onSave: (input: FoodDraft) => Promise<void>; onClose: () => void }) {
-  const [step, setStep] = useState<{ kind: 'search' } | { kind: 'amount'; food: CatalogFood } | { kind: 'manual'; name: string }>({ kind: 'search' })
+  const [step, setStep] = useState<Step>({ kind: 'search' })
   const [query, setQuery] = useState('')
+  // Bumped on every lookup and on leaving it, so a slow answer cannot replace a step the user moved on from
+  const lookupRun = useRef(0)
+
+  const lookUp = async (code: string) => {
+    const run = ++lookupRun.current
+    setStep({ kind: 'lookup', code })
+    try {
+      const result = await lookupBarcode(code, { preferTurkish: isTurkish })
+      if (run !== lookupRun.current) return
+      if (result.status === 'found') setStep({ kind: 'amount', food: productAsCatalogFood(result.product), product: result.product })
+      else setStep({ kind: 'manual', name: result.status === 'noNutrition' ? (result.name ?? '') : '', notice: t.productNotFound })
+    } catch {
+      if (run === lookupRun.current) setStep({ kind: 'lookupFailed', code })
+    }
+  }
+
+  const backToSearch = () => {
+    lookupRun.current++
+    setStep({ kind: 'search' })
+  }
 
   return (
-    <Sheet title={t.addFood} onClose={onClose}>
+    <Sheet title={step.kind === 'scan' ? t.scanBarcode : t.addFood} onClose={onClose}>
       {step.kind === 'search' && (
-        <FoodSearch query={query} onQuery={setQuery} onPick={(food) => setStep({ kind: 'amount', food })} onManual={() => setStep({ kind: 'manual', name: query.trim() })} />
+        <FoodSearch
+          query={query}
+          onQuery={setQuery}
+          onPick={(food) => setStep({ kind: 'amount', food })}
+          onManual={() => setStep({ kind: 'manual', name: query.trim() })}
+          onScan={() => setStep({ kind: 'scan' })}
+        />
       )}
-      {step.kind === 'amount' && <AmountStep food={step.food} onBack={() => setStep({ kind: 'search' })} onSave={onSave} />}
-      {step.kind === 'manual' && <ManualFoodForm initialName={step.name} onBack={() => setStep({ kind: 'search' })} onSave={onSave} />}
+      {step.kind === 'scan' && <BarcodeScanner onDetected={(code) => void lookUp(code)} onBack={backToSearch} />}
+      {step.kind === 'lookup' && (
+        <div className="lookup-state" role="status">
+          <div className="spinner" />
+          <span className="muted">{t.lookingUpProduct}</span>
+          <span className="scanned-product-code num">{step.code}</span>
+        </div>
+      )}
+      {step.kind === 'lookupFailed' && (
+        <div className="lookup-state" role="alert">
+          <strong>{t.lookupFailed}</strong>
+          <button className="btn btn-tonal" onClick={() => void lookUp(step.code)}>
+            {t.retry}
+          </button>
+          <button className="btn btn-text" onClick={() => setStep({ kind: 'manual', name: '' })}>
+            <PencilIcon /> {t.enterManually}
+          </button>
+        </div>
+      )}
+      {step.kind === 'amount' && (
+        <AmountStep key={step.food.id} food={step.food} product={step.product} onBack={step.product ? () => setStep({ kind: 'scan' }) : backToSearch} onSave={onSave} />
+      )}
+      {step.kind === 'manual' && <ManualFoodForm initialName={step.name} notice={step.notice} onBack={backToSearch} onSave={onSave} />}
     </Sheet>
   )
 }
 
-function FoodSearch({ query, onQuery, onPick, onManual }: { query: string; onQuery: (q: string) => void; onPick: (food: CatalogFood) => void; onManual: () => void }) {
+function FoodSearch({
+  query,
+  onQuery,
+  onPick,
+  onManual,
+  onScan,
+}: {
+  query: string
+  onQuery: (q: string) => void
+  onPick: (food: CatalogFood) => void
+  onManual: () => void
+  onScan: () => void
+}) {
   // The list only changes with a backend release
   const catalog = useQuery({ queryKey: queryKeys.foods, queryFn: api.foods, staleTime: 24 * 60 * 60_000 })
   const results = catalog.data ? (query.trim() ? searchFoods(catalog.data, query) : sortByCategory(catalog.data)) : []
@@ -44,6 +116,15 @@ function FoodSearch({ query, onQuery, onPick, onManual }: { query: string; onQue
       <div className="field">
         <input autoFocus placeholder={t.searchFoods} value={query} onChange={(e) => onQuery(e.target.value)} aria-label={t.searchFoods} />
       </div>
+      <button className="scan-entry" onClick={onScan} data-testid="scan-barcode">
+        <span className="scan-entry-icon">
+          <BarcodeIcon />
+        </span>
+        <span>
+          <strong>{t.scanBarcode}</strong>
+          <small>{t.packagedFood} · Open Food Facts</small>
+        </span>
+      </button>
       <button className="btn btn-text" style={{ alignSelf: 'flex-start', padding: 0 }} onClick={onManual}>
         <PencilIcon /> {t.enterManually}
       </button>
@@ -80,8 +161,9 @@ function FoodSearch({ query, onQuery, onPick, onManual }: { query: string; onQue
   )
 }
 
-function AmountStep({ food, onBack, onSave }: { food: CatalogFood; onBack: () => void; onSave: (input: FoodDraft) => Promise<void> }) {
-  const [mode, setMode] = useState<'servings' | 'grams'>('servings')
+function AmountStep({ food, product, onBack, onSave }: { food: CatalogFood; product?: ScannedProduct; onBack: () => void; onSave: (input: FoodDraft) => Promise<void> }) {
+  // A pack without a printed serving is easier to weigh than to count in made-up 100 g "servings"
+  const [mode, setMode] = useState<'servings' | 'grams'>(product && product.servingG == null ? 'grams' : 'servings')
   const [servings, setServings] = useState(1)
   const [gramsText, setGramsText] = useState(String(food.servingG))
   const [saving, setSaving] = useState(false)
@@ -103,7 +185,8 @@ function AmountStep({ food, onBack, onSave }: { food: CatalogFood; onBack: () =>
       <button className="btn btn-text" style={{ alignSelf: 'flex-start', padding: 0 }} onClick={onBack}>
         ‹ {t.back}
       </button>
-      <div className="amount-food">
+      <div className={product ? 'amount-food scanned-product' : 'amount-food'}>
+        {product && <span className="scanned-product-code num">{product.code}</span>}
         <strong>{nameOf(food)}</strong>
         <span className="muted num">
           {t.per100g(formatKg(food.kcalPer100g), formatKg(food.proteinPer100g))}
@@ -166,7 +249,7 @@ function AmountStep({ food, onBack, onSave }: { food: CatalogFood; onBack: () =>
   )
 }
 
-function ManualFoodForm({ initialName, onBack, onSave }: { initialName: string; onBack: () => void; onSave: (input: FoodDraft) => Promise<void> }) {
+function ManualFoodForm({ initialName, notice, onBack, onSave }: { initialName: string; notice?: string; onBack: () => void; onSave: (input: FoodDraft) => Promise<void> }) {
   const [form, setForm] = useState<FoodForm>({ name: initialName, calories: '', protein: '', carbs: '', fat: '' })
   const [errors, setErrors] = useState<Set<FoodField>>(new Set())
   const [saving, setSaving] = useState(false)
@@ -202,6 +285,11 @@ function ManualFoodForm({ initialName, onBack, onSave }: { initialName: string; 
       <button type="button" className="btn btn-text" style={{ alignSelf: 'flex-start', padding: 0 }} onClick={onBack}>
         ‹ {t.back}
       </button>
+      {notice && (
+        <p className="manual-notice" role="status">
+          {notice}
+        </p>
+      )}
       <div className={errors.has('name') ? 'field invalid' : 'field'}>
         <label htmlFor="food-name">{t.foodName}</label>
         <input id="food-name" value={form.name} maxLength={100} placeholder={t.foodNamePlaceholder} autoComplete="off" onChange={(e) => update({ name: e.target.value }, 'name')} />

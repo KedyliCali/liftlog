@@ -44,6 +44,15 @@ public class NutritionController {
         return nutritionService.addEntry(request);
     }
 
+    /** "Copy yesterday": one request instead of one per entry, and all-or-nothing. */
+    @PostMapping("/days/{date}/copy-from/{sourceDate}")
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<FoodEntryResponse> copyDay(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sourceDate) {
+        return nutritionService.copyDay(date, sourceDate);
+    }
+
     @DeleteMapping("/entries/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteEntry(@PathVariable Long id) {

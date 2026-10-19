@@ -324,6 +324,25 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
    kurulu; her biri bir öncekini içeriyor.
 2. Canlıda kontrol: migration'lar, Face ID, League sayfası, rutinler.
 
+## 2026-10-19 — Barkodla ekleme ve dünü kopyala (branch `feature/nutrition-quick`)
+
+- **Backend:** `POST /api/v1/nutrition/days/{date}/copy-from/{sourceDate}` önceki günün kayıtlarını tek işlemde
+  (hepsi ya da hiçbiri) kopyalar ve yeni kayıtları döner; aynı gün 400. Migration yok: barkod sunucuda saklanmıyor,
+  kayıt modeli (ad + kcal + makrolar) değişmedi.
+- **Web:** Yiyecek ekle'de "Barkod okut": arka kamera, çerçeveli vizör, destekleniyorsa fener, kapat; kamera izni
+  yoksa ya da kamera yoksa kodu elle yazma. iOS Safari'de BarcodeDetector olmadığı için çözümleme ZXing
+  (`@zxing/browser` 0.2.1, `@zxing/library` 0.23.0) ile JavaScript'te; kütüphane yalnızca tarayıcı açılınca yükleniyor.
+  Kod Open Food Facts'te aranıyor (kcal yoksa kJ/4,184), bulunan ürün katalog yiyeceği gibi porsiyon/gram adımına
+  gidiyor ve localStorage'da önbelleğe alınıyor (tekrar okutma çevrimdışı çalışır). Bulunamazsa "Bu ürün bulunamadı;
+  elle ekleyebilirsin" ile elle girişe, varsa adla.
+- Beslenme sayfası: gün boşken "Dünü kopyala" kartı, ayrıca sağ üstteki ⋮ menüsünde; bildirimde sayı ve
+  "Geri al" (yalnızca kopyalanan kayıtları siler).
+- Doğrulama: backend 183 test (`./mvnw verify`), web 255 test, tsc, lint, build. Tarayıcıda görsel kontrol yalnızca
+  stiller için yapıldı (kamera, önizleme panelinde engelli).
+
+**Sıradaki adımlar:**
+1. iPhone'da ana ekrandaki uygulamadan gerçek bir paket okut: izin istemi, odak ve fener davranışını gör.
+2. İstenirse barkodu kayıtla birlikte saklamak için V18 migration'ı (`food_entries.barcode`).
 
 ## 2026-10-19 — Antrenman özeti + haftalık seri (branch `feature/workout-summary`)
 

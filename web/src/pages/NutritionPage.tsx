@@ -24,6 +24,8 @@ export function NutritionPage() {
   const [adding, setAdding] = useState(false)
   const [editingGoals, setEditingGoals] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<Set<number>>(new Set())
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [copying, setCopying] = useState(false)
 
   const day = useQuery({ queryKey: queryKeys.nutritionDay(date), queryFn: () => api.nutritionDay(date) })
   const frequent = useQuery({ queryKey: queryKeys.frequentFoods, queryFn: api.frequentFoods, staleTime: 5 * 60_000 })
@@ -51,6 +53,40 @@ export function NutritionPage() {
       return false
     }
   }
+
+  /**
+   * One request copies the whole previous day on the server (all or nothing). Undo deletes exactly the
+   * copies it returned, so entries that were already on this day are never touched.
+   */
+  const copyPreviousDay = async () => {
+    setMenuOpen(false)
+    setCopying(true)
+    try {
+      const copied = await api.copyDay(date, shiftDay(date, -1))
+      await refresh()
+      if (copied.length === 0) {
+        toast({ message: t.nothingToCopy })
+        return
+      }
+      vibrate(15)
+      toast({
+        message: t.copiedEntries(copied.length),
+        actionLabel: t.undo,
+        durationMs: 6000,
+        onAction: () =>
+          void Promise.allSettled(copied.map((entry) => api.deleteFood(entry.id))).then(async (results) => {
+            await refresh()
+            const failed = results.find((r) => r.status === 'rejected')
+            if (failed) toast({ message: errorMessage(failed.reason) })
+          }),
+      })
+    } catch (error) {
+      toast({ message: errorMessage(error) })
+    } finally {
+      setCopying(false)
+    }
+  }
+  const copyLabel = date === today ? t.copyYesterday : t.copyPreviousDay
 
   /** Same pattern as sets: hide at once, delete on the server when the undo window closes. */
   const remove = (entry: FoodEntry) => {
@@ -88,6 +124,20 @@ export function NutritionPage() {
       <header className="page-header">
         <h1 className="page-title">{t.nutritionTitle}</h1>
         <p className="page-subtitle">{t.nutritionSubtitle}</p>
+        {day.isSuccess && (
+          <div className="day-actions">
+            <button className="icon-btn" onClick={() => setMenuOpen((open) => !open)} aria-label={t.dayMenu} aria-expanded={menuOpen}>
+              ⋮
+            </button>
+            {menuOpen && (
+              <div className="menu">
+                <button onClick={() => void copyPreviousDay()} disabled={copying}>
+                  {copyLabel}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </header>
 
       <DaySwitcher date={date} today={today} onChange={setDate} />
@@ -113,7 +163,13 @@ export function NutritionPage() {
           )}
 
           {visibleEntries.length === 0 ? (
-            <MessageState icon={<PlateIcon size={32} />} title={t.noFoodTitle} body={t.noFoodBody} />
+            <MessageState icon={<PlateIcon size={32} />} title={t.noFoodTitle} body={t.noFoodBody}>
+              <button className="copy-day-cta" onClick={() => void copyPreviousDay()} disabled={copying} data-testid="copy-previous-day">
+                <span className="copy-day-cta-tag num">{formatShortDate(shiftDay(date, -1))}</span>
+                <strong>{copying ? <span className="spinner small" /> : copyLabel}</strong>
+                <small>{t.copyDayHint}</small>
+              </button>
+            </MessageState>
           ) : (
             <div className="food-list">
               {visibleEntries.map((entry, index) => (
