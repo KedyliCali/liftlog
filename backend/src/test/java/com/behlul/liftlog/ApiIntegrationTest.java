@@ -1,6 +1,7 @@
 package com.behlul.liftlog;
 
 import com.behlul.liftlog.entity.LolPlayer;
+import com.behlul.liftlog.repository.LolGroupRepository;
 import com.behlul.liftlog.repository.LolPlayerRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,8 +36,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -63,6 +66,7 @@ class ApiIntegrationTest {
     @Autowired private JsonMapper jsonMapper;
     @Autowired private JwtEncoder jwtEncoder;
     @Autowired private LolPlayerRepository playerRepository;
+    @Autowired private LolGroupRepository groupRepository;
     @Autowired private PlatformTransactionManager transactionManager;
 
     @Test
@@ -541,6 +545,76 @@ class ApiIntegrationTest {
         asUser(delete(GROUP + "/me"), member).andExpect(status().isNoContent());
         asUser(delete(GROUP + "/me"), member).andExpect(status().isNotFound());
         joinGroup(stranger, afterRemoval).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void lolGroupsStayApart() throws Exception {
+        Account ownerOne = newAccount("One");
+        Account memberOne = newAccount(null);
+        Account ownerTwo = newAccount("Two");
+        Account memberTwo = newAccount(null);
+        joinGroup(memberOne, createGroup(ownerOne, "First")).andExpect(status().isOk());
+        joinGroup(memberTwo, createGroup(ownerTwo, "Second")).andExpect(status().isOk());
+
+        // An account is only taken within a group, so the same one can be linked in both
+        String shared = uniqueRiotId("Both");
+        JsonNode boardOne = read(authed(put(GROUP + "/me/account"), memberOne.token(), riotIdBody(shared))
+                .andExpect(status().isOk()).andReturn());
+        JsonNode boardTwo = read(authed(put(GROUP + "/me/account"), memberTwo.token(), riotIdBody(shared))
+                .andExpect(status().isOk()).andReturn());
+        assertThat(linkedPuuids(boardOne)).hasSize(1).isEqualTo(linkedPuuids(boardTwo));
+        String onlyInTwo = read(authed(put(GROUP + "/me/account"), ownerTwo.token(), riotIdBody(uniqueRiotId("Two")))
+                .andExpect(status().isOk()).andReturn()).get("members").get(0).get("player").get("puuid").asString();
+
+        // The other group's members look like users that do not exist, and stay where they are
+        asUser(delete(GROUP + "/members/" + memberTwo.id()), ownerOne).andExpect(status().isNotFound());
+        asUser(get(GROUP), memberTwo)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Second"))
+                .andExpect(jsonPath("$.members.length()").value(2))
+                .andExpect(jsonPath("$.members[1].you").value(true));
+
+        // Detail pages follow the group: an account linked only in the other group stays hidden
+        asUser(get("/api/v1/lol/players/" + onlyInTwo), memberOne).andExpect(status().isNotFound());
+        asUser(get("/api/v1/lol/players/" + onlyInTwo), memberTwo).andExpect(status().isOk());
+    }
+
+    @Test
+    void groupRowLockMakesJoinsWaitTheirTurn() throws Exception {
+        String code = createGroup(newAccount("Locker"), "Locked");
+        Account joiner = newAccount(null);
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+
+        ExecutorService threads = Executors.newFixedThreadPool(2);
+        CountDownLatch locked = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        try {
+            // Another change to this group holds the group row lock and keeps its transaction open
+            Future<?> holder = threads.submit(() -> tx.executeWithoutResult(status -> {
+                groupRepository.findLockedByInviteCode(code).orElseThrow();
+                locked.countDown();
+                awaitQuietly(release);
+            }));
+            assertThat(locked.await(10, TimeUnit.SECONDS)).isTrue();
+
+            // The join waits for that lock before it counts the members, so it cannot take a seat in between
+            Future<MvcResult> join = threads.submit(() -> joinGroup(joiner, code).andReturn());
+            assertThatThrownBy(() -> join.get(500, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+
+            release.countDown();
+            holder.get(10, TimeUnit.SECONDS);
+            MvcResult joined = join.get(10, TimeUnit.SECONDS);
+            assertThat(joined.getResponse().getStatus()).isEqualTo(200);
+            assertThat(read(joined).get("members").size()).isEqualTo(2);
+        } finally {
+            release.countDown();
+            threads.shutdownNow();
+        }
+    }
+
+    private String createGroup(Account owner, String name) throws Exception {
+        return read(authed(post(GROUP), owner.token(), "{\"name\":\"" + name + "\"}")
+                .andExpect(status().isCreated()).andReturn()).get("inviteCode").asString();
     }
 
     private record Account(String token, long id) {

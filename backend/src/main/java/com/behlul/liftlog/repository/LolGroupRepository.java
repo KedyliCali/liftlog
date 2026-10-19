@@ -10,8 +10,9 @@ import java.util.Optional;
 public interface LolGroupRepository extends JpaRepository<LolGroup, Long> {
 
     /**
-     * SELECT ... FOR UPDATE on the group row. Every change to a group's members takes this lock first, so
-     * they run one at a time per group: two friends cannot both take the last seat.
+     * A row lock on the group: Hibernate writes PESSIMISTIC_WRITE as SELECT ... FOR NO KEY UPDATE on PostgreSQL,
+     * a lock that conflicts with itself. Every change to a group's members takes it first, so they run one at a
+     * time per group: two friends cannot both take the last seat.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<LolGroup> findLockedByInviteCode(String inviteCode);

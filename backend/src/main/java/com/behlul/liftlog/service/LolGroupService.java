@@ -36,8 +36,9 @@ import java.util.Optional;
  * account they play on. The board is built at read time from the shared player cache, so every member sees
  * the same board and nobody has to follow anybody.
  *
- * <p>Every change to a group's members locks the group row first (SELECT ... FOR UPDATE), so changes within a
- * group run one at a time: the member cap and "delete the group when the last member leaves" stay exact.
+ * <p>Every change to a group's members locks the group row first (a row lock, FOR NO KEY UPDATE on PostgreSQL,
+ * which conflicts with itself), so changes within a group run one at a time: the member cap and "delete the group
+ * when the last member leaves" stay exact.
  */
 @Service
 public class LolGroupService {
@@ -176,7 +177,7 @@ public class LolGroupService {
         return memberRepository.findById(me).orElseThrow(() -> notInGroup(me));
     }
 
-    /** SELECT ... FOR UPDATE on the member's group; 404 when it was deleted in the meantime. */
+    /** Row lock (FOR NO KEY UPDATE) on the member's group; 404 when it was deleted in the meantime. */
     private LolGroup lockGroupOf(LolGroupMember member) {
         return groupRepository.findLockedById(member.getGroupId()).orElseThrow(() -> notInGroup(member.getUserId()));
     }

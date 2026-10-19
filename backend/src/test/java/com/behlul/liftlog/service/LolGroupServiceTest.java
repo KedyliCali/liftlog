@@ -26,6 +26,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -82,6 +83,50 @@ class LolGroupServiceTest {
 
     private static Rule ruleOf(Throwable e) {
         return ((LolGroupConflictException) e).rule();
+    }
+
+    @Test
+    void theBoardRefreshesItsLinkedPlayers() {
+        LolGroupMember me = member(OWNER, GROUP_ID);
+        me.linkAccount("p1");
+        LolPlayer linked = new LolPlayer("p1", "TR1", "Pesimist Fidan", "2003");
+        when(currentUser.currentUserId()).thenReturn(OWNER);
+        when(memberRepository.findById(OWNER)).thenReturn(Optional.of(me));
+        when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group));
+        // The friend has not linked an account yet, so only the owner's player is refreshed
+        when(memberRepository.findByGroupIdOrderByJoinedAtAscUserIdAsc(GROUP_ID))
+                .thenReturn(List.of(me, member(FRIEND, GROUP_ID)));
+        when(playerRepository.findAllById(List.of("p1"))).thenReturn(List.of(linked));
+
+        assertThat(service.myGroup()).isPresent();
+
+        verify(lolService).refreshSomeStale(List.of(linked));
+    }
+
+    @Test
+    void creatingAGroupNeverRefreshesPlayers() {
+        when(currentUser.currentUserId()).thenReturn(OWNER);
+        when(groupRepository.save(any())).thenAnswer(call -> {
+            LolGroup saved = call.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", GROUP_ID);
+            return saved;
+        });
+
+        service.create(new GroupNameRequest("Duo Queue"));
+
+        verify(lolService, never()).refreshSomeStale(any());
+    }
+
+    @Test
+    void joiningNeverRefreshesPlayers() {
+        when(currentUser.currentUserId()).thenReturn(FRIEND);
+        when(groupRepository.findLockedByInviteCode(CODE)).thenReturn(Optional.of(group));
+        when(memberRepository.findById(FRIEND)).thenReturn(Optional.empty());
+
+        service.join(new JoinGroupRequest(CODE));
+
+        verify(memberRepository).save(any());
+        verify(lolService, never()).refreshSomeStale(any());
     }
 
     @Test
