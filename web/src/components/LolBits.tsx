@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from 'react'
 import { Link } from 'react-router'
 import type { LolPlayer, LolRank } from '../api/types'
 import { t } from '../lib/i18n'
-import { championIconUrl, profileIconUrl, rankLabel, recentWinRate } from '../lib/lol'
+import { championIconUrl, itemIconUrl, profileIconUrl, rankLabel, recentWinRate, summonerSpellIconUrl } from '../lib/lol'
 import { initials } from '../lib/workoutLogic'
 
 export function LolAvatar({ version, iconId, name, size = 44 }: { version: string | null; iconId: number | null; name: string; size?: number }) {
@@ -24,6 +24,29 @@ export function ChampionIcon({ version, champion, size = 40 }: { version: string
       ) : (
         champion.slice(0, 2)
       )}
+    </span>
+  )
+}
+
+/** One inventory slot; 0 (or a picture that fails to load) is an empty square, so the seven slots line up. */
+export function ItemIcon({ version, itemId }: { version: string | null; itemId: number }) {
+  const [failed, setFailed] = useState(false)
+  if (!version || itemId === 0 || failed) return <span className="item-icon empty" aria-hidden />
+  return (
+    <span className="item-icon">
+      <img src={itemIconUrl(version, itemId)} alt="" loading="lazy" onError={() => setFailed(true)} />
+    </span>
+  )
+}
+
+/** A summoner spell by its numeric key; nothing at all when the key is not in Data Dragon's list. */
+export function SpellIcon({ version, spellKey, spells }: { version: string | null; spellKey: number; spells: Record<number, string> | null }) {
+  const [failed, setFailed] = useState(false)
+  const file = spells?.[spellKey]
+  if (!version || !file || failed) return null
+  return (
+    <span className="spell-icon">
+      <img src={summonerSpellIconUrl(version, file)} alt="" loading="lazy" onError={() => setFailed(true)} />
     </span>
   )
 }

@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { AuthResponse, LolGroup, LolPlayer, LolPlayerDetail, CatalogFood, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, PersonalRecord, Profile, ProgressPoint, SetInput, WeeklyVolume, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types'
+import type { AuthResponse, LolGroup, LolPlayer, LolPlayerDetail, LolRankPoint, CatalogFood, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, PersonalRecord, Profile, ProgressPoint, SetInput, WeeklyVolume, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types'
 
 export const api = {
   register: (email: string, password: string) =>
@@ -42,6 +42,8 @@ export const api = {
   lolPlayer: (puuid: string) => request<LolPlayerDetail>(`/api/v1/lol/players/${encodeURIComponent(puuid)}`),
   refreshLolPlayer: (puuid: string) =>
     request<LolPlayerDetail>(`/api/v1/lol/players/${encodeURIComponent(puuid)}/refresh`, { method: 'POST' }),
+  /** Solo/duo rank snapshots, oldest first */
+  lolRankHistory: (puuid: string) => request<LolRankPoint[]>(`/api/v1/lol/players/${encodeURIComponent(puuid)}/rank-history`),
   untrackLolPlayer: (puuid: string) =>
     request<void>(`/api/v1/lol/players/${encodeURIComponent(puuid)}`, { method: 'DELETE', responseType: 'none' }),
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LolPlayer, LolRank } from '../api/types'
-import { formatDuration, isValidRiotId, kdaRatio, queueKey, rankLabel, rankScore, sortForLeaderboard, timeAgo } from './lol'
+import { formatDuration, isValidRiotId, kdaRatio, ladderAxis, ladderLabel, parseSummonerSpells, queueKey, rankLabel, rankLadder, rankScore, sortForLeaderboard, timeAgo } from './lol'
 
 const rank = (tier: string, division: string, lp: number): LolRank => ({ tier, division, lp, wins: 10, losses: 10 })
 
@@ -69,5 +69,64 @@ describe('timeAgo', () => {
     expect(timeAgo('2026-10-18T11:45:00', now)).toEqual({ value: 15, unit: 'm' })
     expect(timeAgo('2026-10-18T06:00:00', now)).toEqual({ value: 6, unit: 'h' })
     expect(timeAgo('2026-10-14T12:00:00', now)).toEqual({ value: 4, unit: 'd' })
+  })
+})
+
+describe('rankLadder', () => {
+  const ranks = [
+    rank('IRON', 'IV', 0),
+    rank('SILVER', 'I', 99),
+    rank('GOLD', 'IV', 0),
+    rank('GOLD', 'II', 45),
+    rank('GOLD', 'I', 0),
+    rank('DIAMOND', 'I', 99),
+    rank('MASTER', 'I', 0),
+    rank('MASTER', 'I', 350),
+  ]
+
+  it('orders ranks the same way as rankScore', () => {
+    const byLadder = [...ranks].sort((a, b) => rankLadder(a)! - rankLadder(b)!)
+    const byScore = [...ranks].sort((a, b) => rankScore(a) - rankScore(b))
+    expect(byLadder).toEqual(byScore)
+  })
+
+  it('makes a division 100 LP tall, with no gap between divisions', () => {
+    expect(rankLadder(rank('GOLD', 'I', 0))! - rankLadder(rank('GOLD', 'II', 99))!).toBe(1)
+    expect(rankLadder(rank('IRON', 'IV', 0))).toBe(0)
+    expect(rankLadder(rank('UNKNOWN', 'I', 0))).toBeNull()
+  })
+
+  it('labels axis lines with the division that starts there', () => {
+    expect(ladderLabel(rankLadder(rank('GOLD', 'II', 0))!)).toBe('Gold II')
+    expect(ladderLabel(rankLadder(rank('MASTER', 'I', 0))!)).toBe('Master')
+    expect(ladderLabel(rankLadder(rank('MASTER', 'I', 200))!)).toBe('200 LP')
+  })
+
+  it('puts the axis on whole divisions with at most six lines', () => {
+    const gold2 = rankLadder(rank('GOLD', 'II', 45))!
+    const gold1 = rankLadder(rank('GOLD', 'I', 30))!
+    const near = ladderAxis([gold2, gold1])
+    expect(near.domain).toEqual([rankLadder(rank('GOLD', 'II', 0)), rankLadder(rank('PLATINUM', 'IV', 0))])
+    expect(near.ticks.map(ladderLabel)).toEqual(['Gold II', 'Gold I', 'Platinum IV'])
+
+    const wide = ladderAxis([rankLadder(rank('IRON', 'IV', 10))!, rankLadder(rank('DIAMOND', 'I', 50))!])
+    expect(wide.ticks.length).toBeLessThanOrEqual(6)
+    expect(wide.ticks.every((tick) => tick % 100 === 0)).toBe(true)
+
+    // One point exactly on a boundary still gets a range to draw in
+    expect(ladderAxis([1200, 1200]).domain).toEqual([1200, 1300])
+  })
+})
+
+describe('parseSummonerSpells', () => {
+  it('maps the numeric key to the icon file', () => {
+    const json = { data: { SummonerFlash: { key: '4', image: { full: 'SummonerFlash.png' } }, SummonerDot: { key: '14', image: { full: 'SummonerDot.png' } } } }
+    expect(parseSummonerSpells(json)).toEqual({ 4: 'SummonerFlash.png', 14: 'SummonerDot.png' })
+  })
+
+  it('gives an empty map for anything unexpected', () => {
+    expect(parseSummonerSpells(['15.1.1'])).toEqual({})
+    expect(parseSummonerSpells(null)).toEqual({})
+    expect(parseSummonerSpells({ data: { Broken: { key: 'x' } } })).toEqual({})
   })
 })

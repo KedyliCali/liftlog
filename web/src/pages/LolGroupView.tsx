@@ -7,16 +7,18 @@ import { queryKeys } from '../api/queryKeys'
 import type { LolGroup, LolGroupMember } from '../api/types'
 import { useToast } from '../components/contexts'
 import { ControllerIcon, SettingsIcon, ShareIcon } from '../components/Icons'
-import { LolBoardRow } from '../components/LolBits'
+import { LolBoardRow, RankBadge } from '../components/LolBits'
 import { RiotIdSheet } from '../components/RiotIdSheet'
 import { Sheet } from '../components/Sheet'
+import { SortableTable, type SortableColumn } from '../components/SortableTable'
 import { WorkoutListSkeleton } from '../components/Skeletons'
 import { ErrorState, MessageState } from '../components/StateViews'
 import { useDdragonVersion } from '../components/useDdragonVersion'
-import { errorMessage } from '../lib/format'
+import { errorMessage, formatKg } from '../lib/format'
 import { locale, t } from '../lib/i18n'
-import { timeAgo } from '../lib/lol'
-import { extractInviteCode, formatInviteCode, inviteMessage, oldestRefresh, splitGroupBoard } from '../lib/lolGroup'
+import { rankScore, timeAgo } from '../lib/lol'
+import { roundTo, toPercent, winPercent } from '../lib/lolStats'
+import { extractInviteCode, formatInviteCode, inviteMessage, oldestRefresh, splitGroupBoard, type LinkedMember } from '../lib/lolGroup'
 import { isStandalone } from '../lib/platform'
 import { initials } from '../lib/workoutLogic'
 
@@ -58,8 +60,16 @@ export function LolGroupView({ group }: { group: UseQueryResult<LolGroup | null>
   const setGroup = (next: LolGroup | null) => storeGroup(queryClient, next)
   const close = () => setSheet(null)
   // Without ?view= the default follows the data, and with no group left that would be the follow list;
-  // pinning the group view shows the create or join state instead
-  const stayOnGroupView = () => setSearchParams({ view: 'group' }, { replace: true })
+  // pinning the group view shows the create or join state instead. Other choices in the URL (?board=) stay
+  const stayOnGroupView = () =>
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        next.set('view', 'group')
+        return next
+      },
+      { replace: true },
+    )
 
   // The cache said "not in a group" but the server has one (say a create whose answer was lost on mobile data):
   // show that group, instead of an error that asks to leave a group the view does not show
@@ -163,9 +173,24 @@ export function LolGroupView({ group }: { group: UseQueryResult<LolGroup | null>
   )
 }
 
+type BoardMode = 'board' | 'table'
+
 function GroupBoard({ group, onLink, onManage }: { group: LolGroup; onLink: () => void; onManage: () => void }) {
   const toast = useToast()
   const version = useDdragonVersion()
+  // In the URL, so coming back from a player page shows the same mode
+  const [searchParams, setSearchParams] = useSearchParams()
+  const mode: BoardMode = searchParams.get('board') === 'table' ? 'table' : 'board'
+  const selectMode = (next: BoardMode) =>
+    setSearchParams(
+      (current) => {
+        const params = new URLSearchParams(current)
+        if (next === 'table') params.set('board', 'table')
+        else params.delete('board')
+        return params
+      },
+      { replace: true },
+    )
   const me = group.members.find((member) => member.you)
   const { ranked, unlinked } = splitGroupBoard(group.members)
   const oldest = oldestRefresh(group.members.map((member) => member.player))
@@ -225,21 +250,92 @@ function GroupBoard({ group, onLink, onManage }: { group: LolGroup; onLink: () =
         </Link>
       )}
 
+      {ranked.length > 0 && (
+        <div className="board-toggle" role="group" aria-label={t.boardViewLabel}>
+          <button type="button" aria-pressed={mode === 'board'} className={mode === 'board' ? 'selected' : ''} onClick={() => selectMode('board')}>
+            {t.boardViewBoard}
+          </button>
+          <button type="button" aria-pressed={mode === 'table'} className={mode === 'table' ? 'selected' : ''} onClick={() => selectMode('table')}>
+            {t.boardViewTable}
+          </button>
+        </div>
+      )}
+
       <div className="lol-board group-board">
-        {ranked.map((member, index) => (
-          <LolBoardRow
-            key={member.userId}
-            player={member.player}
-            place={index + 1}
-            version={version}
-            memberName={nameOf(member)}
-            you={member.you}
-            style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
-          />
-        ))}
+        {mode === 'table' && ranked.length > 0 ? (
+          <GroupTable members={ranked} />
+        ) : (
+          ranked.map((member, index) => (
+            <LolBoardRow
+              key={member.userId}
+              player={member.player}
+              place={index + 1}
+              version={version}
+              memberName={nameOf(member)}
+              you={member.you}
+              style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+            />
+          ))
+        )}
         {unlinked.length > 0 && <p className="muted lol-unlinked">{t.notLinkedYet(unlinked.map(nameOf).join(', '))}</p>}
       </div>
     </>
+  )
+}
+
+const dash = (value: number | null | undefined, format: (n: number) => string) => (value == null ? '–' : format(value))
+
+/** The members side by side with their averages from the stored recent games; a header tap sorts. */
+function GroupTable({ members }: { members: LinkedMember[] }) {
+  const recentWin = (m: LinkedMember) => winPercent(m.player.recentWins, m.player.recentGames)
+  const columns: SortableColumn<LinkedMember>[] = [
+    {
+      key: 'player',
+      label: t.playerColumn,
+      sortValue: (m) => m.player.gameName.toLocaleLowerCase(),
+      firstDirection: 'asc',
+      render: (m) => (
+        <Link to={`/game/${encodeURIComponent(m.player.puuid)}`} viewTransition className="table-player">
+          <span className="table-player-name">
+            {m.player.gameName}
+            {m.you && <span className="table-you">{t.youTag}</span>}
+          </span>
+          <small>{nameOf(m)}</small>
+        </Link>
+      ),
+    },
+    { key: 'rank', label: t.rankColumn, sortValue: (m) => rankScore(m.player.rank), render: (m) => <RankBadge rank={m.player.rank} /> },
+    { key: 'winRate', label: t.winRateColumn, sortValue: recentWin, render: (m) => dash(recentWin(m), t.percent) },
+    { key: 'kda', label: t.statKda, sortValue: (m) => m.player.summary?.kda, render: (m) => dash(m.player.summary?.kda, (n) => formatKg(roundTo(n, 2))) },
+    {
+      key: 'kp',
+      label: t.kpColumn,
+      sortValue: (m) => toPercent(m.player.summary?.killParticipation),
+      render: (m) => dash(toPercent(m.player.summary?.killParticipation), t.percent),
+    },
+    { key: 'cs', label: t.statCsPerMin, sortValue: (m) => m.player.summary?.csPerMinute, render: (m) => dash(m.player.summary?.csPerMinute, (n) => formatKg(roundTo(n, 1))) },
+    {
+      key: 'damage',
+      label: t.damagePerMinColumn,
+      sortValue: (m) => m.player.summary?.damagePerMinute,
+      render: (m) => dash(m.player.summary?.damagePerMinute, (n) => formatKg(Math.round(n))),
+    },
+    {
+      key: 'vision',
+      label: t.visionPerMinColumn,
+      sortValue: (m) => m.player.summary?.visionPerMinute,
+      render: (m) => dash(m.player.summary?.visionPerMinute, (n) => formatKg(roundTo(n, 2))),
+    },
+  ]
+  return (
+    <SortableTable
+      label={t.boardViewTable}
+      rows={members}
+      columns={columns}
+      rowKey={(m) => String(m.userId)}
+      initialSort={{ key: 'rank', direction: 'desc' }}
+      rowClassName={(m) => (m.you ? 'you' : undefined)}
+    />
   )
 }
 

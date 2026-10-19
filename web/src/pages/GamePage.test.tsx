@@ -441,6 +441,76 @@ describe('League tab', () => {
   })
 })
 
+describe('League group table', () => {
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllGlobals()
+  })
+
+  const withSummary = (linked: LolPlayer, kda: number | null, killParticipation: number | null): LolPlayer => ({
+    ...linked,
+    summary: { kda, killParticipation, csPerMinute: 7.1, damagePerMinute: 800, visionPerMinute: null },
+  })
+
+  const tableServer = () =>
+    fakeServer({
+      'GET /api/v1/lol/group': () =>
+        jsonResponse(200, group([
+          member(1, 'Behlul', withSummary(player('gold-player', 'GOLD'), 3.2, 0.5), { owner: true, you: true }),
+          member(2, 'Ece', withSummary(player('plat-player', 'PLATINUM'), 2.1, 0.61)),
+          // An older server: no summary at all
+          member(3, 'Can', player('silver-player', 'SILVER')),
+          member(4, 'Ali', null),
+        ])),
+      'GET /api/v1/lol/players': () => jsonResponse(200, []),
+    })
+
+  const tableOrder = () =>
+    within(screen.getByRole('table', { name: t.boardViewTable }))
+      .getAllByRole('rowheader')
+      .map((cell) => cell.querySelector('small')?.textContent)
+
+  it('switches the board to a table, which keeps the choice across the Group and Following switch', async () => {
+    tableServer()
+    const user = renderGame('/game')
+
+    await user.click(await screen.findByRole('button', { name: t.boardViewTable }))
+    expect(screen.getByRole('button', { name: t.boardViewTable })).toHaveAttribute('aria-pressed', 'true')
+    // Rank order to start with, my row marked, the member name under the Riot name
+    expect(tableOrder()).toEqual(['Ece', 'Behlul', 'Can'])
+    const myRow = screen.getAllByRole('row').find((row) => row.classList.contains('you'))!
+    expect(within(myRow).getByText(t.youTag)).toBeInTheDocument()
+    expect(within(myRow).getByText('gold-player')).toBeInTheDocument()
+    // Can has no averages yet: dashes, not zeros
+    const canRow = screen.getAllByRole('row').find((row) => row.textContent?.includes('Can'))!
+    expect(within(canRow).getAllByText('–').length).toBeGreaterThanOrEqual(4)
+    expect(screen.getByText(t.notLinkedYet('Ali'))).toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: t.lolViewFollowing }))
+    await user.click(screen.getByRole('tab', { name: t.lolViewGroup }))
+    expect(await screen.findByRole('table', { name: t.boardViewTable })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: t.boardViewBoard }))
+    expect(screen.queryByRole('table')).toBeNull()
+    expect(screen.getAllByRole('link')).toHaveLength(3)
+  })
+
+  it('opens on the table from the URL and sorts by the tapped column', async () => {
+    tableServer()
+    const user = renderGame('/game?board=table')
+
+    await screen.findByRole('table', { name: t.boardViewTable })
+    const table = screen.getByRole('table', { name: t.boardViewTable })
+    await user.click(within(table).getByRole('button', { name: t.statKda }))
+    expect(tableOrder()).toEqual(['Behlul', 'Ece', 'Can'])
+    await user.click(within(table).getByRole('button', { name: t.kpColumn }))
+    expect(tableOrder()).toEqual(['Ece', 'Behlul', 'Can'])
+    await user.click(within(table).getByRole('button', { name: t.kpColumn }))
+    // Reversed, but the member without numbers stays last
+    expect(tableOrder()).toEqual(['Behlul', 'Ece', 'Can'])
+  })
+})
+
 /** Drags a follow-list row to the left far enough to unfollow, as a finger would. */
 async function swipeAway(label: string) {
   // jsdom has no pointer capture, which the row asks for once a drag turns horizontal
