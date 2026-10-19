@@ -179,7 +179,8 @@ function NumberField(props: {
   )
 }
 
-function ExercisePicker({ onPick, onBack }: { onPick: (exercise: Exercise) => void; onBack?: () => void }) {
+/** Searchable exercise list grouped by muscle, with a bodyweight filter and "new exercise"; also used by the routine editor. */
+export function ExercisePicker({ onPick, onBack }: { onPick: (exercise: Exercise) => void; onBack?: () => void }) {
   const [query, setQuery] = useState('')
   const [onlyBodyweight, setOnlyBodyweight] = useState(false)
   const [creating, setCreating] = useState(false)

@@ -1,6 +1,6 @@
 import type { CreationOptionsJson, CredentialJson, RequestOptionsJson } from '../lib/webauthn'
 import { request } from './client'
-import type { AuthResponse, LolGroup, LolPlayer, LolPlayerDetail, LolRankPoint, CatalogFood, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, Passkey, PasskeyCeremony, PersonalRecord, Profile, ProgressPoint, SetInput, WeeklyVolume, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types'
+import type { AuthResponse, LolGroup, LolPlayer, LolPlayerDetail, LolRankPoint, CatalogFood, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, Passkey, PasskeyCeremony, PersonalRecord, PlanItem, Profile, ProgressPoint, Routine, RoutineInput, SetInput, WeeklyVolume, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types'
 
 export const api = {
   register: (email: string, password: string) =>
@@ -24,6 +24,18 @@ export const api = {
     request<WorkoutSet>(`/api/v1/workouts/${workoutId}/sets`, { method: 'POST', body: input }),
   updateSet: (id: number, input: SetInput) => request<WorkoutSet>(`/api/v1/sets/${id}`, { method: 'PUT', body: input }),
   deleteSet: (id: number) => request<void>(`/api/v1/sets/${id}`, { method: 'DELETE', responseType: 'none' }),
+
+  routines: () => request<Routine[]>('/api/v1/routines'),
+  createRoutine: (input: RoutineInput) => request<Routine>('/api/v1/routines', { method: 'POST', body: input }),
+  updateRoutine: (id: number, input: RoutineInput) => request<Routine>(`/api/v1/routines/${id}`, { method: 'PUT', body: input }),
+  deleteRoutine: (id: number) => request<void>(`/api/v1/routines/${id}`, { method: 'DELETE', responseType: 'none' }),
+  /** Without a name the server uses the workout's note */
+  routineFromWorkout: (workoutId: number, name?: string) =>
+    request<Routine>(`/api/v1/routines/from-workout/${workoutId}`, { method: 'POST', body: name ? { name } : {} }),
+  /** Creates an empty workout linked to the routine (today unless a date is given) */
+  startRoutine: (id: number, workoutDate?: string) =>
+    request<WorkoutDetail>(`/api/v1/routines/${id}/start`, { method: 'POST', body: workoutDate ? { workoutDate } : {} }),
+  workoutPlan: (workoutId: number) => request<PlanItem[]>(`/api/v1/workouts/${workoutId}/plan`),
 
   personalRecords: () => request<PersonalRecord[]>('/api/v1/stats/prs'),
   progress: (exerciseId: number) => request<ProgressPoint[]>(`/api/v1/stats/progress?exerciseId=${exerciseId}`),
