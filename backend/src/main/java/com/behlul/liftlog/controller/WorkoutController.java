@@ -5,9 +5,11 @@ import com.behlul.liftlog.dto.RoutineDtos.PlanItemResponse;
 import com.behlul.liftlog.dto.SetRequest;
 import com.behlul.liftlog.dto.SetResponse;
 import com.behlul.liftlog.dto.WorkoutDetailResponse;
+import com.behlul.liftlog.dto.WorkoutRecapResponse;
 import com.behlul.liftlog.dto.WorkoutRequest;
 import com.behlul.liftlog.dto.WorkoutSummaryResponse;
 import com.behlul.liftlog.service.RoutineService;
+import com.behlul.liftlog.service.WorkoutRecapService;
 import com.behlul.liftlog.service.WorkoutService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -30,10 +32,13 @@ public class WorkoutController {
 
     private final WorkoutService workoutService;
     private final RoutineService routineService;
+    private final WorkoutRecapService recapService;
 
-    public WorkoutController(WorkoutService workoutService, RoutineService routineService) {
+    public WorkoutController(WorkoutService workoutService, RoutineService routineService,
+                             WorkoutRecapService recapService) {
         this.workoutService = workoutService;
         this.routineService = routineService;
+        this.recapService = recapService;
     }
 
     @GetMapping
@@ -68,6 +73,12 @@ public class WorkoutController {
     @GetMapping("/{id}/plan")
     public List<PlanItemResponse> plan(@PathVariable Long id) {
         return routineService.plan(id);
+    }
+
+    /** End-of-workout summary: volume, records hit, comparison with the previous session and the streak. */
+    @GetMapping("/{id}/summary")
+    public WorkoutRecapResponse summary(@PathVariable Long id) {
+        return recapService.summary(id);
     }
 
     @PostMapping("/{id}/sets")
