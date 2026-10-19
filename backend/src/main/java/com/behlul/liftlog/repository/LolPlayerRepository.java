@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Players plus the follow list. The follow table is just (user, player) pairs, so it is reached with
@@ -32,6 +33,16 @@ public interface LolPlayerRepository extends JpaRepository<LolPlayer, String> {
                            where me.user_id = :userId and other.puuid = :puuid)
             """, nativeQuery = true)
     boolean isVisibleTo(@Param("userId") Long userId, @Param("puuid") String puuid);
+
+    /** Every player whose page the user can open (see {@link #isVisibleTo}), to mark them in match and duo lists. */
+    @Query(value = """
+            select puuid from lol_tracked_players where user_id = :userId
+            union
+            select other.puuid from lol_group_members me
+            join lol_group_members other on other.group_id = me.group_id
+            where me.user_id = :userId and other.puuid is not null
+            """, nativeQuery = true)
+    Set<String> findVisiblePuuids(@Param("userId") Long userId);
 
     /**
      * Locks a stale player's row until this transaction ends, so only one request at a time refreshes them.
