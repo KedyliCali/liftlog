@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
@@ -116,6 +116,23 @@ function PlayerContent({ puuid, data, rankHistory, version }: {
   const updated = player.refreshedAt ? timeAgo(player.refreshedAt) : null
   const streak = currentStreak(summary.streak, summary.form)
 
+  // The tab strip scrolls sideways on a phone: the open tab is brought into view (Matches sits off-screen)
+  const tabList = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const list = tabList.current
+    const selected = list?.querySelector<HTMLElement>('[aria-selected="true"]')
+    if (!list || !selected) return
+    list.scrollLeft = Math.max(0, selected.offsetLeft - list.offsetLeft - (list.clientWidth - selected.offsetWidth) / 2)
+  }, [tab])
+
+  // Sits right above the sticky bar: a tab chosen further down the page starts at its top, not mid-way
+  const barAnchor = useRef<HTMLDivElement>(null)
+  const openTab = (key: PlayerTab) => {
+    setParam('tab', key, 'overview')
+    const top = barAnchor.current?.getBoundingClientRect().top ?? 0
+    if (top < 0) window.scrollTo?.({ top: window.scrollY + top })
+  }
+
   const setParam = (key: string, value: string, fallback: string) =>
     setSearchParams(
       (current) => {
@@ -158,8 +175,9 @@ function PlayerContent({ puuid, data, rankHistory, version }: {
         </>
       ) : (
         <>
+          <div ref={barAnchor} aria-hidden />
           <div className="lol-sticky">
-            <div className="chip-row lol-tabs" role="tablist" aria-label={t.playerTabsLabel}>
+            <div ref={tabList} className="chip-row lol-tabs" role="tablist" aria-label={t.playerTabsLabel}>
               {PLAYER_TABS.map((key) => (
                 <button
                   key={key}
@@ -169,7 +187,7 @@ function PlayerContent({ puuid, data, rankHistory, version }: {
                   aria-selected={key === tab}
                   aria-controls="lol-tab-panel"
                   className={key === tab ? 'lol-tab selected' : 'lol-tab'}
-                  onClick={() => setParam('tab', key, 'overview')}
+                  onClick={() => openTab(key)}
                 >
                   {t.playerTabs[key]}
                 </button>
