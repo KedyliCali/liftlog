@@ -28,6 +28,9 @@ public class Exercise {
     @Column(nullable = false)
     private boolean bodyweight;
 
+    /** BARBELL, DUMBBELL, MACHINE, CABLE or BODYWEIGHT for built-ins; null for custom exercises. */
+    private String equipment;
+
     /** Owner of a custom exercise; {@code null} for built-in exercises. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
@@ -45,6 +48,10 @@ public class Exercise {
         this.muscleGroup = muscleGroup;
         this.bodyweight = bodyweight;
         this.owner = owner;
+    }
+
+    public String getEquipment() {
+        return equipment;
     }
 
     public boolean isBodyweight() {

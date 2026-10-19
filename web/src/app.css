@@ -1212,6 +1212,12 @@
   scrollbar-width: none;
 }
 
+/* The row scrolls sideways instead of squeezing: a shrunk button would break its label over two lines */
+.chip-row > * {
+  flex: none;
+  white-space: nowrap;
+}
+
 .filter-chip {
   flex: none;
   height: 36px;
@@ -4270,3 +4276,10 @@ button.lol-record:active {
 .add-exercise-btn:disabled {
   opacity: 0.4;
 }
+
+/* Machines and cable stations: a muted steel tone, so they read apart from the calisthenics badge */
+.badge-machine {
+  color: #b9c3cf;
+  background: color-mix(in srgb, #b9c3cf 14%, transparent);
+}
+

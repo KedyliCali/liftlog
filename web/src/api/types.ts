@@ -7,6 +7,8 @@ export interface Exercise {
   custom: boolean
   /** Calisthenics: the logged weight is the added load, and body weight counts in stats */
   bodyweight: boolean
+  /** BARBELL, DUMBBELL, MACHINE, CABLE or BODYWEIGHT for built-ins; null (or missing from older servers) for custom ones */
+  equipment?: 'BARBELL' | 'DUMBBELL' | 'MACHINE' | 'CABLE' | 'BODYWEIGHT' | null
 }
 
 export interface WorkoutSummary {

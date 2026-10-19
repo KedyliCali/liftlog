@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Exercise, PersonalRecord, WorkoutDetail, WorkoutSet, WorkoutSummary } from '../api/types'
-import { chooseExercise, effectiveLoad, formatClock, groupByExercise, groupByMuscle, initials, pickTemplates, visibleVolume, weightAfterPick, yDomain } from './workoutLogic'
+import { chooseExercise, effectiveLoad, formatClock, groupByExercise, groupByMuscle, initials, matchesExerciseFilter, pickTemplates, visibleVolume, weightAfterPick, yDomain } from './workoutLogic'
 
 const set = (id: number, exerciseId: number, name: string): WorkoutSet => ({
   id,
@@ -107,3 +107,15 @@ describe('weightAfterPick', () => {
     expect(weightAfterPick('', false, { bodyweight: true })).toBe('0')
   })
 })
+
+describe('matchesExerciseFilter', () => {
+  it('puts machines and cables under machines, and keeps everything under all', () => {
+    expect(matchesExerciseFilter({ bodyweight: false, equipment: 'MACHINE' }, 'machine')).toBe(true)
+    expect(matchesExerciseFilter({ bodyweight: false, equipment: 'CABLE' }, 'machine')).toBe(true)
+    expect(matchesExerciseFilter({ bodyweight: false, equipment: 'BARBELL' }, 'machine')).toBe(false)
+    expect(matchesExerciseFilter({ bodyweight: false }, 'machine')).toBe(false)
+    expect(matchesExerciseFilter({ bodyweight: true, equipment: 'BODYWEIGHT' }, 'bodyweight')).toBe(true)
+    expect(matchesExerciseFilter({ bodyweight: false, equipment: null }, 'all')).toBe(true)
+  })
+})
+

@@ -8,7 +8,7 @@ import { ErrorState } from '../components/StateViews'
 import { errorMessage, formatKg } from '../lib/format'
 import { t } from '../lib/i18n'
 import { clampSetCount, MAX_SETS_AT_ONCE, sanitizeDecimal, validateSet, type SetField, type SetForm } from '../lib/validation'
-import { groupByMuscle, weightAfterPick } from '../lib/workoutLogic'
+import { groupByMuscle, weightAfterPick, matchesExerciseFilter, type ExerciseFilter } from '../lib/workoutLogic'
 import { BodyweightIcon } from '../components/Icons'
 
 export interface SetEditorProps {
@@ -179,17 +179,17 @@ function NumberField(props: {
   )
 }
 
-/** Searchable exercise list grouped by muscle, with a bodyweight filter and "new exercise"; also used by the routine editor. */
+/** Searchable exercise list grouped by muscle, with machine and bodyweight filters and "new exercise"; also used by the routine editor. */
 export function ExercisePicker({ onPick, onBack }: { onPick: (exercise: Exercise) => void; onBack?: () => void }) {
   const [query, setQuery] = useState('')
-  const [onlyBodyweight, setOnlyBodyweight] = useState(false)
+  const [filter, setFilter] = useState<ExerciseFilter>('all')
   const [creating, setCreating] = useState(false)
   const exercises = useQuery({ queryKey: queryKeys.exercises, queryFn: api.exercises, staleTime: 5 * 60_000 })
 
   if (creating) return <NewExerciseForm initialName={query} onCreated={onPick} onCancel={() => setCreating(false)} />
 
   const term = query.trim().toLowerCase()
-  const filtered = (exercises.data ?? []).filter((e) => e.name.toLowerCase().includes(term) && (!onlyBodyweight || e.bodyweight))
+  const filtered = (exercises.data ?? []).filter((e) => e.name.toLowerCase().includes(term) && matchesExerciseFilter(e, filter))
 
   return (
     <div className="stack">
@@ -202,10 +202,13 @@ export function ExercisePicker({ onPick, onBack }: { onPick: (exercise: Exercise
         <input placeholder={t.searchExercises} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t.searchExercises} />
       </div>
       <div className="chip-row">
-        <button className={onlyBodyweight ? 'filter-chip' : 'filter-chip selected'} onClick={() => setOnlyBodyweight(false)}>
+        <button className={filter === 'all' ? 'filter-chip selected' : 'filter-chip'} onClick={() => setFilter('all')}>
           {t.allExercises}
         </button>
-        <button className={onlyBodyweight ? 'filter-chip selected' : 'filter-chip'} onClick={() => setOnlyBodyweight(true)}>
+        <button className={filter === 'machine' ? 'filter-chip selected' : 'filter-chip'} onClick={() => setFilter('machine')}>
+          {t.machines}
+        </button>
+        <button className={filter === 'bodyweight' ? 'filter-chip selected' : 'filter-chip'} onClick={() => setFilter('bodyweight')}>
           <BodyweightIcon /> {t.calisthenics}
         </button>
         <button className="btn btn-text" style={{ marginLeft: 'auto' }} onClick={() => setCreating(true)}>
@@ -228,6 +231,8 @@ export function ExercisePicker({ onPick, onBack }: { onPick: (exercise: Exercise
                 <button key={exercise.id} className="exercise-item" onClick={() => onPick(exercise)}>
                   <span style={{ flex: 1 }}>{exercise.name}</span>
                   {exercise.bodyweight && <span className="badge badge-bodyweight">{t.calisthenics}</span>}
+                  {exercise.equipment === 'MACHINE' && <span className="badge badge-machine">{t.machineBadge}</span>}
+                  {exercise.equipment === 'CABLE' && <span className="badge badge-machine">{t.cableBadge}</span>}
                   {exercise.custom && <span className="badge">{t.custom}</span>}
                 </button>
               ))}

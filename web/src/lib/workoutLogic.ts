@@ -118,3 +118,12 @@ export function weightAfterPick(currentWeight: string, wasBodyweight: boolean, p
   if (picked.bodyweight === wasBodyweight && currentWeight !== '') return currentWeight
   return picked.bodyweight ? '0' : ''
 }
+
+export type ExerciseFilter = 'all' | 'machine' | 'bodyweight'
+
+/** The picker's filter chips: machines include cable stations, since both are gym equipment you sit or stand at. */
+export function matchesExerciseFilter(exercise: { bodyweight: boolean; equipment?: string | null }, filter: ExerciseFilter): boolean {
+  if (filter === 'bodyweight') return exercise.bodyweight
+  if (filter === 'machine') return exercise.equipment === 'MACHINE' || exercise.equipment === 'CABLE'
+  return true
+}

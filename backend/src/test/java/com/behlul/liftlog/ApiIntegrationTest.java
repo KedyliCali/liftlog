@@ -205,6 +205,22 @@ class ApiIntegrationTest {
     }
 
     @Test
+    void builtInExercisesIncludeMachinesAndCablesWithTheirEquipment() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        JsonNode exercises = read(mockMvc.perform(get("/api/v1/exercises").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk()).andReturn());
+        java.util.Map<String, String> equipment = new java.util.HashMap<>();
+        for (int i = 0; i < exercises.size(); i++) {
+            JsonNode exercise = exercises.get(i);
+            equipment.put(exercise.get("name").asString(),
+                    exercise.get("equipment").isNull() ? null : exercise.get("equipment").asString());
+        }
+        assertThat(equipment).containsEntry("Seated Cable Row", "CABLE").containsEntry("Pec Deck", "MACHINE")
+                .containsEntry("Leg Press", "MACHINE").containsEntry("Lat Pulldown", "CABLE")
+                .containsEntry("Squat", "BARBELL").containsEntry("Pull-up", "BODYWEIGHT").containsEntry("Hammer Curl", "DUMBBELL");
+    }
+
+    @Test
     void customExercisesArePrivateToTheirOwner() throws Exception {
         String owner = register(randomEmail(), "s3cret-pass", null);
         String other = register(randomEmail(), "s3cret-pass", null);
