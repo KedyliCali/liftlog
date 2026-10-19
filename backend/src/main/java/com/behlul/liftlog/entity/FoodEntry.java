@@ -44,6 +44,10 @@ public class FoodEntry {
     @Column(name = "fat_g", precision = 5, scale = 1)
     private BigDecimal fatG;
 
+    /** Portion size; null for hand-typed entries and rows logged before grams were stored. */
+    @Column(precision = 7, scale = 1)
+    private BigDecimal grams;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -51,7 +55,7 @@ public class FoodEntry {
     }
 
     public FoodEntry(User user, LocalDate entryDate, String name, int caloriesKcal, BigDecimal proteinG,
-                     BigDecimal carbsG, BigDecimal fatG) {
+                     BigDecimal carbsG, BigDecimal fatG, BigDecimal grams) {
         this.user = user;
         this.entryDate = entryDate;
         this.name = name;
@@ -59,6 +63,7 @@ public class FoodEntry {
         this.proteinG = proteinG;
         this.carbsG = carbsG;
         this.fatG = fatG;
+        this.grams = grams;
     }
 
     public Long getId() {
@@ -87,5 +92,9 @@ public class FoodEntry {
 
     public BigDecimal getFatG() {
         return fatG;
+    }
+
+    public BigDecimal getGrams() {
+        return grams;
     }
 }
