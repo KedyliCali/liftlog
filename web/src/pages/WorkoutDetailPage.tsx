@@ -19,7 +19,8 @@ import { ROUTINE_NAME_MAX } from '../lib/routineLogic'
 import { groupByExercise, visibleVolume, type ExerciseGroup } from '../lib/workoutLogic'
 import { SetEditorSheet, type SetEditorProps } from './SetEditorSheet'
 import { WorkoutMode } from './WorkoutMode'
-import { DumbbellIcon } from '../components/Icons'
+import { WorkoutRecapSheet } from './WorkoutRecapSheet'
+import { CheckIcon, DumbbellIcon } from '../components/Icons'
 
 type Editor = { mode: 'add' } | { mode: 'edit'; set: WorkoutSet }
 
@@ -36,6 +37,7 @@ export function WorkoutDetailPage() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [savingRoutine, setSavingRoutine] = useState(false)
   const [celebrate, setCelebrate] = useState(false)
+  const [finishing, setFinishing] = useState(false)
   const [newSetId, setNewSetId] = useState<number | null>(null)
   // The API flags a record only in the add response, so this page remembers which sets earned one
   const [recordSetIds, setRecordSetIds] = useState<Set<number>>(new Set())
@@ -198,6 +200,7 @@ export function WorkoutDetailPage() {
             </button>
             {menuOpen && (
               <div className="menu">
+                <button onClick={() => (setMenuOpen(false), setFinishing(true))}>{t.finishWorkout}</button>
                 <button onClick={() => (setMenuOpen(false), setEditingWorkout(true))}>{t.editWorkout}</button>
                 {visibleSets.length > 0 && <button onClick={() => (setMenuOpen(false), setSavingRoutine(true))}>{t.saveAsRoutine}</button>}
                 <button className="danger" onClick={deleteWorkout}>
@@ -237,6 +240,14 @@ export function WorkoutDetailPage() {
           ) : (
             <div className="set-groups">{groupByExercise(visibleSets).map(renderGroup)}</div>
           )}
+          {visibleSets.length > 0 && (
+            <button className="finish-btn" onClick={() => setFinishing(true)} data-testid="finish-workout">
+              <span className="finish-btn-front">
+                <CheckIcon size={20} />
+                {t.finishWorkout}
+              </span>
+            </button>
+          )}
           <button className="fab" onClick={() => setEditor({ mode: 'add' })} data-testid="fab-add-set">
             <span className="fab-plus">+</span> {t.addSet}
           </button>
@@ -248,6 +259,7 @@ export function WorkoutDetailPage() {
       )}
       {savingRoutine && workout && <SaveAsRoutineSheet workout={workout} onClose={() => setSavingRoutine(false)} />}
       {editingWorkout && workout && <EditWorkoutSheet workout={workout} onClose={() => setEditingWorkout(false)} onSaved={refreshAll} />}
+      {finishing && <WorkoutRecapSheet workoutId={id} onClose={() => setFinishing(false)} onDone={() => navigate('/')} />}
       {celebrate && <Confetti />}
     </div>
   )

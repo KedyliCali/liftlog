@@ -587,6 +587,121 @@ class ApiIntegrationTest {
     }
 
     @Test
+    void workoutSummaryHasRecordsComparisonAndStreak() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        String intruder = register(randomEmail(), "s3cret-pass", null);
+        long squat = exerciseId(token, "Squat");
+        long bench = exerciseId(token, "Bench Press");
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+
+        // Same exercises two weeks ago (the comparison), squat only last week (different exercises: ignored)
+        long sameExercises = createWorkout(token, today.minusWeeks(2).toString(), null);
+        addSet(token, sameExercises, squat, 5, "100");
+        addSet(token, sameExercises, bench, 5, "80");
+        long squatOnly = createWorkout(token, today.minusWeeks(1).toString(), null);
+        addSet(token, squatOnly, squat, 5, "100");
+
+        long workoutId = createWorkout(token, today.toString(), null);
+        addSet(token, workoutId, squat, 3, "110");   // heavier than ever: weight record
+        addSet(token, workoutId, bench, 8, "80");    // same weight, more reps: estimated 1RM record
+        addSet(token, workoutId, squat, 5, "90");    // nothing beaten
+
+        mockMvc.perform(get("/api/v1/workouts/" + workoutId + "/summary")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalVolumeKg").value(1420.0))
+                .andExpect(jsonPath("$.sets").value(3))
+                .andExpect(jsonPath("$.exercises").value(2))
+                .andExpect(jsonPath("$.personalRecords.length()").value(2))
+                .andExpect(jsonPath("$.personalRecords[0].exerciseName").value("Squat"))
+                .andExpect(jsonPath("$.personalRecords[0].weightKg").value(110.0))
+                .andExpect(jsonPath("$.personalRecords[0].reps").value(3))
+                .andExpect(jsonPath("$.personalRecords[0].kind").value("WEIGHT"))
+                .andExpect(jsonPath("$.personalRecords[1].exerciseName").value("Bench Press"))
+                .andExpect(jsonPath("$.personalRecords[1].kind").value("ESTIMATED_1RM"))
+                .andExpect(jsonPath("$.previousWorkoutId").value(sameExercises))
+                .andExpect(jsonPath("$.previousVolumeKg").value(900.0))
+                .andExpect(jsonPath("$.weekStreak").value(3));
+
+        // The first workout has no history: no records and nothing to compare with
+        mockMvc.perform(get("/api/v1/workouts/" + sameExercises + "/summary")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.personalRecords", empty()))
+                .andExpect(jsonPath("$.previousWorkoutId", nullValue()))
+                .andExpect(jsonPath("$.previousVolumeKg", nullValue()));
+
+        // An empty workout still has a summary
+        long empty = createWorkout(token, today.toString(), null);
+        mockMvc.perform(get("/api/v1/workouts/" + empty + "/summary")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalVolumeKg").value(0))
+                .andExpect(jsonPath("$.sets").value(0));
+
+        mockMvc.perform(get("/api/v1/workouts/" + workoutId + "/summary")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + intruder))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/workouts/999999999/summary")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void workoutSummaryComparesWithTheSameRoutineFirst() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        long squat = exerciseId(token, "Squat");
+        long bench = exerciseId(token, "Bench Press");
+
+        long source = createWorkout(token, "2026-09-01", "Legs");
+        addSet(token, source, squat, 5, "100");
+        long routineId = read(authed(post("/api/v1/routines/from-workout/" + source), token, "{}")
+                .andExpect(status().isCreated()).andReturn()).get("id").asLong();
+
+        long first = startRoutine(token, routineId, "2026-09-08");
+        addSet(token, first, squat, 5, "100");
+        addSet(token, first, bench, 5, "60");
+        long second = startRoutine(token, routineId, "2026-09-15");
+
+        // Not the source workout with the same exercises: the earlier session of the same routine wins
+        addSet(token, second, squat, 5, "100");
+        mockMvc.perform(get("/api/v1/workouts/" + second + "/summary")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.previousWorkoutId").value(first))
+                .andExpect(jsonPath("$.previousVolumeKg").value(800.0));
+    }
+
+    private long startRoutine(String token, long routineId, String date) throws Exception {
+        return read(authed(post("/api/v1/routines/" + routineId + "/start"), token,
+                json("{'workoutDate':'%s'}", date))
+                .andExpect(status().isCreated()).andReturn()).get("id").asLong();
+    }
+
+    @Test
+    void weeklyStreakCountsConsecutiveWeeksWithAWorkout() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        mockMvc.perform(get("/api/v1/stats/streak").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.weeks").value(0))
+                .andExpect(jsonPath("$.thisWeekWorkouts").value(0))
+                .andExpect(jsonPath("$.longestWeeks").value(0));
+
+        // This week twice, last week once, then a gap two weeks ago that breaks the run
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        createWorkout(token, today.toString(), null);
+        createWorkout(token, today.toString(), null);
+        createWorkout(token, today.minusWeeks(1).toString(), null);
+        createWorkout(token, today.minusWeeks(3).toString(), null);
+
+        mockMvc.perform(get("/api/v1/stats/streak").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.weeks").value(2))
+                .andExpect(jsonPath("$.thisWeekWorkouts").value(2))
+                .andExpect(jsonPath("$.longestWeeks").value(2));
+    }
+
+    @Test
     void nutritionDayTotalsGoalsAndFrequentFoods() throws Exception {
         String token = register(randomEmail(), "s3cret-pass", null);
         String today = LocalDate.now(ZoneOffset.UTC).toString();

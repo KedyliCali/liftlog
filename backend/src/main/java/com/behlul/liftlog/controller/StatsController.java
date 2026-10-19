@@ -2,6 +2,7 @@ package com.behlul.liftlog.controller;
 
 import com.behlul.liftlog.dto.StatsDtos.PersonalRecordResponse;
 import com.behlul.liftlog.dto.StatsDtos.ProgressPointResponse;
+import com.behlul.liftlog.dto.StatsDtos.StreakResponse;
 import com.behlul.liftlog.dto.StatsDtos.WeeklyVolumeResponse;
 import com.behlul.liftlog.service.StatsService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,6 +30,11 @@ public class StatsController {
     @GetMapping("/progress")
     public List<ProgressPointResponse> progress(@RequestParam Long exerciseId) {
         return statsService.progress(exerciseId);
+    }
+
+    @GetMapping("/streak")
+    public StreakResponse streak() {
+        return statsService.streak();
     }
 
     @GetMapping("/volume")

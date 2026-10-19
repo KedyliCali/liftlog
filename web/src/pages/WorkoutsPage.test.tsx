@@ -194,3 +194,45 @@ describe('templates when there are no routines yet', () => {
     expect(screen.queryByRole('region', { name: t.readyTemplates })).not.toBeInTheDocument()
   })
 })
+
+describe('weekly streak chip', () => {
+  it('shows the streak and this week count in the header', async () => {
+    fakeServer({
+      'GET /api/v1/workouts': () => jsonResponse(200, emptyPage),
+      'GET /api/v1/stats/streak': () => jsonResponse(200, { weeks: 4, thisWeekWorkouts: 2, longestWeeks: 6 }),
+    })
+    renderWorkouts()
+
+    const chip = await screen.findByRole('img', { name: t.streakAria(4, 2) })
+    expect(chip).toHaveTextContent('4')
+    expect(chip).toHaveTextContent(t.streakLabel)
+    expect(chip).toHaveTextContent(t.streakThisWeek(2))
+  })
+
+  it('has no tag before the first workout of the week', async () => {
+    fakeServer({
+      'GET /api/v1/workouts': () => jsonResponse(200, emptyPage),
+      'GET /api/v1/stats/streak': () => jsonResponse(200, { weeks: 3, thisWeekWorkouts: 0, longestWeeks: 3 }),
+    })
+    renderWorkouts()
+
+    const chip = await screen.findByRole('img', { name: t.streakAria(3, 0) })
+    expect(chip).not.toHaveTextContent(t.streakThisWeek(0))
+  })
+
+  it('stays hidden without a streak or on servers without the endpoint', async () => {
+    fakeServer({
+      'GET /api/v1/workouts': () => jsonResponse(200, emptyPage),
+      'GET /api/v1/stats/streak': () => jsonResponse(200, { weeks: 0, thisWeekWorkouts: 0, longestWeeks: 2 }),
+    })
+    renderWorkouts()
+    expect(await screen.findByText(t.workoutsEmptyTitle)).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('img', { name: /./ })).not.toBeInTheDocument())
+    cleanup()
+
+    fakeServer({ 'GET /api/v1/workouts': () => jsonResponse(200, emptyPage) })
+    renderWorkouts()
+    expect(await screen.findByText(t.workoutsEmptyTitle)).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('img', { name: /./ })).not.toBeInTheDocument())
+  })
+})

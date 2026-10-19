@@ -2,6 +2,7 @@ package com.behlul.liftlog.service;
 
 import com.behlul.liftlog.dto.StatsDtos.PersonalRecordResponse;
 import com.behlul.liftlog.dto.StatsDtos.ProgressPointResponse;
+import com.behlul.liftlog.dto.StatsDtos.StreakResponse;
 import com.behlul.liftlog.dto.StatsDtos.WeeklyVolumeResponse;
 import com.behlul.liftlog.exception.ResourceNotFoundException;
 import com.behlul.liftlog.repository.ExerciseRepository;
@@ -99,6 +100,12 @@ public class StatsService {
                     : new WeeklyVolumeResponse(week, row.getVolumeKg(), row.getSetCount()));
         }
         return result;
+    }
+
+    public StreakResponse streak() {
+        WeekStreak streak = WeekStreak.compute(
+                statsRepository.findWorkoutDates(currentUser.currentUserId()), LocalDate.now(clock));
+        return new StreakResponse(streak.weeks(), streak.thisWeekWorkouts(), streak.longestWeeks());
     }
 
     /** Best estimated 1RM among {@code sets}, or {@code null} when there are none. */
