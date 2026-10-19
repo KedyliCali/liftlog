@@ -7,6 +7,7 @@ import jakarta.persistence.PostLoad;
 import jakarta.persistence.PostPersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
+import org.hibernate.annotations.DynamicUpdate;
 import org.springframework.data.domain.Persistable;
 
 import java.time.LocalDateTime;
@@ -19,6 +20,9 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "lol_players")
+// A rename writes only the name columns, never this request's older rank and refreshed_at over a refresh
+// another request committed in the meantime
+@DynamicUpdate
 public class LolPlayer implements Persistable<String> {
 
     @Id
