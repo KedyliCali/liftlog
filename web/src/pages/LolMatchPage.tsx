@@ -240,7 +240,9 @@ function Scoreboard({ players, teamId, detailed, viewer, maxDamage, lookups }: {
       sortValue: (p) => kdaRatio(p.kills, p.deaths, p.assists),
       render: (p) => (
         <span className="scoreboard-kda">
-          {p.kills}/<span className="deaths">{p.deaths}</span>/{p.assists}
+          <span>
+            {p.kills}/<span className="deaths">{p.deaths}</span>/{p.assists}
+          </span>
           <small>{formatKg(roundTo(kdaRatio(p.kills, p.deaths, p.assists), 1))}</small>
         </span>
       ),
