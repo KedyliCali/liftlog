@@ -1,9 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { FoodEntry } from '../api/types'
 import { ToastProvider } from '../components/Toast'
+import { formatKg } from '../lib/format'
 import { t } from '../lib/i18n'
 import { shiftDay, todayIso } from '../lib/nutrition'
 import { fakeServer, jsonResponse } from '../test/fakeServer'
@@ -48,7 +50,10 @@ function renderPage() {
   render(
     <QueryClientProvider client={client}>
       <ToastProvider>
-        <NutritionPage />
+        {/* The weight chip is a router link */}
+        <MemoryRouter>
+          <NutritionPage />
+        </MemoryRouter>
       </ToastProvider>
     </QueryClientProvider>,
   )
@@ -100,5 +105,34 @@ describe('copy yesterday', () => {
     const user = renderPage()
     await user.click(await screen.findByTestId('copy-previous-day'))
     expect(await screen.findByText(t.nothingToCopy)).toBeInTheDocument()
+  })
+})
+
+describe('weight chip', () => {
+  const day = { date: today, entries: [], totalCaloriesKcal: 0, totalProteinG: 0, totalCarbsG: 0, totalFatG: 0, goals }
+
+  it('shows the current weight and links to the weight log', async () => {
+    fakeServer({
+      'GET /api/v1/nutrition/frequent': () => jsonResponse(200, []),
+      [`GET /api/v1/nutrition/days/${today}`]: () => jsonResponse(200, day),
+      'GET /api/v1/profile': () => jsonResponse(200, { id: 1, displayName: null, heightCm: 180, bodyWeightKg: 82.4, avatarVersion: null }),
+    })
+    renderPage()
+
+    const chip = await screen.findByTestId('weight-link-chip')
+    expect(chip).toHaveAttribute('href', '/profile#weight')
+    expect(chip).toHaveAccessibleName(t.weightChipLabel(formatKg(82.4)))
+  })
+
+  it('is hidden without a weight', async () => {
+    fakeServer({
+      'GET /api/v1/nutrition/frequent': () => jsonResponse(200, []),
+      [`GET /api/v1/nutrition/days/${today}`]: () => jsonResponse(200, day),
+      'GET /api/v1/profile': () => jsonResponse(200, { id: 1, displayName: null, heightCm: null, bodyWeightKg: null, avatarVersion: null }),
+    })
+    renderPage()
+
+    expect(await screen.findByTestId('copy-previous-day')).toBeInTheDocument()
+    expect(screen.queryByTestId('weight-link-chip')).not.toBeInTheDocument()
   })
 })

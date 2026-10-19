@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type CSSProperties, type ReactNode } from 'react'
+import { Link } from 'react-router'
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { FoodEntry, FoodInput, FrequentFood, NutritionGoals } from '../api/types'
@@ -9,6 +10,7 @@ import { Sheet } from '../components/Sheet'
 import { NutritionSkeleton } from '../components/Skeletons'
 import { ErrorState, MessageState } from '../components/StateViews'
 import { SwipeToDelete } from '../components/SwipeToDelete'
+import { WEIGHT_CARD_ID } from '../components/WeightCard'
 import { AddFoodSheet } from './AddFoodSheet'
 import { vibrate } from '../lib/feedback'
 import { errorMessage, formatKg, formatLongDate, formatShortDate } from '../lib/format'
@@ -124,6 +126,7 @@ export function NutritionPage() {
       <header className="page-header">
         <h1 className="page-title">{t.nutritionTitle}</h1>
         <p className="page-subtitle">{t.nutritionSubtitle}</p>
+        {profile.data?.bodyWeightKg != null && <WeightChip kg={profile.data.bodyWeightKg} />}
         {day.isSuccess && (
           <div className="day-actions">
             <button className="icon-btn" onClick={() => setMenuOpen((open) => !open)} aria-label={t.dayMenu} aria-expanded={menuOpen}>
@@ -216,6 +219,19 @@ export function NutritionPage() {
         />
       )}
     </div>
+  )
+}
+
+/** Current weight as a small tag under the title; it opens the weight log on the Profile page. */
+function WeightChip({ kg }: { kg: number }) {
+  return (
+    <Link to={`/profile#${WEIGHT_CARD_ID}`} className="weight-link-chip" aria-label={t.weightChipLabel(formatKg(kg))} data-testid="weight-link-chip">
+      <span className="weight-link-chip-tag" aria-hidden>
+        {t.weightTitle}
+      </span>
+      <strong className="num">{formatKg(kg)}</strong>
+      <small aria-hidden>kg</small>
+    </Link>
   )
 }
 
