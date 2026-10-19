@@ -9,10 +9,13 @@ import { useToast } from '../components/contexts'
 import { errorMessage, formatShortDate, toIsoDate } from '../lib/format'
 import { t } from '../lib/i18n'
 import { routineSummary } from '../lib/routineLogic'
+import type { RoutineTemplate } from '../lib/routineTemplates'
 import { pickTemplates } from '../lib/workoutLogic'
+import { TemplateCards, TemplatePreview } from './RoutineTemplates'
 import { useStartRoutine } from './useStartRoutine'
 
-export function NewWorkoutSheet({ routines = [], onClose }: { routines?: Routine[]; onClose: () => void }) {
+/** offerTemplates: the server has routines, so a user without any is offered the ready-made templates. */
+export function NewWorkoutSheet({ routines = [], offerTemplates = false, onClose }: { routines?: Routine[]; offerTemplates?: boolean; onClose: () => void }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const toast = useToast()
@@ -20,6 +23,7 @@ export function NewWorkoutSheet({ routines = [], onClose }: { routines?: Routine
   const [notes, setNotes] = useState('')
   const [busy, setBusy] = useState<'creating' | 'copying' | null>(null)
   const routine = useStartRoutine(onClose)
+  const [template, setTemplate] = useState<RoutineTemplate | null>(null)
 
   const cached = queryClient.getQueryData<InfiniteData<Page<WorkoutSummary>>>(queryKeys.workouts)
   const templates = pickTemplates(cached?.pages.flatMap((page) => page.content) ?? [])
@@ -46,9 +50,29 @@ export function NewWorkoutSheet({ routines = [], onClose }: { routines?: Routine
     }
   }
 
+  if (template) {
+    // "Add and start" uses the date picked in this sheet, like the routine buttons do
+    return (
+      <Sheet title={t.newWorkout} onClose={onClose}>
+        <TemplatePreview template={template} backLabel={t.newWorkout} onBack={() => setTemplate(null)} onAdded={() => setTemplate(null)} onStarted={onClose} startDate={date} />
+      </Sheet>
+    )
+  }
+
   return (
     <Sheet title={t.newWorkout} onClose={onClose}>
       <div className="stack">
+        {routines.length === 0 && offerTemplates && (
+          <section aria-label={t.readyTemplates}>
+            <h3 className="section-title" style={{ margin: 0 }}>
+              {t.startWithRoutine}
+            </h3>
+            <p className="template-strip-hint" style={{ margin: '2px 0 0' }}>
+              {t.noRoutinesYet}
+            </p>
+            <TemplateCards variant="strip" onSelect={setTemplate} />
+          </section>
+        )}
         {routines.length > 0 && (
           <>
             <h3 className="section-title" style={{ margin: 0 }}>

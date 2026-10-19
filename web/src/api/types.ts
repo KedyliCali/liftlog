@@ -120,6 +120,38 @@ export interface PasskeyCeremony<Options> {
   expiresAt?: string
 }
 
+/** A record set in one workout, judged against everything before it */
+export interface RecapRecord {
+  exerciseName: string
+  /** Effective load: body weight included for bodyweight exercises */
+  weightKg: number
+  reps: number
+  /** WEIGHT: heaviest ever; ESTIMATED_1RM: best estimated one-rep max (e.g. more reps) */
+  kind: 'WEIGHT' | 'ESTIMATED_1RM'
+}
+
+/** End-of-workout summary (GET /workouts/{id}/summary) */
+export interface WorkoutRecap {
+  workoutId: number
+  workoutDate: string
+  totalVolumeKg: number
+  sets: number
+  exercises: number
+  personalRecords: RecapRecord[]
+  /** The previous session of the same routine, else with the same exercises; null when there is none */
+  previousVolumeKg: number | null
+  previousWorkoutId: number | null
+  previousWorkoutDate: string | null
+  weekStreak: number
+}
+
+/** Consecutive ISO weeks (Monday start) with at least one workout */
+export interface Streak {
+  weeks: number
+  thisWeekWorkouts: number
+  longestWeeks: number
+}
+
 export interface PersonalRecord {
   exerciseId: number
   exerciseName: string

@@ -7,13 +7,16 @@ import type { Routine, WorkoutSummary } from '../api/types'
 import { RecoveryNudge } from '../components/RecoveryNudge'
 import { WorkoutListSkeleton } from '../components/Skeletons'
 import { ErrorState, MessageState } from '../components/StateViews'
+import { StreakChip } from '../components/StreakChip'
 import { SwipeToDelete } from '../components/SwipeToDelete'
 import { useToast } from '../components/contexts'
 import { formatKg, monthShort, parseDate, weekdayShort } from '../lib/format'
 import { t } from '../lib/i18n'
 import { routineSummary } from '../lib/routineLogic'
+import type { RoutineTemplate } from '../lib/routineTemplates'
 import { NewWorkoutSheet } from './NewWorkoutSheet'
 import { RoutinesSheet } from './RoutinesSheet'
+import { TemplateCards } from './RoutineTemplates'
 import { useStartRoutine } from './useStartRoutine'
 import { DumbbellIcon } from '../components/Icons'
 
@@ -22,8 +25,12 @@ export function WorkoutsPage() {
   const toast = useToast()
   const [creating, setCreating] = useState(false)
   const [managingRoutines, setManagingRoutines] = useState(false)
+  // A template tapped in the empty strip opens the Routines sheet on its preview
+  const [previewTemplate, setPreviewTemplate] = useState<RoutineTemplate | null>(null)
   // An older server has no routines endpoint: the error just hides the strip
   const routines = useQuery({ queryKey: queryKeys.routines, queryFn: api.routines, retry: false })
+  // Same for the streak: no chip on a server without the endpoint, and none before the first week counts
+  const streak = useQuery({ queryKey: queryKeys.streak, queryFn: api.streak, retry: false })
   // Hidden while their undo window is open; the server delete happens when the toast expires
   const [pendingDelete, setPendingDelete] = useState<Set<number>>(new Set())
 
@@ -75,6 +82,9 @@ export function WorkoutsPage() {
       <header className="page-header">
         <h1 className="page-title">{t.workoutsTitle}</h1>
         <p className="page-subtitle">{t.workoutsSubtitle}</p>
+        {streak.data && streak.data.weeks > 0 && (
+          <StreakChip weeks={streak.data.weeks} thisWeekWorkouts={streak.data.thisWeekWorkouts} className="header-streak" />
+        )}
         {routines.isSuccess && (
           <button className="routines-btn" onClick={() => setManagingRoutines(true)} data-testid="manage-routines">
             {t.routines}
@@ -82,7 +92,7 @@ export function WorkoutsPage() {
         )}
       </header>
 
-      {routines.data && routines.data.length > 0 && <RoutineStrip routines={routines.data} />}
+      {routines.data && (routines.data.length > 0 ? <RoutineStrip routines={routines.data} /> : <TemplateStrip onSelect={setPreviewTemplate} />)}
 
       {query.isPending ? (
         <WorkoutListSkeleton />
@@ -108,8 +118,16 @@ export function WorkoutsPage() {
       <button className="fab" onClick={() => setCreating(true)} data-testid="fab-new-workout">
         <span className="fab-plus">+</span> {t.newWorkout}
       </button>
-      {creating && <NewWorkoutSheet routines={routines.data ?? []} onClose={() => setCreating(false)} />}
-      {managingRoutines && <RoutinesSheet onClose={() => setManagingRoutines(false)} />}
+      {creating && <NewWorkoutSheet routines={routines.data ?? []} offerTemplates={routines.isSuccess} onClose={() => setCreating(false)} />}
+      {(managingRoutines || previewTemplate) && (
+        <RoutinesSheet
+          initialTemplate={previewTemplate}
+          onClose={() => {
+            setManagingRoutines(false)
+            setPreviewTemplate(null)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -136,6 +154,17 @@ function RoutineStrip({ routines }: { routines: Routine[] }) {
           </button>
         ))}
       </div>
+    </section>
+  )
+}
+
+/** No routines yet: the same spot offers the ready-made templates instead. */
+function TemplateStrip({ onSelect }: { onSelect: (template: RoutineTemplate) => void }) {
+  return (
+    <section className="routine-strip" aria-label={t.readyTemplates}>
+      <h2 className="routine-strip-title">{t.startWithRoutine}</h2>
+      <p className="template-strip-hint">{t.noRoutinesYet}</p>
+      <TemplateCards variant="strip" onSelect={onSelect} />
     </section>
   )
 }
