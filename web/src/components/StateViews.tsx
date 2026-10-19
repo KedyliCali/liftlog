@@ -35,7 +35,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => 
 }
 
 /** Icon sits on two offset, overlapping tiles so the illustration has depth instead of one flat circle. */
-export function MessageState({ icon, title, body, children }: { icon: ReactNode; title: string; body?: string; children?: ReactNode }) {
+export function MessageState({ icon, title, body, children }: { icon: ReactNode; title: ReactNode; body?: string; children?: ReactNode }) {
   return (
     <div className="state-view">
       <div className="layered-tile" aria-hidden>
