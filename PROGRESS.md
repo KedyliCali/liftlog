@@ -364,6 +364,30 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
 1. PR aç ve birleştir; canlıda özet ve seri uçlarını kontrol et.
 2. Android'e aynı özet ve seri (isteğe bağlı).
 
+## 2026-10-19 — Kilo takibi (branch `feature/weight-log`)
+
+- **Backend:** V18 `weight_entries` (kullanıcı başına günde bir kayıt, `UNIQUE(user_id, entry_date)`, 20–400 kg
+  CHECK, kullanıcı silinince CASCADE). Profilde kilosu olan her kullanıcı için katılım tarihli bir kayıt aktarıldı.
+  `GET /api/v1/weight?days=30|90|365&today=` → `{entries, latest, change7d, change30d, average7d}`;
+  `PUT /api/v1/weight/{date}` `{weightKg}` (aynı gün tekrar kaydedilirse üzerine yazar; yarından sonrası 400);
+  `DELETE /api/v1/weight/{date}` (yoksa 404). Trend saf `WeightTrend` sınıfında, birim testli: değişimler bugünden
+  değil son tartıdan ölçülür; 7 günlük değişim 7–14 gün önceki en yeni kayıtla, 30 günlük 30–60 gün öncekiyle
+  karşılaştırılır (daha eskisi yanıltıcı olur, null döner).
+- **Profil senkronu:** en yeni kayıt değişince `users.body_weight_kg` da ona eşitlenir (BMI ve vücut ağırlığı
+  hareketleri bozulmasın). Son kayıt silinirse profil kilosu olduğu gibi kalır. Profilde kilo *değişirse* bugünün
+  kaydı yazılır (aynı kiloyla kaydetmek bugünkü tartıyı ezmez). 400 kg üstü (profil eski istemciler için 500'e izin
+  veriyor) profile yazılır ama kayda geçmez.
+- **Web:** Profil'de "Kilo" kartı: son kilo (lime blok, "BUGÜN" etiketi), "7 günde −0,5 kg" / "30 günde" çipleri,
+  7 gün ortalaması, ±0,1 / ±0,5 adımlı hızlı giriş, Kaydet/Güncelle, bugünkü kaydı silme, 30/90/365 gün çizgi
+  grafiği (günlük tartı gri, 7 günlük hareketli ortalama lime). Beslenme başlığında "KİLO 81,3 kg" çipi
+  `/profile#weight`'e götürür ve kartı görünür yapar.
+- Doğrulama: backend 230 test (`mvnw verify`, 5 yeni entegrasyon + 6 birim), web 348 test, tsc, lint, build.
+  Geçici Postgres + backend + Vite ile tarayıcıda (375 px): kaydetme, profil kilosu/VKİ güncellemesi, çip linki.
+
+**Sıradaki adımlar:**
+1. PR aç ve birleştir; canlıda V18'in backfill'ini kontrol et.
+2. Android'e kilo kaydı (isteğe bağlı); Android profil doğrulaması hâlâ 500 kg'a izin veriyor.
+
 ## 2026-10-19 — Verilerini indir (branch `feature/data-export`)
 
 - **Backend:** `GET /api/v1/export/workouts.csv` (set başına bir satır: tarih, not, hareket, set, ağırlık, tekrar, RPE,

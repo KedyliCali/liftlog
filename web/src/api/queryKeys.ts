@@ -11,6 +11,9 @@ export const queryKeys = {
   // Under stats, so logging or deleting sets refreshes the streak with the other numbers
   streak: ['stats', 'streak'] as const,
   profile: ['profile'] as const,
+  weight: ['weight'] as const,
+  // Under weight, so saving an entry refreshes every range at once
+  weightHistory: (days: number) => ['weight', days] as const,
   passkeys: ['passkeys'] as const,
   nutrition: ['nutrition'] as const,
   nutritionDay: (date: string) => ['nutrition', 'day', date] as const,

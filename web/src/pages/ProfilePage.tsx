@@ -9,6 +9,7 @@ import { ExportCard } from '../components/ExportCard'
 import { BackupCard } from '../components/Passkey'
 import { RecoveryCodeCard } from '../components/RecoveryCard'
 import { ProfileSkeleton } from '../components/Skeletons'
+import { WeightCard } from '../components/WeightCard'
 import { ErrorState } from '../components/StateViews'
 import { useToast } from '../components/contexts'
 import { errorMessage, formatKg } from '../lib/format'
@@ -123,6 +124,8 @@ export function ProfilePage() {
         <BodyStat label={t.bmi} value={bodyMassIndex != null ? bodyMassIndex.toLocaleString(locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 }) : null} emphasized />
       </div>
 
+      <WeightCard profileWeightKg={data.bodyWeightKg} />
+
       {/* With passkeys the Face ID backup leads and the code folds under it; without them, today's code card */}
       {passkeysSupported() ? (
         <>
@@ -193,6 +196,8 @@ function EditProfileSheet({ profile, onClose }: { profile: Profile; onClose: () 
     try {
       const updated = await api.updateProfile(name.trim() || null, result.heightCm, result.bodyWeightKg)
       queryClient.setQueryData(queryKeys.profile, updated)
+      // A changed weight is also logged as today's entry on the server
+      if (updated.bodyWeightKg !== profile.bodyWeightKg) void queryClient.invalidateQueries({ queryKey: queryKeys.weight })
       onClose()
     } catch (error) {
       toast({ message: errorMessage(error) })
