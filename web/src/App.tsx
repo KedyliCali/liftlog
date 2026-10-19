@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { AppError } from './api/client'
+import { ConfirmProvider } from './components/Confirm'
 import { Layout } from './components/Layout'
 import { RestTimerProvider } from './components/RestTimer'
 import { ProgressSkeleton } from './components/Skeletons'
@@ -69,11 +70,13 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <RestTimerProvider>
-          <SessionGate>
-            <RouterProvider router={router} />
-          </SessionGate>
-        </RestTimerProvider>
+        <ConfirmProvider>
+          <RestTimerProvider>
+            <SessionGate>
+              <RouterProvider router={router} />
+            </SessionGate>
+          </RestTimerProvider>
+        </ConfirmProvider>
       </ToastProvider>
     </QueryClientProvider>
   )
