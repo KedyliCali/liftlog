@@ -15,6 +15,8 @@ import { useToast } from '../components/contexts'
 import { unlockAudio, vibrate } from '../lib/feedback'
 import { errorMessage, formatKg, formatLoad, formatLongDate } from '../lib/format'
 import { t } from '../lib/i18n'
+import { musclesOfSets } from '../lib/muscles'
+import { RecapMuscles } from '../components/MuscleMapCard'
 import { ROUTINE_NAME_MAX } from '../lib/routineLogic'
 import { groupByExercise, visibleVolume, type ExerciseGroup } from '../lib/workoutLogic'
 import { SetEditorSheet, type SetEditorProps } from './SetEditorSheet'
@@ -240,6 +242,8 @@ export function WorkoutDetailPage() {
           ) : (
             <div className="set-groups">{groupByExercise(visibleSets).map(renderGroup)}</div>
           )}
+          {/* Which muscles this workout hit so far, from each exercise's muscles; no extra request */}
+          {visibleSets.length > 0 && <RecapMuscles muscles={musclesOfSets(visibleSets, exercises.data ?? [])} />}
           {visibleSets.length > 0 && (
             <button className="finish-btn" onClick={() => setFinishing(true)} data-testid="finish-workout">
               <span className="finish-btn-front">

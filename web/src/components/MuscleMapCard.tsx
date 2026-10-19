@@ -10,7 +10,7 @@ import { bandFor, bandThresholds, foldMuscleStats, formatSets, muscleName, type 
 import { BodyMap } from './BodyMap'
 import { CloseIcon } from './Icons'
 
-type Days = 7 | 30
+type Days = 1 | 7 | 30
 
 /** Progress page: which muscles the last 7 or 30 days trained, on a front or back figure. */
 export function MuscleMapCard() {
@@ -51,6 +51,7 @@ export function MuscleMapCard() {
           <Toggle
             label={t.muscleMapPeriod}
             options={[
+              [1, t.muscleMapDays(1)],
               [7, t.muscleMapDays(7)],
               [30, t.muscleMapDays(30)],
             ]}

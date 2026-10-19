@@ -42,7 +42,7 @@ export const api = {
   progress: (exerciseId: number) => request<ProgressPoint[]>(`/api/v1/stats/progress?exerciseId=${exerciseId}`),
   streak: () => request<Streak>('/api/v1/stats/streak'),
   /** `today` is the phone's date, so "the last 7 days" ends on the user's day, not the server's */
-  muscleStats: (days: 7 | 30, today: string) => request<MuscleStats>(`/api/v1/stats/muscles?days=${days}&today=${today}`),
+  muscleStats: (days: 1 | 7 | 30, today: string) => request<MuscleStats>(`/api/v1/stats/muscles?days=${days}&today=${today}`),
   weeklyVolume: (weeks: number) => request<WeeklyVolume[]>(`/api/v1/stats/volume?weeks=${weeks}`),
 
   nutritionDay: (date: string) => request<NutritionDay>(`/api/v1/nutrition/days/${date}`),

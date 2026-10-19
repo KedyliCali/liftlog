@@ -64,13 +64,14 @@ const roundSets = (n: number) => Math.round(n * 10) / 10
 
 export type Band = 'none' | 'low' | 'mid' | 'high'
 /** 7 or 30 days of the Progress card, or a single workout of the summary sheet. */
-export type BandScope = 7 | 30 | 'workout'
+export type BandScope = 1 | 7 | 30 | 'workout'
 
 const WEEK_THRESHOLDS = [5, 10] as const
 
 /** [mid, high]: from `mid` sets a muscle is orange, from `high` red. 30 days scale the weekly numbers. */
 export function bandThresholds(scope: BandScope): readonly [number, number] {
-  if (scope === 'workout') return [2, 4]
+  // One day is about one workout, so it uses the single-workout bands
+  if (scope === 'workout' || scope === 1) return [2, 4]
   const scale = scope / 7
   return [Math.round(WEEK_THRESHOLDS[0] * scale), Math.round(WEEK_THRESHOLDS[1] * scale)]
 }
@@ -94,3 +95,27 @@ export const muscleName = (muscle: MapMuscle) => t.muscleNames[muscle] ?? muscle
 export function formatSets(sets: number, loc: string = locale): string {
   return new Intl.NumberFormat(loc, { maximumFractionDigits: 1 }).format(sets)
 }
+
+/**
+ * Sets per muscle for a list of logged sets, from each exercise's muscles: 1 for a primary muscle, 0.5 for a
+ * secondary one, and when two of an exercise's muscles fold onto one map region the primary role wins, so a
+ * set is never counted twice for a region (the same rule as the server's summary).
+ */
+export function musclesOfSets(
+  sets: readonly { exerciseId: number }[],
+  exercises: readonly { id: number; muscles?: readonly { muscle: string; role: 'PRIMARY' | 'SECONDARY' }[] }[],
+): MuscleSets[] {
+  const byId = new Map(exercises.map((exercise) => [exercise.id, exercise]))
+  const totals = new Map<MapMuscle, number>()
+  for (const set of sets) {
+    const regions = new Map<MapMuscle, number>()
+    for (const { muscle, role } of byId.get(set.exerciseId)?.muscles ?? []) {
+      const region = foldMuscle(muscle)
+      if (!region) continue
+      regions.set(region, Math.max(regions.get(region) ?? 0, role === 'PRIMARY' ? 1 : 0.5))
+    }
+    for (const [region, weight] of regions) totals.set(region, (totals.get(region) ?? 0) + weight)
+  }
+  return [...totals].map(([muscle, sets]) => ({ muscle, sets: Math.round(sets * 10) / 10 }))
+}
+
