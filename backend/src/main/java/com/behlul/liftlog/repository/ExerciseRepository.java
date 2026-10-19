@@ -36,4 +36,22 @@ public interface ExerciseRepository extends JpaRepository<Exercise, Long> {
             where lower(e.name) = lower(:name) and (e.owner is null or e.owner.id = :userId)
             """)
     boolean existsVisibleByName(@Param("name") String name, @Param("userId") Long userId);
+
+    /** Stored muscles of the given exercises (built-ins only have rows; see V17). Ids must not be empty. */
+    @Query(value = """
+            select m.exercise_id as exerciseId, m.muscle as muscle, m.role as role
+            from exercise_muscles m
+            where m.exercise_id in (:ids)
+            """, nativeQuery = true)
+    List<ExerciseMuscleRow> findMuscles(@Param("ids") Collection<Long> ids);
+
+    interface ExerciseMuscleRow {
+        Long getExerciseId();
+
+        /** One of the 16 map regions, or ADDUCTORS / ABDUCTORS. */
+        String getMuscle();
+
+        /** PRIMARY or SECONDARY. */
+        String getRole();
+    }
 }

@@ -57,6 +57,25 @@ public interface StatsRepository extends Repository<WorkoutSet, Long> {
             """)
     List<WorkoutExerciseVolume> findWorkoutExerciseVolumes(@Param("userId") Long userId);
 
+    /** Sets per exercise in the user's workouts dated {@code from}..{@code to}, both inclusive. */
+    @Query("""
+            select new com.behlul.liftlog.repository.ExerciseSetCount(e.id, e.name, e.muscleGroup, count(s.id))
+            from WorkoutSet s join s.workout w join s.exercise e
+            where w.user.id = :userId and w.workoutDate between :from and :to
+            group by e.id, e.name, e.muscleGroup
+            """)
+    List<ExerciseSetCount> findExerciseSetCounts(@Param("userId") Long userId, @Param("from") LocalDate from,
+                                                 @Param("to") LocalDate to);
+
+    /** Sets per exercise in one workout; the caller has already checked that the workout is the user's. */
+    @Query("""
+            select new com.behlul.liftlog.repository.ExerciseSetCount(e.id, e.name, e.muscleGroup, count(s.id))
+            from WorkoutSet s join s.exercise e
+            where s.workout.id = :workoutId
+            group by e.id, e.name, e.muscleGroup
+            """)
+    List<ExerciseSetCount> findExerciseSetCountsOfWorkout(@Param("workoutId") Long workoutId);
+
     /** Dates of all the user's workouts, one entry per workout (empty workouts included). */
     @Query("select w.workoutDate from Workout w where w.user.id = :userId")
     List<LocalDate> findWorkoutDates(@Param("userId") Long userId);

@@ -1,14 +1,20 @@
 package com.behlul.liftlog.service;
 
+import com.behlul.liftlog.dto.StatsDtos.ExerciseSetsResponse;
+import com.behlul.liftlog.dto.StatsDtos.MuscleSetsResponse;
+import com.behlul.liftlog.dto.StatsDtos.MuscleStatsResponse;
 import com.behlul.liftlog.dto.StatsDtos.PersonalRecordResponse;
 import com.behlul.liftlog.dto.StatsDtos.ProgressPointResponse;
 import com.behlul.liftlog.dto.StatsDtos.StreakResponse;
 import com.behlul.liftlog.dto.StatsDtos.WeeklyVolumeResponse;
+import com.behlul.liftlog.exception.FieldValidationException;
 import com.behlul.liftlog.exception.ResourceNotFoundException;
 import com.behlul.liftlog.repository.ExerciseRepository;
+import com.behlul.liftlog.repository.ExerciseSetCount;
 import com.behlul.liftlog.repository.SetFact;
 import com.behlul.liftlog.repository.StatsRepository;
 import com.behlul.liftlog.security.CurrentUserProvider;
+import com.behlul.liftlog.service.MuscleMap.MuscleSets;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,9 +25,11 @@ import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -35,6 +43,9 @@ import java.util.stream.Collectors;
 public class StatsService {
 
     static final int MAX_WEEKS = 52;
+
+    /** Windows the muscle map offers: a week and a month. */
+    static final Set<Integer> MUSCLE_MAP_DAYS = Set.of(7, 30);
 
     /** Heavier wins; at equal weight more reps wins; at a full tie the earlier set keeps the record. */
     static final Comparator<SetFact> HEAVIEST_FIRST = Comparator.comparing(SetFact::weightKg)
@@ -100,6 +111,38 @@ public class StatsService {
                     : new WeeklyVolumeResponse(week, row.getVolumeKg(), row.getSetCount()));
         }
         return result;
+    }
+
+    /**
+     * Sets per muscle over the last {@code days} days, today included: [today - days + 1, today].
+     *
+     * @param today the phone's date (its time zone decides what "today" is); null means the server's date
+     */
+    public MuscleStatsResponse muscles(int days, LocalDate today) {
+        if (!MUSCLE_MAP_DAYS.contains(days)) {
+            throw new FieldValidationException("days", "must be 7 or 30");
+        }
+        LocalDate to = today != null ? today : LocalDate.now(clock);
+        LocalDate from = to.minusDays(days - 1L);
+
+        List<ExerciseSetCount> counts = statsRepository.findExerciseSetCounts(currentUser.currentUserId(), from, to);
+        List<MuscleSetsResponse> muscles = muscleSets(counts, exerciseRepository).stream()
+                .map(m -> new MuscleSetsResponse(m.muscle().name(), m.sets(), m.exercises().stream()
+                        .map(e -> new ExerciseSetsResponse(e.name(), e.sets()))
+                        .toList()))
+                .toList();
+        return new MuscleStatsResponse(days, from, to, muscles);
+    }
+
+    /** Resolves the muscles of the counted exercises (stored, or guessed from the muscle group) and sums them. */
+    static List<MuscleSets> muscleSets(List<ExerciseSetCount> counts, ExerciseRepository exerciseRepository) {
+        if (counts.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, String> muscleGroupById = new HashMap<>();
+        counts.forEach(count -> muscleGroupById.put(count.exerciseId(), count.muscleGroup()));
+        return MuscleMap.setsPerMuscle(counts,
+                MuscleMap.resolveAll(muscleGroupById, exerciseRepository.findMuscles(muscleGroupById.keySet())));
     }
 
     public StreakResponse streak() {

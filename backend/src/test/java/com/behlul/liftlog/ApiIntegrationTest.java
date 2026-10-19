@@ -12,6 +12,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -73,6 +74,7 @@ class ApiIntegrationTest {
     @Autowired private LolGroupRepository groupRepository;
     @Autowired private LolRankHistoryRepository rankHistoryRepository;
     @Autowired private PlatformTransactionManager transactionManager;
+    @Autowired private JdbcTemplate jdbcTemplate;
 
     @Test
     void protectedEndpointsRequireAToken() throws Exception {
@@ -637,7 +639,8 @@ class ApiIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalVolumeKg").value(0))
-                .andExpect(jsonPath("$.sets").value(0));
+                .andExpect(jsonPath("$.sets").value(0))
+                .andExpect(jsonPath("$.muscles", empty()));
 
         mockMvc.perform(get("/api/v1/workouts/" + workoutId + "/summary")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + intruder))
@@ -645,6 +648,148 @@ class ApiIntegrationTest {
         mockMvc.perform(get("/api/v1/workouts/999999999/summary")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void everyBuiltInExerciseHasAPrimaryMuscle() {
+        // Queried in SQL because the API would hide a missing seed row behind the muscle-group fallback
+        List<String> withoutPrimary = jdbcTemplate.queryForList("""
+                select e.name from exercises e
+                where e.user_id is null and not exists (
+                    select 1 from exercise_muscles m where m.exercise_id = e.id and m.role = 'PRIMARY')
+                order by e.name
+                """, String.class);
+        assertThat(withoutPrimary).isEmpty();
+
+        Integer builtIns = jdbcTemplate.queryForObject("select count(*) from exercises where user_id is null", Integer.class);
+        assertThat(builtIns).isEqualTo(76);
+    }
+
+    @Test
+    void exercisesListTheirMusclesBuiltInAndCustom() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        String backName = "Rack Pull " + UUID.randomUUID().toString().substring(0, 6);
+        authed(post("/api/v1/exercises"), token, json("{'name':'%s','muscleGroup':'Back'}", backName))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.muscles.length()").value(2))
+                .andExpect(jsonPath("$.muscles[0].muscle").value("LATS"))
+                .andExpect(jsonPath("$.muscles[0].role").value("PRIMARY"));
+        String noGroupName = "Odd Thing " + UUID.randomUUID().toString().substring(0, 6);
+        authed(post("/api/v1/exercises"), token, json("{'name':'%s'}", noGroupName))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.muscles", empty()));
+
+        JsonNode exercises = read(mockMvc.perform(get("/api/v1/exercises").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk()).andReturn());
+        java.util.Map<String, List<String>> muscles = new java.util.HashMap<>();
+        for (JsonNode exercise : exercises) {
+            List<String> entries = new ArrayList<>();
+            exercise.get("muscles").forEach(m -> entries.add(m.get("muscle").asString() + ":" + m.get("role").asString()));
+            muscles.put(exercise.get("name").asString(), entries);
+        }
+        assertThat(muscles.get("Bench Press")).containsExactly("CHEST:PRIMARY", "FRONT_DELTS:SECONDARY", "TRICEPS:SECONDARY");
+        assertThat(muscles.get("Face Pull")).containsExactly("REAR_DELTS:PRIMARY", "TRAPS:SECONDARY");
+        // Adductors are drawn inside the quads region, so the API only speaks in map regions
+        assertThat(muscles.get("Hip Adduction Machine")).containsExactly("QUADS:PRIMARY");
+        assertThat(muscles.get("Squat")).containsExactly("GLUTES:PRIMARY", "QUADS:PRIMARY", "LOWER_BACK:SECONDARY");
+        assertThat(muscles.get(backName)).containsExactly("LATS:PRIMARY", "TRAPS:SECONDARY");
+        assertThat(muscles.get(noGroupName)).isEmpty();
+        assertThat(muscles.values()).allSatisfy(list -> assertThat(list).noneMatch(
+                entry -> entry.startsWith("ADDUCTORS") || entry.startsWith("ABDUCTORS")));
+    }
+
+    @Test
+    void muscleMapCountsTheCallersSetsInTheWindowAndTheSummary() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        String other = register(randomEmail(), "s3cret-pass", null);
+        LocalDate today = LocalDate.of(2026, 10, 19);
+        long bench = exerciseId(token, "Bench Press");
+        long pullUp = exerciseId(token, "Pull-up");
+        long squat = exerciseId(token, "Squat");
+        long deadlift = exerciseId(token, "Deadlift");
+        long lateralRaise = exerciseId(token, "Lateral Raise");
+        long legExtension = exerciseId(token, "Leg Extension");
+        long customArms = read(authed(post("/api/v1/exercises"), token,
+                json("{'name':'Arm Combo %s','muscleGroup':'Arms'}", UUID.randomUUID().toString().substring(0, 6)))
+                .andExpect(status().isCreated()).andReturn()).get("id").asLong();
+
+        // Today: bench 3, pull-up 2 (bodyweight, counts like any set), custom arms 2
+        long todayWorkout = createWorkout(token, today.toString(), null);
+        for (int i = 0; i < 3; i++) {
+            addSet(token, todayWorkout, bench, 5, "80");
+        }
+        addSet(token, todayWorkout, pullUp, 8, "0");
+        addSet(token, todayWorkout, pullUp, 6, "0");
+        addSet(token, todayWorkout, customArms, 10, "20");
+        addSet(token, todayWorkout, customArms, 10, "20");
+        // First day of the 7-day window, then just outside it (still inside 30 days)
+        long weekEdge = createWorkout(token, today.minusDays(6).toString(), null);
+        addSet(token, weekEdge, squat, 5, "100");
+        addSet(token, weekEdge, squat, 5, "100");
+        long lastWeek = createWorkout(token, today.minusDays(7).toString(), null);
+        addSet(token, lastWeek, deadlift, 3, "140");
+        // First day of the 30-day window, then outside it on both sides
+        long monthEdge = createWorkout(token, today.minusDays(29).toString(), null);
+        addSet(token, monthEdge, lateralRaise, 12, "10");
+        long tooOld = createWorkout(token, today.minusDays(30).toString(), null);
+        long tomorrow = createWorkout(token, today.plusDays(1).toString(), null);
+        for (int i = 0; i < 5; i++) {
+            addSet(token, tooOld, legExtension, 10, "50");
+            addSet(token, tomorrow, legExtension, 10, "50");
+        }
+        // Someone else's bench sets on the same day are not ours
+        long othersWorkout = createWorkout(other, today.toString(), null);
+        for (int i = 0; i < 10; i++) {
+            addSet(other, othersWorkout, bench, 5, "100");
+        }
+
+        JsonNode week = read(mockMvc.perform(get("/api/v1/stats/muscles?days=7&today=" + today)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.days").value(7))
+                .andExpect(jsonPath("$.from").value(today.minusDays(6).toString()))
+                .andExpect(jsonPath("$.to").value(today.toString()))
+                .andReturn());
+        assertThat(muscleSets(week.get("muscles"))).containsExactly(
+                "CHEST=3.0", "TRICEPS=2.5", "BICEPS=2.0", "LATS=2.0", "GLUTES=2.0", "QUADS=2.0",
+                "FRONT_DELTS=1.5", "REAR_DELTS=1.0", "FOREARMS=1.0", "LOWER_BACK=1.0");
+        JsonNode triceps = week.get("muscles").get(1);
+        assertThat(triceps.get("exercises").size()).isEqualTo(2);
+        assertThat(triceps.get("exercises").get(0).get("name").asString()).isEqualTo("Bench Press");
+        assertThat(triceps.get("exercises").get(0).get("sets").asDouble()).isEqualTo(1.5);
+        assertThat(triceps.get("exercises").get(1).get("name").asString()).startsWith("Arm Combo");
+        assertThat(triceps.get("exercises").get(1).get("sets").asDouble()).isEqualTo(1.0);
+
+        JsonNode month = read(mockMvc.perform(get("/api/v1/stats/muscles?days=30&today=" + today)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.from").value(today.minusDays(29).toString()))
+                .andReturn());
+        // + deadlift 1 (hamstrings, glutes, lower back 1; traps, forearms, lats 0.5) + lateral raise 1
+        assertThat(muscleSets(month.get("muscles"))).containsExactly(
+                "CHEST=3.0", "GLUTES=3.0", "TRICEPS=2.5", "LATS=2.5", "BICEPS=2.0", "LOWER_BACK=2.0", "QUADS=2.0",
+                "FRONT_DELTS=1.5", "FOREARMS=1.5", "SIDE_DELTS=1.0", "REAR_DELTS=1.0", "TRAPS=1.0", "HAMSTRINGS=1.0");
+
+        mockMvc.perform(get("/api/v1/stats/muscles?days=14").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.days").exists());
+        mockMvc.perform(get("/api/v1/stats/muscles?days=7&today=yesterday").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/stats/muscles?days=7"))
+                .andExpect(status().isUnauthorized());
+
+        JsonNode summary = read(mockMvc.perform(get("/api/v1/workouts/" + todayWorkout + "/summary")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk()).andReturn());
+        assertThat(muscleSets(summary.get("muscles"))).containsExactly(
+                "CHEST=3.0", "TRICEPS=2.5", "BICEPS=2.0", "LATS=2.0", "FRONT_DELTS=1.5", "REAR_DELTS=1.0",
+                "FOREARMS=1.0");
+    }
+
+    private static List<String> muscleSets(JsonNode muscles) {
+        List<String> result = new ArrayList<>();
+        muscles.forEach(m -> result.add(m.get("muscle").asString() + "=" + m.get("sets").asString()));
+        return result;
     }
 
     @Test
