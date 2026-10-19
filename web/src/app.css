@@ -4298,18 +4298,8 @@ button.lol-record:active {
   border-radius: var(--radius-m);
   background: var(--surface-high);
   text-align: left;
-  isolation: isolate;
-  transition: transform 0.45s var(--ease-spring);
-}
-
-.scan-entry::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  background: var(--primary-container);
-  transform: translate(6px, 6px);
+  box-shadow: 6px 6px 0 var(--primary-container);
+  transition: transform 0.45s var(--ease-spring), box-shadow 0.45s var(--ease-spring);
 }
 
 .scan-entry::after {
@@ -4325,6 +4315,7 @@ button.lol-record:active {
 
 .scan-entry:active {
   transform: translate(3px, 3px);
+  box-shadow: 3px 3px 0 var(--primary-container);
   transition-duration: 0.08s;
 }
 
@@ -4358,18 +4349,8 @@ button.lol-record:active {
   margin: 0 8px 8px 0;
   border-radius: var(--radius-l);
   background: #050506;
-  isolation: isolate;
-}
-
-/* Offset lime plate behind the viewfinder */
-.scanner-stage::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  background: var(--primary);
-  transform: translate(8px, 8px);
+  /* Offset lime plate behind the viewfinder */
+  box-shadow: 8px 8px 0 var(--primary);
 }
 
 .scanner-viewport {
@@ -4527,17 +4508,7 @@ button.lol-record:active {
   margin: 8px 6px 4px 0;
   border-radius: var(--radius-m);
   background: var(--surface-high);
-  isolation: isolate;
-}
-
-.scanned-product::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  background: var(--surface-highest);
-  transform: translate(6px, 6px);
+  box-shadow: 6px 6px 0 var(--surface-highest);
 }
 
 .scanned-product::after {
