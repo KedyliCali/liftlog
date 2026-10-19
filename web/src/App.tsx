@@ -1,28 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { lazy, Suspense } from 'react'
+import { useEffect } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { AppError } from './api/client'
 import { ConfirmProvider } from './components/Confirm'
 import { Layout } from './components/Layout'
 import { RestTimerProvider } from './components/RestTimer'
-import { ProgressSkeleton } from './components/Skeletons'
 import { ToastProvider } from './components/Toast'
+import { prefetchRoutePages } from './routing/pageLoaders'
+import { pageRoutes } from './routing/pageRoutes'
 import { SessionGate } from './SessionGate'
-import { t } from './lib/i18n'
-import { GamePage } from './pages/GamePage'
-import { LolMatchPage } from './pages/LolMatchPage'
-import { LolPlayerPage } from './pages/LolPlayerPage'
-import { NutritionPage } from './pages/NutritionPage'
-import { ProfilePage } from './pages/ProfilePage'
-import { WorkoutDetailPage } from './pages/WorkoutDetailPage'
-import { WorkoutsPage } from './pages/WorkoutsPage'
-
-const loadProgressPage = () => import('./pages/ProgressPage')
-const ProgressPage = lazy(() => loadProgressPage().then((m) => ({ default: m.ProgressPage })))
-// The chart library stays out of the first load, but is fetched once the browser is idle so opening
-// the tab rarely has to wait for it
-const whenIdle = window.requestIdleCallback ?? ((callback: () => void) => setTimeout(callback, 1500))
-whenIdle(() => void loadProgressPage())
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,41 +21,18 @@ const queryClient = new QueryClient({
   },
 })
 
-const router = createBrowserRouter([
-  {
-    element: <Layout />,
-    children: [
-      { path: '/', element: <WorkoutsPage /> },
-      { path: '/workouts/:id', element: <WorkoutDetailPage /> },
-      { path: '/nutrition', element: <NutritionPage /> },
-      { path: '/game', element: <GamePage /> },
-      { path: '/game/:puuid', element: <LolPlayerPage /> },
-      // Two segments after /game, so it never collides with a player's puuid
-      { path: '/game/match/:matchId', element: <LolMatchPage /> },
-      {
-        path: '/progress',
-        element: (
-          <Suspense
-            fallback={
-              <div className="page">
-                <header className="page-header">
-                  <h1 className="page-title">{t.progressTitle}</h1>
-                  <p className="page-subtitle">{t.progressSubtitle}</p>
-                </header>
-                <ProgressSkeleton />
-              </div>
-            }
-          >
-            <ProgressPage />
-          </Suspense>
-        ),
-      },
-      { path: '/profile', element: <ProfilePage /> },
-    ],
-  },
-])
+const router = createBrowserRouter([{ element: <Layout />, children: pageRoutes }])
+
+// Safari has no requestIdleCallback; a short delay still lets the first screen and its API calls go first
+const whenIdle = (callback: () => void) =>
+  window.requestIdleCallback ? window.requestIdleCallback(callback, { timeout: 4000 }) : window.setTimeout(callback, 1500)
 
 export function App() {
+  // After the first paint, so the other pages' chunks never delay the start page
+  useEffect(() => {
+    whenIdle(() => void prefetchRoutePages())
+  }, [])
+
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
