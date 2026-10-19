@@ -643,6 +643,50 @@ class ApiIntegrationTest {
     }
 
     @Test
+    void copyingADayDuplicatesItsEntriesForTheCallerOnly() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        String today = LocalDate.now(ZoneOffset.UTC).toString();
+        String yesterday = LocalDate.now(ZoneOffset.UTC).minusDays(1).toString();
+        String copyUrl = "/api/v1/nutrition/days/" + today + "/copy-from/" + yesterday;
+        authed(post("/api/v1/nutrition/entries"), token,
+                json("{'entryDate':'%s','name':'Oats','caloriesKcal':380,'proteinG':13.5,'carbsG':60.2,'fatG':6.5}", yesterday))
+                .andExpect(status().isCreated());
+        authed(post("/api/v1/nutrition/entries"), token,
+                json("{'entryDate':'%s','name':'Protein shake','caloriesKcal':120,'proteinG':24}", yesterday))
+                .andExpect(status().isCreated());
+
+        // A stranger copying "their" yesterday gets nothing: the source is read per user
+        String stranger = register(randomEmail(), "s3cret-pass", null);
+        authed(post(copyUrl), stranger, "").andExpect(status().isCreated()).andExpect(jsonPath("$.length()").value(0));
+
+        JsonNode copies = read(authed(post(copyUrl), token, "")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].name").value("Oats"))
+                .andExpect(jsonPath("$[0].entryDate").value(today))
+                .andExpect(jsonPath("$[0].carbsG").value(60.2))
+                .andExpect(jsonPath("$[1].carbsG").doesNotExist())
+                .andReturn());
+        mockMvc.perform(get("/api/v1/nutrition/days/" + today).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.entries.length()").value(2))
+                .andExpect(jsonPath("$.totalCaloriesKcal").value(500));
+
+        // Undo on the client deletes the returned ids: they are new rows, so the source day is untouched
+        for (JsonNode copy : copies) {
+            mockMvc.perform(delete("/api/v1/nutrition/entries/" + copy.get("id").asLong())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)).andExpect(status().isNoContent());
+        }
+        mockMvc.perform(get("/api/v1/nutrition/days/" + yesterday).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.entries.length()").value(2));
+        mockMvc.perform(get("/api/v1/nutrition/days/" + today).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.entries.length()").value(0));
+
+        authed(post("/api/v1/nutrition/days/" + today + "/copy-from/" + today), token, "").andExpect(status().isBadRequest());
+        authed(post("/api/v1/nutrition/days/" + today + "/copy-from/not-a-date"), token, "").andExpect(status().isBadRequest());
+        mockMvc.perform(post(copyUrl)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void foodCatalogListsSeededFoodsInBothLanguages() throws Exception {
         String token = register(randomEmail(), "s3cret-pass", null);
         MvcResult result = mockMvc.perform(get("/api/v1/foods").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
