@@ -15,7 +15,7 @@ import { AddFoodSheet } from './AddFoodSheet'
 import { vibrate } from '../lib/feedback'
 import { errorMessage, formatKg, formatLongDate, formatShortDate } from '../lib/format'
 import { t } from '../lib/i18n'
-import { goalProgress, macroEnergySplit, shiftDay, suggestedProteinGoal, todayIso, validateGoals, type GoalField } from '../lib/nutrition'
+import { goalProgress, macroEnergySplit, portionLabel, shiftDay, suggestedProteinGoal, todayIso, validateGoals, type GoalField } from '../lib/nutrition'
 import { PlateIcon } from '../components/Icons'
 
 export function NutritionPage() {
@@ -176,26 +176,30 @@ export function NutritionPage() {
             </MessageState>
           ) : (
             <div className="food-list">
-              {visibleEntries.map((entry, index) => (
-                <SwipeToDelete
-                  key={entry.id}
-                  label={entry.name}
-                  confirm={() => confirm({ item: entry.name, message: t.kcal(formatKg(entry.caloriesKcal)) })}
-                  onDelete={() => remove(entry)}
-                >
-                  <div className="food-row" style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}>
-                    <span className="food-text">
-                      <span className="food-name">{entry.name}</span>
-                      <span className="food-macros num">
-                        {t.proteinShort(formatKg(entry.proteinG))}
-                        {entry.carbsG != null && ` · ${t.carbsShort(formatKg(entry.carbsG))}`}
-                        {entry.fatG != null && ` · ${t.fatShort(formatKg(entry.fatG))}`}
+              {visibleEntries.map((entry, index) => {
+                const portion = portionLabel(entry, formatKg)
+                return (
+                  <SwipeToDelete
+                    key={entry.id}
+                    label={entry.name}
+                    confirm={() => confirm({ item: entry.name, message: t.kcal(formatKg(entry.caloriesKcal)) })}
+                    onDelete={() => remove(entry)}
+                  >
+                    <div className="food-row" style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}>
+                      <span className="food-text">
+                        <span className="food-name">{entry.name}</span>
+                        <span className="food-macros num">
+                          {portion && <span className="food-portion" data-testid="food-portion">{portion} · </span>}
+                          {t.proteinShort(formatKg(entry.proteinG))}
+                          {entry.carbsG != null && ` · ${t.carbsShort(formatKg(entry.carbsG))}`}
+                          {entry.fatG != null && ` · ${t.fatShort(formatKg(entry.fatG))}`}
+                        </span>
                       </span>
-                    </span>
-                    <span className="food-kcal num">{t.kcal(formatKg(entry.caloriesKcal))}</span>
-                  </div>
-                </SwipeToDelete>
-              ))}
+                      <span className="food-kcal num">{t.kcal(formatKg(entry.caloriesKcal))}</span>
+                    </div>
+                  </SwipeToDelete>
+                )
+              })}
             </div>
           )}
 

@@ -154,6 +154,34 @@ describe('copy yesterday', () => {
   })
 })
 
+describe('portion in the day list', () => {
+  it('shows the grams next to the macros unless the name already says it, and nothing when unknown', async () => {
+    const rice: FoodEntry = { ...oats, id: 60, entryDate: today, name: 'Rice (1 bowl)', grams: 180 }
+    const weighed: FoodEntry = { ...oats, id: 61, entryDate: today, name: `Yogurt (${formatKg(150)} g)`, grams: 150 }
+    const typed: FoodEntry = { ...shake, id: 62, entryDate: today }
+    fakeServer({
+      'GET /api/v1/nutrition/frequent': () => jsonResponse(200, []),
+      [`GET /api/v1/nutrition/days/${today}`]: () =>
+        jsonResponse(200, { date: today, entries: [rice, weighed, typed], totalCaloriesKcal: 0, totalProteinG: 0, totalCarbsG: 0, totalFatG: 0, goals }),
+    })
+    renderPage()
+
+    expect(await screen.findByText('Rice (1 bowl)')).toBeInTheDocument()
+    const portions = screen.getAllByTestId('food-portion')
+    expect(portions).toHaveLength(1)
+    expect(portions[0]).toHaveTextContent(`${formatKg(180)} g`)
+  })
+
+  it('keeps the grams on copied entries', async () => {
+    nutritionServer([{ ...oats, name: 'Oats (1 bowl)', grams: 40 }])
+    const user = renderPage()
+
+    await user.click(await screen.findByTestId('copy-previous-day'))
+    expect(await screen.findByText('Oats (1 bowl)')).toBeInTheDocument()
+    expect(screen.getByTestId('food-portion')).toHaveTextContent(`${formatKg(40)} g`)
+  })
+})
+
 describe('weight chip', () => {
   const day = { date: today, entries: [], totalCaloriesKcal: 0, totalProteinG: 0, totalCarbsG: 0, totalFatG: 0, goals }
 
