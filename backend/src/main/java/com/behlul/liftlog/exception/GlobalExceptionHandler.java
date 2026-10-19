@@ -83,6 +83,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, "Validation failed", request, fieldErrors);
     }
 
+    @ExceptionHandler(FieldValidationException.class)
+    ResponseEntity<ApiError> handleFieldRule(FieldValidationException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request, ex.fieldErrors());
+    }
+
     @ExceptionHandler(TooManyRequestsException.class)
     ResponseEntity<ApiError> handleTooManyRequests(TooManyRequestsException ex, HttpServletRequest request) {
         return build(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), request, null);

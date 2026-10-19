@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,6 +24,12 @@ public interface ExerciseRepository extends JpaRepository<Exercise, Long> {
             where e.id = :id and (e.owner is null or e.owner.id = :userId)
             """)
     Optional<Exercise> findVisibleById(@Param("id") Long id, @Param("userId") Long userId);
+
+    @Query("""
+            select e from Exercise e
+            where e.id in :ids and (e.owner is null or e.owner.id = :userId)
+            """)
+    List<Exercise> findVisibleByIds(@Param("ids") Collection<Long> ids, @Param("userId") Long userId);
 
     @Query("""
             select count(e) > 0 from Exercise e

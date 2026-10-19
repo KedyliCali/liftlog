@@ -1,6 +1,7 @@
 package com.behlul.liftlog.controller;
 
 import com.behlul.liftlog.exception.ResourceNotFoundException;
+import com.behlul.liftlog.service.RoutineService;
 import com.behlul.liftlog.service.WorkoutService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,7 @@ class WorkoutControllerTest {
 
     @Autowired private MockMvc mockMvc;
     @MockitoBean private WorkoutService workoutService;
+    @MockitoBean private RoutineService routineService;
 
     @Test
     void addSetWithInvalidValuesReturns400WithFieldErrors() throws Exception {

@@ -42,6 +42,8 @@ import java.util.concurrent.TimeoutException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -300,6 +302,272 @@ class ApiIntegrationTest {
                 .andExpect(jsonPath("$[0].bestEstimated1RmKg").value(105.0));
         mockMvc.perform(get("/api/v1/workouts").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(jsonPath("$.content[0].totalVolumeKg").value(1090.0));
+    }
+
+    @Test
+    void routinesCanBeCreatedListedReplacedAndDeleted() throws Exception {
+        String owner = register(randomEmail(), "s3cret-pass", null);
+        String intruder = register(randomEmail(), "s3cret-pass", null);
+        long squat = exerciseId(owner, "Squat");
+        long bench = exerciseId(owner, "Bench Press");
+
+        long routineId = read(authed(post("/api/v1/routines"), owner, json(
+                "{'name':' Legs ','exercises':[{'exerciseId':%d,'sets':3,'targetReps':5},"
+                        + "{'exerciseId':%d,'sets':2,'targetReps':8}]}", squat, bench))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Legs"))
+                .andExpect(jsonPath("$.exercises.length()").value(2))
+                .andExpect(jsonPath("$.exercises[0].exerciseId").value(squat))
+                .andExpect(jsonPath("$.exercises[0].name").value("Squat"))
+                .andExpect(jsonPath("$.exercises[0].bodyweight").value(false))
+                .andExpect(jsonPath("$.exercises[0].sets").value(3))
+                .andExpect(jsonPath("$.exercises[0].targetReps").value(5))
+                .andReturn()).get("id").asLong();
+
+        mockMvc.perform(get("/api/v1/routines").header(HttpHeaders.AUTHORIZATION, "Bearer " + owner))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(routineId));
+
+        // PUT replaces the whole list, here in a new order
+        authed(put("/api/v1/routines/" + routineId), owner, json(
+                "{'name':'Legs B','exercises':[{'exerciseId':%d,'sets':4,'targetReps':6},"
+                        + "{'exerciseId':%d,'sets':3,'targetReps':5}]}", bench, squat))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Legs B"))
+                .andExpect(jsonPath("$.exercises[0].name").value("Bench Press"))
+                .andExpect(jsonPath("$.exercises[0].sets").value(4))
+                .andExpect(jsonPath("$.exercises[1].name").value("Squat"));
+        mockMvc.perform(get("/api/v1/routines").header(HttpHeaders.AUTHORIZATION, "Bearer " + owner))
+                .andExpect(jsonPath("$[0].exercises.length()").value(2))
+                .andExpect(jsonPath("$[0].exercises[0].name").value("Bench Press"));
+
+        // Another user's routine is a 404 everywhere
+        mockMvc.perform(get("/api/v1/routines").header(HttpHeaders.AUTHORIZATION, "Bearer " + intruder))
+                .andExpect(jsonPath("$.length()").value(0));
+        authed(put("/api/v1/routines/" + routineId), intruder, json(
+                "{'name':'Mine','exercises':[{'exerciseId':%d,'sets':1,'targetReps':1}]}", squat))
+                .andExpect(status().isNotFound());
+        authed(post("/api/v1/routines/" + routineId + "/start"), intruder, "{}")
+                .andExpect(status().isNotFound());
+        mockMvc.perform(delete("/api/v1/routines/" + routineId).header(HttpHeaders.AUTHORIZATION, "Bearer " + intruder))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(delete("/api/v1/routines/" + routineId).header(HttpHeaders.AUTHORIZATION, "Bearer " + owner))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/v1/routines").header(HttpHeaders.AUTHORIZATION, "Bearer " + owner))
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void routineExercisesMustBeVisibleAndWithinLimits() throws Exception {
+        String owner = register(randomEmail(), "s3cret-pass", null);
+        String other = register(randomEmail(), "s3cret-pass", null);
+        long othersExercise = read(authed(post("/api/v1/exercises"), other,
+                json("{'name':'Secret %s'}", UUID.randomUUID().toString().substring(0, 6)))
+                .andExpect(status().isCreated()).andReturn()).get("id").asLong();
+
+        authed(post("/api/v1/routines"), owner, json(
+                "{'name':'Legs','exercises':[{'exerciseId':1,'sets':3,'targetReps':5},"
+                        + "{'exerciseId':%d,'sets':3,'targetReps':5}]}", othersExercise))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors['exercises[1].exerciseId']").value("exercise not found"));
+        authed(post("/api/v1/routines"), owner,
+                "{\"name\":\"Legs\",\"exercises\":[{\"exerciseId\":999999,\"sets\":3,\"targetReps\":5}]}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors['exercises[0].exerciseId']").exists());
+        authed(post("/api/v1/routines"), owner,
+                "{\"name\":\" \",\"exercises\":[{\"exerciseId\":1,\"sets\":11,\"targetReps\":0}]}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.name").exists())
+                .andExpect(jsonPath("$.fieldErrors['exercises[0].sets']").exists())
+                .andExpect(jsonPath("$.fieldErrors['exercises[0].targetReps']").exists());
+        authed(post("/api/v1/routines"), owner, "{\"name\":\"Empty\",\"exercises\":[]}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.exercises").exists());
+        mockMvc.perform(get("/api/v1/routines").header(HttpHeaders.AUTHORIZATION, "Bearer " + owner))
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void workoutStartedFromARoutineHasAPlanWithProgression() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        String intruder = register(randomEmail(), "s3cret-pass", null);
+        long squat = exerciseId(token, "Squat");
+        long bench = exerciseId(token, "Bench Press");
+        long pullUp = exerciseId(token, "Pull-up");
+
+        // An older session (ignored: not the most recent) and a later one (ignored: after the new workout)
+        long older = createWorkout(token, "2026-10-01", null);
+        addSet(token, older, squat, 5, "90");
+        long later = createWorkout(token, "2026-10-20", null);
+        addSet(token, later, squat, 1, "200");
+
+        // The session the routine is saved from: squat 3 x 5 done, bench 2 x 8 done
+        long source = createWorkout(token, "2026-10-10", "Push pull");
+        addSet(token, source, squat, 5, "100");
+        addSet(token, source, bench, 8, "60");
+        addSet(token, source, squat, 5, "100");
+        addSet(token, source, bench, 8, "60");
+        addSet(token, source, squat, 5, "100");
+
+        long routineId = read(authed(post("/api/v1/routines/from-workout/" + source), token, "{}")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Push pull"))
+                .andExpect(jsonPath("$.exercises.length()").value(2))
+                .andExpect(jsonPath("$.exercises[0].name").value("Squat"))
+                .andExpect(jsonPath("$.exercises[0].sets").value(3))
+                .andExpect(jsonPath("$.exercises[0].targetReps").value(5))
+                .andExpect(jsonPath("$.exercises[1].name").value("Bench Press"))
+                .andExpect(jsonPath("$.exercises[1].sets").value(2))
+                .andExpect(jsonPath("$.exercises[1].targetReps").value(8))
+                .andReturn()).get("id").asLong();
+        authed(post("/api/v1/routines/from-workout/" + source), intruder, "{}").andExpect(status().isNotFound());
+
+        // Bench now planned for 3 sets, so the 2-set session falls short; pull-ups were never done
+        authed(put("/api/v1/routines/" + routineId), token, json(
+                "{'name':'Push pull','exercises':[{'exerciseId':%d,'sets':3,'targetReps':5},"
+                        + "{'exerciseId':%d,'sets':3,'targetReps':8},{'exerciseId':%d,'sets':3,'targetReps':10}]}",
+                squat, bench, pullUp))
+                .andExpect(status().isOk());
+
+        long workoutId = read(authed(post("/api/v1/routines/" + routineId + "/start"), token,
+                "{\"workoutDate\":\"2026-10-12\"}")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.routineId").value(routineId))
+                .andExpect(jsonPath("$.notes").value("Push pull"))
+                .andExpect(jsonPath("$.workoutDate").value("2026-10-12"))
+                .andExpect(jsonPath("$.sets", empty()))
+                .andReturn()).get("id").asLong();
+        mockMvc.perform(get("/api/v1/workouts/" + workoutId).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.routineId").value(routineId));
+        mockMvc.perform(get("/api/v1/workouts/" + source).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(jsonPath("$.routineId").value(nullValue()));
+
+        plan(token, workoutId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].exerciseId").value(squat))
+                .andExpect(jsonPath("$[0].name").value("Squat"))
+                .andExpect(jsonPath("$[0].bodyweight").value(false))
+                .andExpect(jsonPath("$[0].plannedSets").value(3))
+                .andExpect(jsonPath("$[0].loggedSets").value(0))
+                .andExpect(jsonPath("$[0].targetReps").value(5))
+                .andExpect(jsonPath("$[0].suggestion").value("INCREASE"))
+                .andExpect(jsonPath("$[0].suggestedWeightKg").value(102.5))
+                .andExpect(jsonPath("$[0].lastWeightKg").value(100.0))
+                .andExpect(jsonPath("$[0].lastReps", contains(5, 5, 5)))
+                .andExpect(jsonPath("$[0].increaseKg").value(2.5))
+                .andExpect(jsonPath("$[0].suggestedReps").value(5))
+                .andExpect(jsonPath("$[1].suggestion").value("SAME"))
+                .andExpect(jsonPath("$[1].suggestedWeightKg").value(60.0))
+                .andExpect(jsonPath("$[1].lastReps", contains(8, 8)))
+                .andExpect(jsonPath("$[1].increaseKg").value(nullValue()))
+                .andExpect(jsonPath("$[2].name").value("Pull-up"))
+                .andExpect(jsonPath("$[2].bodyweight").value(true))
+                .andExpect(jsonPath("$[2].suggestion").value("FIRST"))
+                .andExpect(jsonPath("$[2].suggestedWeightKg").value(nullValue()))
+                .andExpect(jsonPath("$[2].lastWeightKg").value(nullValue()))
+                .andExpect(jsonPath("$[2].lastReps", empty()))
+                .andExpect(jsonPath("$[2].suggestedReps").value(10));
+
+        // A workout created later on the same day is not "previous": strictly earlier workouts only
+        long sameDayLater = createWorkout(token, "2026-10-12", null);
+        addSet(token, sameDayLater, squat, 1, "150");
+        addSet(token, sameDayLater, pullUp, 5, "0");
+
+        // Ticking a planned set logs it; the suggestion still compares against the earlier session
+        addSet(token, workoutId, squat, 5, "102.5");
+        plan(token, workoutId)
+                .andExpect(jsonPath("$[0].loggedSets").value(1))
+                .andExpect(jsonPath("$[0].suggestion").value("INCREASE"))
+                .andExpect(jsonPath("$[0].suggestedWeightKg").value(102.5))
+                .andExpect(jsonPath("$[1].loggedSets").value(0))
+                .andExpect(jsonPath("$[2].suggestion").value("FIRST"));
+
+        // ...while one created earlier on the same day is
+        long sameDayEarlier = createWorkout(token, "2026-10-12", null);
+        long viewedLater = read(authed(post("/api/v1/routines/" + routineId + "/start"), token,
+                "{\"workoutDate\":\"2026-10-12\"}").andExpect(status().isCreated()).andReturn()).get("id").asLong();
+        addSet(token, sameDayEarlier, squat, 5, "50");
+        plan(token, viewedLater)
+                .andExpect(jsonPath("$[0].lastWeightKg").value(50.0))
+                .andExpect(jsonPath("$[0].lastReps", contains(5)))
+                .andExpect(jsonPath("$[0].suggestion").value("SAME")); // 1 set of the 3 planned
+
+        // Someone else's plan, and a workout without a routine, are 404
+        plan(intruder, workoutId).andExpect(status().isNotFound());
+        plan(token, source).andExpect(status().isNotFound());
+
+        // Deleting the routine keeps the workout and its sets, without a plan
+        mockMvc.perform(delete("/api/v1/routines/" + routineId).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/v1/workouts/" + workoutId).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.routineId").value(nullValue()))
+                .andExpect(jsonPath("$.sets.length()").value(1));
+        plan(token, workoutId).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void bodyweightOnlyExerciseProgressesByOneRep() throws Exception {
+        String token = register(randomEmail(), "s3cret-pass", null);
+        long pushUp = exerciseId(token, "Push-up");
+        long earlier = createWorkout(token, "2026-10-01", "Push-ups");
+        addSet(token, earlier, pushUp, 15, "0");
+        addSet(token, earlier, pushUp, 15, "0");
+
+        long routineId = read(authed(post("/api/v1/routines/from-workout/" + earlier), token, "")
+                .andExpect(status().isCreated()).andReturn()).get("id").asLong();
+        long workoutId = read(authed(post("/api/v1/routines/" + routineId + "/start"), token,
+                "{\"workoutDate\":\"2026-10-03\"}").andExpect(status().isCreated()).andReturn()).get("id").asLong();
+
+        plan(token, workoutId)
+                .andExpect(jsonPath("$[0].suggestion").value("INCREASE"))
+                .andExpect(jsonPath("$[0].suggestedWeightKg").value(0.0))
+                .andExpect(jsonPath("$[0].increaseKg").value(nullValue()))
+                .andExpect(jsonPath("$[0].targetReps").value(15))
+                .andExpect(jsonPath("$[0].suggestedReps").value(16));
+
+        // Doing 16, 16 against the target of 15 moves the next suggestion to 17
+        addSet(token, workoutId, pushUp, 16, "0");
+        addSet(token, workoutId, pushUp, 16, "0");
+        long next = read(authed(post("/api/v1/routines/" + routineId + "/start"), token,
+                "{\"workoutDate\":\"2026-10-05\"}").andExpect(status().isCreated()).andReturn()).get("id").asLong();
+        plan(token, next)
+                .andExpect(jsonPath("$[0].suggestion").value("INCREASE"))
+                .andExpect(jsonPath("$[0].lastReps", contains(16, 16)))
+                .andExpect(jsonPath("$[0].suggestedReps").value(17));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions plan(String token, long workoutId) throws Exception {
+        return mockMvc.perform(get("/api/v1/workouts/" + workoutId + "/plan")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token));
+    }
+
+    private long createWorkout(String token, String date, String notes) throws Exception {
+        String body = notes == null
+                ? json("{'workoutDate':'%s'}", date)
+                : json("{'workoutDate':'%s','notes':'%s'}", date, notes);
+        return read(authed(post("/api/v1/workouts"), token, body)
+                .andExpect(status().isCreated()).andReturn()).get("id").asLong();
+    }
+
+    private void addSet(String token, long workoutId, long exerciseId, int reps, String weightKg) throws Exception {
+        authed(post("/api/v1/workouts/" + workoutId + "/sets"), token,
+                json("{'exerciseId':%d,'reps':%d,'weightKg':%s}", exerciseId, reps, weightKg))
+                .andExpect(status().isCreated());
+    }
+
+    private long exerciseId(String token, String name) throws Exception {
+        JsonNode exercises = read(mockMvc.perform(get("/api/v1/exercises")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)).andReturn());
+        for (JsonNode e : exercises) {
+            if (e.get("name").asString().equals(name)) {
+                return e.get("id").asLong();
+            }
+        }
+        throw new AssertionError("No exercise " + name);
     }
 
     @Test
