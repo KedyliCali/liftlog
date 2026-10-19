@@ -4597,15 +4597,16 @@ button.lol-record:active {
 }
 
 /* ---------- Copy the previous day ---------- */
+/* Overflow menu in the top-right corner of the page header */
 .day-actions {
-  position: relative;
-  display: flex;
-  justify-content: flex-end;
-  margin: -4px 0 4px;
+  position: absolute;
+  right: 0;
+  top: 20px;
+  z-index: 2;
 }
 
 .day-actions .menu {
-  top: 40px;
+  top: 44px;
 }
 
 /* Call to action under the empty state: lime slab on an offset dark plate, with a "tag" over its edge */
