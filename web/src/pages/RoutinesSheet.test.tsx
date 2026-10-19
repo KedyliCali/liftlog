@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider, useParams } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Exercise, Routine } from '../api/types'
+import { ConfirmProvider } from '../components/Confirm'
 import { ToastContext } from '../components/contexts'
 import { t } from '../lib/i18n'
 import { todayIso } from '../lib/nutrition'
@@ -54,7 +55,9 @@ function renderSheet(routines: Routine[]) {
   render(
     <QueryClientProvider client={client}>
       <ToastContext.Provider value={toast}>
-        <RouterProvider router={router} />
+        <ConfirmProvider>
+          <RouterProvider router={router} />
+        </ConfirmProvider>
       </ToastContext.Provider>
     </QueryClientProvider>,
   )
@@ -137,23 +140,47 @@ describe('RoutinesSheet', () => {
 
     await user.type(name, 'Push B')
     await user.click(screen.getByRole('button', { name: `${t.remove}: Barbell Row` }))
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: t.remove }))
     await user.click(screen.getByTestId('save-routine'))
     await waitFor(() => expect(calls.find((c) => c.method === 'PUT')).toBeDefined())
     expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ name: 'Push B', exercises: [{ exerciseId: 1, sets: 3, targetReps: 8 }] })
   })
 
   it('deletes a routine only after confirming', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
     const { calls, toast, user } = renderSheet([push])
     const remove = await screen.findByRole('button', { name: `${t.delete}: Push A` })
 
     await user.click(remove)
+    const dialog = screen.getByRole('alertdialog', { name: t.confirmDeleteTitle })
+    expect(dialog).toHaveTextContent('Push A')
+    expect(dialog).toHaveTextContent(t.deleteRoutineConsequence)
+    await user.click(within(dialog).getByRole('button', { name: t.cancel }))
     expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
+    expect(screen.getByRole('button', { name: `${t.delete}: Push A` })).toBeInTheDocument()
 
     await user.click(remove)
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: t.delete }))
     await waitFor(() => expect(toast).toHaveBeenCalledWith({ message: t.routineDeleted }))
-    expect(confirm).toHaveBeenCalledWith(t.deleteRoutineConfirm('Push A'))
+    expect(calls.filter((c) => c.method === 'DELETE').map((c) => c.path)).toEqual(['/api/v1/routines/5'])
     expect(await screen.findByText(t.routinesEmpty)).toBeInTheDocument()
+  })
+
+  it('asks before taking an exercise out of the routine', async () => {
+    const { user } = renderSheet([push])
+    await user.click(await screen.findByRole('button', { name: `${t.editRoutine}: Push A` }))
+    const removeRow = screen.getByRole('button', { name: `${t.remove}: Barbell Row` })
+
+    await user.click(removeRow)
+    const dialog = screen.getByRole('alertdialog', { name: t.removeExerciseTitle })
+    expect(dialog).toHaveTextContent('Barbell Row')
+    await user.keyboard('{Escape}')
+    // Escape answered the question only; the routine editor stays open with the exercise
+    expect(screen.getByRole('button', { name: `${t.remove}: Barbell Row` })).toBeInTheDocument()
+
+    await user.click(removeRow)
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: t.remove }))
+    expect(screen.queryByRole('button', { name: `${t.remove}: Barbell Row` })).toBeNull()
+    expect(screen.getByRole('button', { name: `${t.remove}: Bench Press` })).toBeInTheDocument()
   })
   it('adds a ready-made template with the user’s ids, skipping exercises the catalog does not have', async () => {
     const { calls, toast, user } = renderSheet([])
