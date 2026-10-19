@@ -96,7 +96,7 @@ class LolServiceTest {
     @Test
     void manualRefreshWithoutProfileIsRiotError() {
         LolPlayer moved = player("moved", 30);
-        when(playerRepository.isTrackedBy(USER_ID, "moved")).thenReturn(true);
+        when(playerRepository.isVisibleTo(USER_ID, "moved")).thenReturn(true);
         when(playerRepository.findById("moved")).thenReturn(Optional.of(moved));
         everyClaimSucceeds();
         doReturn(Optional.empty()).when(riot).summoner(any(), anyString());

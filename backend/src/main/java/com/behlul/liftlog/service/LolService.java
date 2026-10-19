@@ -140,7 +140,7 @@ public class LolService {
 
     @Transactional
     public LolPlayerDetailResponse detail(String puuid) {
-        LolPlayer player = loadTracked(puuid);
+        LolPlayer player = loadVisible(puuid);
         refreshSomeStale(List.of(player));
         return detailOf(player);
     }
@@ -148,7 +148,7 @@ public class LolService {
     /** Pull-to-refresh: reports Riot problems, unlike the automatic refreshes. */
     @Transactional
     public LolPlayerDetailResponse refreshNow(String puuid) {
-        LolPlayer player = loadTracked(puuid);
+        LolPlayer player = loadVisible(puuid);
         if (refreshIfStale(player, MIN_MANUAL_REFRESH) == RefreshOutcome.NO_PROFILE) {
             throw new RiotUnavailableException(Reason.RIOT_ERROR,
                     "Riot has no League profile for this player on " + player.getPlatform());
@@ -197,12 +197,12 @@ public class LolService {
                 .toList();
     }
 
-    private LolPlayer loadTracked(String puuid) {
-        // Someone else's follow looks exactly like a player that does not exist
-        if (!playerRepository.isTrackedBy(currentUser.currentUserId(), puuid)) {
-            throw new ResourceNotFoundException("Followed player", puuid);
+    private LolPlayer loadVisible(String puuid) {
+        // A player only someone else follows looks exactly like a player that does not exist
+        if (!playerRepository.isVisibleTo(currentUser.currentUserId(), puuid)) {
+            throw new ResourceNotFoundException("League player", puuid);
         }
-        return playerRepository.findById(puuid).orElseThrow(() -> new ResourceNotFoundException("Followed player", puuid));
+        return playerRepository.findById(puuid).orElseThrow(() -> new ResourceNotFoundException("League player", puuid));
     }
 
     /**

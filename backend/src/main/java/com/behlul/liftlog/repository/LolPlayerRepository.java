@@ -24,8 +24,14 @@ public interface LolPlayerRepository extends JpaRepository<LolPlayer, String> {
             """, nativeQuery = true)
     List<LolPlayer> findTrackedBy(@Param("userId") Long userId);
 
-    @Query(value = "select count(*) > 0 from lol_tracked_players where user_id = :userId and puuid = :puuid", nativeQuery = true)
-    boolean isTrackedBy(@Param("userId") Long userId, @Param("puuid") String puuid);
+    /** Detail pages show players you follow or that someone in your group (you included) linked as their account. */
+    @Query(value = """
+            select exists (select 1 from lol_tracked_players where user_id = :userId and puuid = :puuid)
+                or exists (select 1 from lol_group_members me
+                           join lol_group_members other on other.group_id = me.group_id
+                           where me.user_id = :userId and other.puuid = :puuid)
+            """, nativeQuery = true)
+    boolean isVisibleTo(@Param("userId") Long userId, @Param("puuid") String puuid);
 
     /**
      * Locks a stale player's row until this transaction ends, so only one request at a time refreshes them.

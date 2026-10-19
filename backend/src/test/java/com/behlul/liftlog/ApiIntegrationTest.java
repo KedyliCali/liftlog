@@ -26,6 +26,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -35,6 +37,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
@@ -419,6 +423,169 @@ class ApiIntegrationTest {
                 .andExpect(status().isNoContent());
         mockMvc.perform(get("/api/v1/lol/players").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    private static final String GROUP = "/api/v1/lol/group";
+
+    @Test
+    void lolGroupSharesOneBoardThroughAnInviteCode() throws Exception {
+        Account owner = newAccount("Behlul");
+        Account friend = newAccount(null);
+        Account stranger = newAccount(null);
+
+        asUser(get(GROUP), owner).andExpect(status().isNoContent());
+
+        MvcResult created = authed(post(GROUP), owner.token(), "{\"name\":\" Duo Queue \"}")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Duo Queue"))
+                .andExpect(jsonPath("$.inviteCode").value(matchesPattern("^[A-HJKMNP-Z2-9]{10}$")))
+                .andExpect(jsonPath("$.maxMembers").value(20))
+                .andExpect(jsonPath("$.members.length()").value(1))
+                .andExpect(jsonPath("$.members[0].you").value(true))
+                .andExpect(jsonPath("$.members[0].owner").value(true))
+                .andExpect(jsonPath("$.members[0].player").value(nullValue()))
+                .andReturn();
+        String code = read(created).get("inviteCode").asString();
+
+        String ownerRiotId = uniqueRiotId("Own");
+        authed(put(GROUP + "/me/account"), owner.token(), riotIdBody(ownerRiotId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.members[0].player.gameName").value(ownerRiotId.substring(0, ownerRiotId.indexOf('#'))))
+                .andExpect(jsonPath("$.members[0].player.recentGames").value(10));
+
+        // Typed the way people do: lowercase, with the dash the app shows
+        String typed = (code.substring(0, 5) + "-" + code.substring(5)).toLowerCase();
+        for (int attempt = 0; attempt < 2; attempt++) {
+            // Joining again (a double tap) is harmless
+            joinGroup(friend, typed)
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.members.length()").value(2))
+                    .andExpect(jsonPath("$.members[0].displayName").value("Behlul"))
+                    .andExpect(jsonPath("$.members[1].you").value(true))
+                    .andExpect(jsonPath("$.members[1].owner").value(false));
+        }
+        authed(put(GROUP + "/me/account"), friend.token(), riotIdBody(uniqueRiotId("Fri"))).andExpect(status().isOk());
+
+        JsonNode ownerView = read(asUser(get(GROUP), owner).andExpect(status().isOk()).andReturn());
+        JsonNode friendView = read(asUser(get(GROUP), friend).andExpect(status().isOk()).andReturn());
+        assertThat(linkedPuuids(ownerView)).hasSize(2).isEqualTo(linkedPuuids(friendView));
+        String ownerPuuid = linkedPuuids(ownerView).getFirst();
+
+        // The friend never followed the owner's account, but the group makes its page visible
+        asUser(get("/api/v1/lol/players/" + ownerPuuid), friend).andExpect(status().isOk());
+        asUser(get("/api/v1/lol/players"), friend).andExpect(jsonPath("$.length()").value(0));
+
+        asUser(get("/api/v1/lol/players/" + ownerPuuid), stranger).andExpect(status().isNotFound());
+        asUser(get(GROUP), stranger).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void lolGroupOwnerRulesRotationAndLeaving() throws Exception {
+        Account owner = newAccount("Owner");
+        Account member = newAccount("Member");
+        Account stranger = newAccount(null);
+
+        authed(post(GROUP), owner.token(), "{\"name\":\"   \"}").andExpect(status().isBadRequest());
+        authed(post(GROUP), owner.token(), "{\"name\":\"" + "x".repeat(33) + "\"}").andExpect(status().isBadRequest());
+        String code = read(authed(post(GROUP), owner.token(), "{\"name\":\"Duo\"}")
+                .andExpect(status().isCreated()).andReturn()).get("inviteCode").asString();
+        String ownerRiotId = uniqueRiotId("Own");
+        String ownerPuuid = read(authed(put(GROUP + "/me/account"), owner.token(), riotIdBody(ownerRiotId))
+                .andExpect(status().isOk()).andReturn()).get("members").get(0).get("player").get("puuid").asString();
+        joinGroup(member, code).andExpect(status().isOk());
+
+        authed(post(GROUP), member.token(), "{\"name\":\"Mine\"}")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.fieldErrors.group").value("ALREADY_IN_GROUP"));
+        joinGroup(stranger, "AAAAA-AAAAA").andExpect(status().isNotFound());
+        joinGroup(stranger, "O0I1L-XXXXX").andExpect(status().isNotFound());
+        authed(put(GROUP + "/me/account"), member.token(), riotIdBody(ownerRiotId))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.fieldErrors.group").value("ACCOUNT_TAKEN"));
+
+        // Owner-only actions
+        authed(put(GROUP), member.token(), "{\"name\":\"Mine\"}").andExpect(status().isForbidden());
+        asUser(post(GROUP + "/invite-code"), member).andExpect(status().isForbidden());
+        asUser(delete(GROUP + "/members/" + owner.id()), member).andExpect(status().isForbidden());
+        authed(put(GROUP), owner.token(), "{\"name\":\"Ranked\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Ranked"));
+
+        String rotated = read(asUser(post(GROUP + "/invite-code"), owner).andExpect(status().isOk()).andReturn())
+                .get("inviteCode").asString();
+        assertThat(rotated).isNotEqualTo(code);
+        joinGroup(stranger, code).andExpect(status().isNotFound());
+
+        asUser(delete(GROUP + "/members/" + owner.id()), owner)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.fieldErrors.group").value("CANNOT_REMOVE_SELF"));
+        // Someone outside the group looks like a user that does not exist
+        asUser(delete(GROUP + "/members/" + stranger.id()), owner).andExpect(status().isNotFound());
+
+        asUser(delete(GROUP + "/members/" + member.id()), owner).andExpect(status().isNoContent());
+        asUser(get(GROUP), member).andExpect(status().isNoContent());
+        asUser(get("/api/v1/lol/players/" + ownerPuuid), member).andExpect(status().isNotFound());
+        String afterRemoval = read(asUser(get(GROUP), owner).andReturn()).get("inviteCode").asString();
+        assertThat(afterRemoval).isNotEqualTo(rotated);
+        joinGroup(member, rotated).andExpect(status().isNotFound());
+
+        // The member rejoins; when the owner leaves, ownership passes to them
+        joinGroup(member, afterRemoval).andExpect(status().isOk());
+        asUser(delete(GROUP + "/me"), owner).andExpect(status().isNoContent());
+        asUser(get(GROUP), owner).andExpect(status().isNoContent());
+        asUser(get(GROUP), member)
+                .andExpect(jsonPath("$.members.length()").value(1))
+                .andExpect(jsonPath("$.members[0].owner").value(true));
+
+        // The last member out deletes the group, and its code with it
+        asUser(delete(GROUP + "/me"), member).andExpect(status().isNoContent());
+        asUser(delete(GROUP + "/me"), member).andExpect(status().isNotFound());
+        joinGroup(stranger, afterRemoval).andExpect(status().isNotFound());
+    }
+
+    private record Account(String token, long id) {
+    }
+
+    private Account newAccount(String displayName) throws Exception {
+        String body = displayName == null
+                ? json("{'email':'%s','password':'s3cret-pass'}", randomEmail())
+                : json("{'email':'%s','password':'s3cret-pass','displayName':'%s'}", randomEmail(), displayName);
+        JsonNode auth = read(mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated()).andReturn());
+        return new Account(auth.get("token").asString(), auth.get("user").get("id").asLong());
+    }
+
+    private org.springframework.test.web.servlet.ResultActions asUser(
+            org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request, Account account) throws Exception {
+        return mockMvc.perform(request.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token()));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions joinGroup(Account account, String code) throws Exception {
+        return authed(post(GROUP + "/join"), account.token(), "{\"code\":\"" + code + "\"}");
+    }
+
+    /**
+     * The fake Riot client derives the PUUID from the name, and players are shared by every test using this
+     * database, so each test links its own made-up account.
+     */
+    private static String uniqueRiotId(String prefix) {
+        return prefix + UUID.randomUUID().toString().substring(0, 6) + "#TR1";
+    }
+
+    private static String riotIdBody(String riotId) {
+        return "{\"riotId\":\"" + riotId + "\",\"platform\":\"TR1\"}";
+    }
+
+    private static List<String> linkedPuuids(JsonNode group) {
+        List<String> puuids = new ArrayList<>();
+        JsonNode members = group.get("members");
+        for (int i = 0; i < members.size(); i++) {
+            JsonNode player = members.get(i).get("player");
+            if (player != null && !player.isNull()) {
+                puuids.add(player.get("puuid").asString());
+            }
+        }
+        return puuids;
     }
 
     @Test
