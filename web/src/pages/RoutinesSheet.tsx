@@ -6,7 +6,7 @@ import type { Routine, RoutineExercise } from '../api/types'
 import { Sheet } from '../components/Sheet'
 import { ErrorState } from '../components/StateViews'
 import { Stepper } from '../components/Stepper'
-import { useToast } from '../components/contexts'
+import { useConfirm, useToast } from '../components/contexts'
 import { errorMessage } from '../lib/format'
 import { t } from '../lib/i18n'
 import {
@@ -53,11 +53,12 @@ export function RoutinesSheet({ onClose, initialTemplate = null }: { onClose: ()
 function RoutineList({ onEdit, onPickTemplate, onClose }: { onEdit: (draft: Draft) => void; onPickTemplate: (template: RoutineTemplate) => void; onClose: () => void }) {
   const queryClient = useQueryClient()
   const toast = useToast()
+  const confirm = useConfirm()
   const routines = useQuery({ queryKey: queryKeys.routines, queryFn: api.routines })
   const [deleting, setDeleting] = useState<number | null>(null)
 
   const remove = async (routine: Routine) => {
-    if (!window.confirm(t.deleteRoutineConfirm(routine.name))) return
+    if (!(await confirm({ item: routine.name, message: t.deleteRoutineConsequence }))) return
     setDeleting(routine.id)
     try {
       await api.deleteRoutine(routine.id)
@@ -116,6 +117,7 @@ function RoutineList({ onEdit, onPickTemplate, onClose }: { onEdit: (draft: Draf
 
 function RoutineEditor({ initial, onDone, onClose }: { initial: Draft; onDone: () => void; onClose: () => void }) {
   const queryClient = useQueryClient()
+  const confirm = useConfirm()
   const [name, setName] = useState(initial.name)
   const [exercises, setExercises] = useState(initial.exercises)
   const [errors, setErrors] = useState<Set<RoutineField>>(new Set())
@@ -132,6 +134,13 @@ function RoutineEditor({ initial, onDone, onClose }: { initial: Draft; onDone: (
 
   const patchExercise = (index: number, patch: Partial<RoutineExercise>) =>
     setExercises((list) => list.map((e, i) => (i === index ? { ...e, ...patch } : e)))
+
+  const removeExercise = async (exercise: RoutineExercise) => {
+    if (!(await confirm({ title: t.removeExerciseTitle, item: exercise.name, confirmLabel: t.remove }))) return
+    // By identity, not index: the list could have been reordered while the question was open
+    setExercises((list) => list.filter((e) => e !== exercise))
+    clearError('duplicate')
+  }
 
   const save = async () => {
     const result = validateRoutine(name, exercises)
@@ -218,7 +227,7 @@ function RoutineEditor({ initial, onDone, onClose }: { initial: Draft; onDone: (
                 >
                   ↓
                 </button>
-                <button type="button" className="icon-btn small danger" onClick={() => (setExercises((l) => l.filter((_, i) => i !== index)), clearError('duplicate'))} aria-label={`${t.remove}: ${exercise.name}`}>
+                <button type="button" className="icon-btn small danger" onClick={() => void removeExercise(exercise)} aria-label={`${t.remove}: ${exercise.name}`}>
                   ✕
                 </button>
               </div>

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WorkoutDetail, WorkoutRecap } from '../api/types'
+import { ConfirmProvider } from '../components/Confirm'
 import { RestTimerContext, ToastContext, type ToastOptions } from '../components/contexts'
 import { formatKg } from '../lib/format'
 import { t } from '../lib/i18n'
@@ -59,7 +60,9 @@ function renderDetail(toast: (o: ToastOptions) => void = () => {}) {
     <QueryClientProvider client={client}>
       <ToastContext.Provider value={toast}>
         <RestTimerContext.Provider value={{ start: () => {} }}>
-          <RouterProvider router={router} />
+          <ConfirmProvider>
+            <RouterProvider router={router} />
+          </ConfirmProvider>
         </RestTimerContext.Provider>
       </ToastContext.Provider>
     </QueryClientProvider>,

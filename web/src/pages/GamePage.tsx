@@ -5,7 +5,7 @@ import { AppError } from '../api/client'
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { LolPlayer } from '../api/types'
-import { useToast } from '../components/contexts'
+import { useConfirm, useToast } from '../components/contexts'
 import { ControllerIcon } from '../components/Icons'
 import { LolBoardRow } from '../components/LolBits'
 import { RiotIdSheet } from '../components/RiotIdSheet'
@@ -85,6 +85,7 @@ function FollowingView({ pendingDelete, setPendingDelete }: {
 }) {
   const queryClient = useQueryClient()
   const toast = useToast()
+  const confirm = useConfirm()
   const [adding, setAdding] = useState(false)
   const players = useQuery({ queryKey: queryKeys.lolPlayers, queryFn: api.lolPlayers })
   const version = useDdragonVersion()
@@ -141,7 +142,14 @@ function FollowingView({ pendingDelete, setPendingDelete }: {
       ) : (
         <div className="lol-board">
           {ranked.map((player, index) => (
-            <SwipeToDelete key={player.puuid} label={player.gameName} onDelete={() => unfollow(player)}>
+            <SwipeToDelete
+              key={player.puuid}
+              label={player.gameName}
+              confirm={() =>
+                confirm({ title: t.lolUnfollowTitle, item: `${player.gameName}#${player.tagLine}`, confirmLabel: t.lolUnfollowAction })
+              }
+              onDelete={() => unfollow(player)}
+            >
               <LolBoardRow player={player} place={index + 1} version={version} style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }} />
             </SwipeToDelete>
           ))}

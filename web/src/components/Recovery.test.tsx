@@ -137,7 +137,12 @@ describe('SignedOutScreen', () => {
     localStorage.setItem('liftlog.device', JSON.stringify(MINE))
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(401, { status: 401 })))
     const { SignedOutScreen } = await import('./Recovery')
-    render(<SignedOutScreen onRestored={vi.fn()} onStartFresh={vi.fn()} />)
+    const { ConfirmProvider } = await import('./Confirm')
+    render(
+      <ConfirmProvider>
+        <SignedOutScreen onRestored={vi.fn()} onStartFresh={vi.fn()} />
+      </ConfirmProvider>,
+    )
     const user = userEvent.setup()
 
     await user.type(screen.getByLabelText(t.restorePlaceholder), MINE_CODE)
