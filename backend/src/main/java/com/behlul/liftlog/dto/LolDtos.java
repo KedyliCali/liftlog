@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 
 public final class LolDtos {
@@ -32,32 +33,97 @@ public final class LolDtos {
     /**
      * @param refreshedAt when Riot was last asked; older data is still shown when Riot is unavailable
      * @param recentWins  wins in the stored recent matches, for the list's quick form indicator
+     * @param summary     averages over the same matches, for the group table; null when none are stored
      */
     public record LolPlayerResponse(String puuid, String gameName, String tagLine, String platform, Integer profileIconId,
                                     Integer summonerLevel, RankResponse rank, int recentGames, int recentWins,
-                                    LocalDateTime refreshedAt) {
+                                    LocalDateTime refreshedAt, LolPlayerSummary summary) {
     }
 
+    /** The few averages the group table compares; see {@link LolSummary} for what each one means. */
+    public record LolPlayerSummary(BigDecimal kda, BigDecimal killParticipation, BigDecimal csPerMinute,
+                                   BigDecimal damagePerMinute, BigDecimal visionPerMinute) {
+    }
+
+    /**
+     * Everything after {@code win} is null on matches stored before the details existed, until a refresh fills
+     * them in.
+     *
+     * @param killParticipation 0..1
+     * @param damageShare       share of the team's champion damage, 0..1
+     * @param items             seven item ids, 0 for an empty slot; the last one is the trinket
+     * @param summonerSpells    two summoner spell ids
+     */
     public record LolMatchResponse(String matchId, int queueId, LocalDateTime endedAt, int durationS, String champion,
-                                   String position, int kills, int deaths, int assists, int cs, int damage, boolean win) {
+                                   String position, int kills, int deaths, int assists, int cs, int damage, boolean win,
+                                   Integer gold, Integer vision, Integer champLevel, Integer damageTaken,
+                                   BigDecimal killParticipation, BigDecimal damageShare, Integer largestMultiKill,
+                                   Integer wardsPlaced, List<Integer> items, List<Integer> summonerSpells, String gameMode) {
 
         public static LolMatchResponse from(LolMatchPlayer m) {
             return new LolMatchResponse(m.getMatchId(), m.getQueueId(), m.getEndedAt(), m.getDurationS(), m.getChampion(),
-                    m.getPosition(), m.getKills(), m.getDeaths(), m.getAssists(), m.getCs(), m.getDamage(), m.isWin());
+                    m.getPosition(), m.getKills(), m.getDeaths(), m.getAssists(), m.getCs(), m.getDamage(), m.isWin(),
+                    m.getGoldEarned(), m.getVisionScore(), m.getChampLevel(), m.getDamageTaken(), m.getKillParticipation(),
+                    m.getDamageShare(), m.getLargestMultiKill(), m.getWardsPlaced(), ids(m.getItems()),
+                    ids(m.getSummonerSpells()), m.getGameMode());
+        }
+
+        /** "3006,0,3031" to [3006, 0, 3031]; null stays null. */
+        private static List<Integer> ids(String commaSeparated) {
+            if (commaSeparated == null || commaSeparated.isBlank()) {
+                return null;
+            }
+            return Arrays.stream(commaSeparated.split(",")).map(String::trim).map(Integer::valueOf).toList();
         }
     }
 
-    public record ChampionStats(String champion, int games, int wins, BigDecimal kda) {
+    public record ChampionStats(String champion, int games, int wins, BigDecimal kda, BigDecimal csPerMinute,
+                                BigDecimal damagePerMinute) {
+    }
+
+    /** @param win whether the streak is of wins; count is how many games in a row, newest first */
+    public record Streak(boolean win, int count) {
+    }
+
+    /** @param position Riot's teamPosition: TOP, JUNGLE, MIDDLE, BOTTOM or UTILITY */
+    public record RoleStats(String position, int games, int wins) {
+    }
+
+    public record QueueStats(int queueId, int games, int wins) {
+    }
+
+    /** The match a record was set in, so the page can link to its row. */
+    public record MatchRecord(String matchId, BigDecimal value) {
+    }
+
+    /** Each one null when no stored match has the number (largestMultiKill on old rows, or no games at all). */
+    public record Records(MatchRecord mostKills, MatchRecord bestKda, MatchRecord mostDamage, MatchRecord mostCs,
+                          MatchRecord longestGame, MatchRecord largestMultiKill) {
     }
 
     /**
      * Averages over the stored recent matches. kda is (kills + assists) / deaths, with zero deaths
      * counted as one so a deathless game does not divide by zero.
      *
-     * @param form newest first, true for a win
+     * <p>The detail averages (killParticipation to damageShare) only count matches that have the number, so old
+     * rows without it do not drag them down; each is null when no match has it. Per-minute numbers are totals
+     * over total minutes; killParticipation and damageShare are fractions 0..1.
+     *
+     * @param form      newest first, true for a win
+     * @param champions every champion played, most played first
+     * @param streak    null when there are no games
+     * @param roles     most played first; games without a position are left out
+     * @param queues    most played first
      */
     public record LolSummary(int games, int wins, BigDecimal avgKills, BigDecimal avgDeaths, BigDecimal avgAssists,
-                             BigDecimal kda, BigDecimal csPerMinute, List<ChampionStats> champions, List<Boolean> form) {
+                             BigDecimal kda, BigDecimal csPerMinute, List<ChampionStats> champions, List<Boolean> form,
+                             BigDecimal killParticipation, BigDecimal damagePerMinute, BigDecimal goldPerMinute,
+                             BigDecimal visionPerMinute, BigDecimal damageShare, Streak streak, List<RoleStats> roles,
+                             List<QueueStats> queues, Records records) {
+    }
+
+    /** One point of the LP chart. */
+    public record RankHistoryPoint(LocalDateTime recordedAt, String tier, String division, int lp) {
     }
 
     public record LolPlayerDetailResponse(LolPlayerResponse player, LolSummary summary, List<LolMatchResponse> matches) {

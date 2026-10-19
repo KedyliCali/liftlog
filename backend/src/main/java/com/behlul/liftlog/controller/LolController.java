@@ -2,6 +2,7 @@ package com.behlul.liftlog.controller;
 
 import com.behlul.liftlog.dto.LolDtos.LolPlayerDetailResponse;
 import com.behlul.liftlog.dto.LolDtos.LolPlayerResponse;
+import com.behlul.liftlog.dto.LolDtos.RankHistoryPoint;
 import com.behlul.liftlog.dto.LolDtos.TrackPlayerRequest;
 import com.behlul.liftlog.service.LolService;
 import jakarta.validation.Valid;
@@ -41,6 +42,12 @@ public class LolController {
     @GetMapping("/{puuid}")
     public LolPlayerDetailResponse detail(@PathVariable String puuid) {
         return lolService.detail(puuid);
+    }
+
+    /** Solo/duo rank points for the LP chart, oldest first; a 404 for players the detail page would hide. */
+    @GetMapping("/{puuid}/rank-history")
+    public List<RankHistoryPoint> rankHistory(@PathVariable String puuid) {
+        return lolService.rankHistory(puuid);
     }
 
     @PostMapping("/{puuid}/refresh")

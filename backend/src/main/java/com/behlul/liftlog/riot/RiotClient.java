@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * The few Riot API calls the tracker needs, as plain records. The service only sees this interface, so
@@ -37,11 +38,31 @@ public interface RiotClient {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Match(String matchId, int queueId, long gameEndTimestamp, long gameDuration, List<Participant> participants) {
+    record Match(String matchId, int queueId, long gameEndTimestamp, long gameDuration, String gameMode,
+                 List<Participant> participants) {
     }
 
+    /**
+     * One player's line. The detail numbers (from goldEarned on) are nullable on purpose: Jackson refuses a match
+     * with a missing primitive, and a mode that left one of them out must not stop the match from being stored
+     * with the numbers it has.
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Participant(String puuid, String championName, String teamPosition, int kills, int deaths, int assists,
-                       int totalMinionsKilled, int neutralMinionsKilled, int totalDamageDealtToChampions, boolean win) {
+                       int totalMinionsKilled, int neutralMinionsKilled, int totalDamageDealtToChampions, boolean win,
+                       Integer goldEarned, Integer visionScore, Integer champLevel, Integer totalDamageTaken,
+                       Integer largestMultiKill, Integer wardsPlaced, Integer item0, Integer item1, Integer item2,
+                       Integer item3, Integer item4, Integer item5, Integer item6, Integer summoner1Id,
+                       Integer summoner2Id, Challenges challenges) {
+
+        /** The seven slots, the last being the trinket; a missing slot is empty (0), as Riot writes an empty one. */
+        public List<Integer> items() {
+            return Stream.of(item0, item1, item2, item3, item4, item5, item6).map(id -> id == null ? 0 : id).toList();
+        }
+    }
+
+    /** Riot's computed extras; absent in some modes, and each value can be missing on its own. Both are 0..1. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Challenges(Double killParticipation, Double teamDamagePercentage) {
     }
 }

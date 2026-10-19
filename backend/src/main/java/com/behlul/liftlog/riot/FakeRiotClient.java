@@ -24,6 +24,10 @@ public class FakeRiotClient implements RiotClient {
     private static final String[] POSITIONS = {"TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"};
     private static final String[] TIERS = {"IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND"};
     private static final String[] DIVISIONS = {"IV", "III", "II", "I"};
+    /** Real item ids (boots, Infinity Edge, Black Cleaver, ...), so the web app's item icons load. */
+    private static final int[] ITEMS = {3006, 3031, 3071, 6672, 3153, 3036, 3047, 3157, 3089};
+    /** Flash (4) always; Ignite, Teleport, Heal or Exhaust as the second spell (Smite for junglers). */
+    private static final int[] SECOND_SPELLS = {14, 12, 7, 3};
 
     /** Which player each generated match id belongs to, so match() can put them in it. */
     private final Map<String, String> matchOwners = new ConcurrentHashMap<>();
@@ -50,8 +54,12 @@ public class FakeRiotClient implements RiotClient {
         if (random.nextInt(6) == 0) {
             return List.of(); // some players are unranked
         }
-        return List.of(new LeagueEntry("RANKED_SOLO_5x5", TIERS[random.nextInt(TIERS.length)],
-                DIVISIONS[random.nextInt(DIVISIONS.length)], random.nextInt(100), 20 + random.nextInt(120),
+        String tier = TIERS[random.nextInt(TIERS.length)];
+        String division = DIVISIONS[random.nextInt(DIVISIONS.length)];
+        random.nextInt(100); // the old fixed LP, still drawn so wins and losses stay what they were
+        // LP moves once an hour, so the rank history chart gets points while developing locally
+        int lp = seeded(puuid + "lp" + System.currentTimeMillis() / 3_600_000L).nextInt(100);
+        return List.of(new LeagueEntry("RANKED_SOLO_5x5", tier, division, lp, 20 + random.nextInt(120),
                 20 + random.nextInt(120)));
     }
 
@@ -74,12 +82,40 @@ public class FakeRiotClient implements RiotClient {
         boolean win = random.nextInt(100) < 53;
         Participant owner = new Participant(matchOwners.get(matchId), CHAMPIONS[random.nextInt(CHAMPIONS.length)],
                 POSITIONS[random.nextInt(POSITIONS.length)], random.nextInt(win ? 14 : 8), random.nextInt(10),
-                random.nextInt(16), 90 + random.nextInt(180), random.nextInt(40), 8_000 + random.nextInt(30_000), win);
+                random.nextInt(16), 90 + random.nextInt(180), random.nextInt(40), 8_000 + random.nextInt(30_000), win,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null);
+        owner = withDetails(owner, random);
         // Newest match ended about an hour ago, the rest four hours apart, so lists read like real recent play
         long hour = 3_600_000L;
         long endedAt = (System.currentTimeMillis() / hour) * hour - (500 - number) * 4 * hour - hour;
         return Optional.of(new Match(matchId, random.nextInt(4) == 0 ? 440 : 420, endedAt, 1_300 + random.nextInt(1_100),
-                List.of(owner)));
+                "CLASSIC", List.of(owner)));
+    }
+
+    /**
+     * Fills the detail numbers after the basic ones, so the basic numbers of a match stay what they were before
+     * the details existed (the random sequence is only extended).
+     */
+    private static Participant withDetails(Participant p, Random random) {
+        int[] items = new int[7];
+        for (int slot = 0; slot < 6; slot++) {
+            // Now and then an empty slot, as in a short game
+            items[slot] = random.nextInt(6) == 0 ? 0 : ITEMS[random.nextInt(ITEMS.length)];
+        }
+        items[6] = 3363; // the trinket slot
+        boolean jungle = "JUNGLE".equals(p.teamPosition());
+        Challenges challenges = new Challenges(0.3 + random.nextDouble() * 0.5, 0.1 + random.nextDouble() * 0.3);
+        return new Participant(p.puuid(), p.championName(), p.teamPosition(), p.kills(), p.deaths(), p.assists(),
+                p.totalMinionsKilled(), p.neutralMinionsKilled(), p.totalDamageDealtToChampions(), p.win(),
+                7_000 + random.nextInt(9_000), 10 + random.nextInt(50), 11 + random.nextInt(8), 10_000 + random.nextInt(30_000),
+                1 + weightedMultiKill(random), 4 + random.nextInt(20), items[0], items[1], items[2], items[3], items[4],
+                items[5], items[6], 4, jungle ? 11 : SECOND_SPELLS[random.nextInt(SECOND_SPELLS.length)], challenges);
+    }
+
+    /** Extra kills beyond one: mostly none, a penta now and then. */
+    private static int weightedMultiKill(Random random) {
+        int roll = random.nextInt(100);
+        return roll < 45 ? 0 : roll < 80 ? 1 : roll < 94 ? 2 : roll < 99 ? 3 : 4;
     }
 
     private static Random seeded(String text) {

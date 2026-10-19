@@ -1,8 +1,10 @@
 package com.behlul.liftlog;
 
 import com.behlul.liftlog.entity.LolPlayer;
+import com.behlul.liftlog.entity.LolRankHistory;
 import com.behlul.liftlog.repository.LolGroupRepository;
 import com.behlul.liftlog.repository.LolPlayerRepository;
+import com.behlul.liftlog.repository.LolRankHistoryRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -67,6 +69,7 @@ class ApiIntegrationTest {
     @Autowired private JwtEncoder jwtEncoder;
     @Autowired private LolPlayerRepository playerRepository;
     @Autowired private LolGroupRepository groupRepository;
+    @Autowired private LolRankHistoryRepository rankHistoryRepository;
     @Autowired private PlatformTransactionManager transactionManager;
 
     @Test
@@ -409,16 +412,44 @@ class ApiIntegrationTest {
         mockMvc.perform(get("/api/v1/lol/players").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(jsonPath("$.length()").value(1))
                 // One refresh stores at most ten new matches
-                .andExpect(jsonPath("$[0].recentGames").value(10));
+                .andExpect(jsonPath("$[0].recentGames").value(10))
+                .andExpect(jsonPath("$[0].summary.kda").isNumber())
+                .andExpect(jsonPath("$[0].summary.killParticipation").isNumber())
+                .andExpect(jsonPath("$[0].summary.visionPerMinute").isNumber());
 
-        mockMvc.perform(get("/api/v1/lol/players/" + puuid).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+        MvcResult detail = mockMvc.perform(get("/api/v1/lol/players/" + puuid).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.summary.games").value(10))
                 .andExpect(jsonPath("$.matches.length()").value(10))
-                .andExpect(jsonPath("$.summary.form.length()").value(10));
+                .andExpect(jsonPath("$.summary.form.length()").value(10))
+                // The fake client fills every detail, so the new numbers are all there
+                .andExpect(jsonPath("$.matches[0].items.length()").value(7))
+                .andExpect(jsonPath("$.matches[0].summonerSpells.length()").value(2))
+                .andExpect(jsonPath("$.matches[0].gold").isNumber())
+                .andExpect(jsonPath("$.matches[0].vision").isNumber())
+                .andExpect(jsonPath("$.matches[0].killParticipation").isNumber())
+                .andExpect(jsonPath("$.matches[0].damageShare").isNumber())
+                .andExpect(jsonPath("$.matches[0].largestMultiKill").isNumber())
+                .andExpect(jsonPath("$.matches[0].gameMode").value("CLASSIC"))
+                .andExpect(jsonPath("$.summary.killParticipation").isNumber())
+                .andExpect(jsonPath("$.summary.goldPerMinute").isNumber())
+                .andExpect(jsonPath("$.summary.streak.count").isNumber())
+                .andExpect(jsonPath("$.summary.roles").isArray())
+                .andExpect(jsonPath("$.summary.queues").isArray())
+                .andExpect(jsonPath("$.summary.champions[0].damagePerMinute").isNumber())
+                .andExpect(jsonPath("$.summary.records.mostKills.matchId").isNotEmpty())
+                .andReturn();
+
+        // One point after the first refresh when ranked; the fake leaves some players unranked, who record nothing
+        int expectedPoints = read(detail).get("player").get("rank").isNull() ? 0 : 1;
+        mockMvc.perform(get("/api/v1/lol/players/" + puuid + "/rank-history").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(expectedPoints));
 
         String stranger = register(randomEmail(), "s3cret-pass", null);
         mockMvc.perform(get("/api/v1/lol/players/" + puuid).header(HttpHeaders.AUTHORIZATION, "Bearer " + stranger))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/lol/players/" + puuid + "/rank-history").header(HttpHeaders.AUTHORIZATION, "Bearer " + stranger))
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/v1/lol/players").header(HttpHeaders.AUTHORIZATION, "Bearer " + stranger))
                 .andExpect(jsonPath("$.length()").value(0));
@@ -427,6 +458,28 @@ class ApiIntegrationTest {
                 .andExpect(status().isNoContent());
         mockMvc.perform(get("/api/v1/lol/players").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void rankHistoryKeepsOnlyTheNewestRows() {
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        String puuid = "history-" + UUID.randomUUID();
+        java.time.LocalDateTime start = java.time.LocalDateTime.of(2026, 10, 1, 12, 0);
+        tx.executeWithoutResult(status -> {
+            playerRepository.save(new LolPlayer(puuid, "TR1", "History", "TR1"));
+            for (int i = 0; i < 4; i++) {
+                rankHistoryRepository.save(new LolRankHistory(puuid, start.plusHours(i), "GOLD", "II", 10 * i, i, 0));
+            }
+        });
+
+        // Fewer rows than kept: nothing goes
+        tx.executeWithoutResult(status -> assertThat(rankHistoryRepository.deleteAllButNewest(puuid, 10)).isZero());
+        tx.executeWithoutResult(status -> assertThat(rankHistoryRepository.deleteAllButNewest(puuid, 2)).isEqualTo(2));
+
+        assertThat(rankHistoryRepository.findByPuuidOrderByRecordedAtAsc(puuid))
+                .extracting(LolRankHistory::getLp).containsExactly(20, 30);
+        assertThat(rankHistoryRepository.findFirstByPuuidOrderByRecordedAtDesc(puuid))
+                .hasValueSatisfying(h -> assertThat(h.getLp()).isEqualTo(30));
     }
 
     @Test
@@ -495,9 +548,11 @@ class ApiIntegrationTest {
 
         // The friend never followed the owner's account, but the group makes its page visible
         asUser(get("/api/v1/lol/players/" + ownerPuuid), friend).andExpect(status().isOk());
+        asUser(get("/api/v1/lol/players/" + ownerPuuid + "/rank-history"), friend).andExpect(status().isOk());
         asUser(get("/api/v1/lol/players"), friend).andExpect(jsonPath("$.length()").value(0));
 
         asUser(get("/api/v1/lol/players/" + ownerPuuid), stranger).andExpect(status().isNotFound());
+        asUser(get("/api/v1/lol/players/" + ownerPuuid + "/rank-history"), stranger).andExpect(status().isNotFound());
         asUser(get(GROUP), stranger).andExpect(status().isNoContent());
     }
 
