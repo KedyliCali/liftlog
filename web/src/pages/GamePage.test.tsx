@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { LolGroup, LolGroupMember, LolPlayer } from '../api/types'
 import { ToastContext, type ToastOptions } from '../components/contexts'
 import { t } from '../lib/i18n'
@@ -381,4 +381,76 @@ describe('League tab', () => {
     expect(toast).toHaveBeenCalledWith({ message: t.groupRules.ALREADY_IN_GROUP })
   })
 
+  it('keeps a swiped-away player hidden during the undo window, even after switching views and back', async () => {
+    // The spy never times out, so the undo window stays open for the whole test
+    const toast = vi.fn()
+    fakeServer({
+      'GET /api/v1/lol/group': () => jsonResponse(204, undefined),
+      'GET /api/v1/lol/players': () => jsonResponse(200, [player('swiped', 'GOLD'), player('kept', 'SILVER')]),
+    })
+    const user = renderGame('/game?view=following', toast)
+
+    await swipeAway('swiped')
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ message: t.lolUnfollowed('swiped') }))
+
+    await user.click(screen.getByRole('tab', { name: t.lolViewGroup }))
+    await user.click(screen.getByRole('tab', { name: t.lolViewFollowing }))
+
+    expect(await screen.findByLabelText('kept')).toBeInTheDocument()
+    expect(screen.queryByLabelText('swiped')).toBeNull()
+  })
+
+  it('keeps an unfollowed player hidden when the undo window ended while the group view was open', async () => {
+    const toast = vi.fn()
+    let unfollowed = false
+    let releaseList = () => {}
+    const calls = fakeServer({
+      'GET /api/v1/lol/group': () => jsonResponse(204, undefined),
+      'GET /api/v1/lol/players': () =>
+        unfollowed
+          ? // On the server this request refreshes stale players first, which can take seconds
+            new Promise<Response>((resolve) => (releaseList = () => resolve(jsonResponse(200, [player('kept', 'SILVER')]))))
+          : jsonResponse(200, [player('swiped', 'GOLD'), player('kept', 'SILVER')]),
+      'DELETE /api/v1/lol/players/swiped': () => {
+        unfollowed = true
+        return jsonResponse(204, undefined)
+      },
+    })
+    const user = renderGame('/game?view=following', toast)
+
+    await swipeAway('swiped')
+    const undoToast: ToastOptions = toast.mock.calls[0][0]
+    await user.click(screen.getByRole('tab', { name: t.lolViewGroup }))
+    // The toast times out: the unfollow is sent while the follow list is not on screen
+    await act(async () => {
+      await (undoToast.onTimeout as () => Promise<void>)()
+    })
+    expect(calls).toContainEqual({ method: 'DELETE', path: '/api/v1/lol/players/swiped', body: undefined })
+
+    await user.click(screen.getByRole('tab', { name: t.lolViewFollowing }))
+    expect(await screen.findByLabelText('kept')).toBeInTheDocument()
+    // The cached list is shown while the fresh one is still on its way, and it must not bring the player back
+    expect(screen.queryByLabelText('swiped')).toBeNull()
+
+    await act(async () => {
+      releaseList()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    })
+    expect(screen.getByLabelText('kept')).toBeInTheDocument()
+    expect(screen.queryByLabelText('swiped')).toBeNull()
+  })
 })
+
+/** Drags a follow-list row to the left far enough to unfollow, as a finger would. */
+async function swipeAway(label: string) {
+  // jsdom has no pointer capture, which the row asks for once a drag turns horizontal
+  Element.prototype.setPointerCapture = () => {}
+  onTestFinished(() => {
+    delete (Element.prototype as Partial<Element>).setPointerCapture
+  })
+  const row = await screen.findByLabelText(label)
+  fireEvent.pointerDown(row, { clientX: 300, clientY: 10 })
+  fireEvent.pointerMove(row, { clientX: 100, clientY: 10 })
+  fireEvent.pointerUp(row)
+  await waitFor(() => expect(screen.queryByLabelText(label)).toBeNull())
+}

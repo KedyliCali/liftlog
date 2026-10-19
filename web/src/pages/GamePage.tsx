@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, type Dispatch, type SetStateAction } from 'react'
 import { useSearchParams } from 'react-router'
 import { AppError } from '../api/client'
 import { api } from '../api/endpoints'
@@ -27,6 +27,9 @@ type View = 'group' | 'following'
 export function GamePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const group = useQuery({ queryKey: queryKeys.lolGroup, queryFn: api.lolGroup })
+  // Swiped-away players waiting out the undo toast. Kept above the view switch, which unmounts the follow list:
+  // a fresh list would show them again while their unfollow is still scheduled
+  const [pendingDelete, setPendingDelete] = useState<Set<string>>(new Set())
   const requested = searchParams.get('view')
   const chosen: View | null = requested === 'group' || requested === 'following' ? requested : null
   // Without a choice: the group board when there is one, otherwise the follow list
@@ -52,17 +55,19 @@ export function GamePage() {
           {t.lolViewFollowing}
         </button>
       </div>
-      {view === 'group' ? <LolGroupView group={group} /> : <FollowingView />}
+      {view === 'group' ? <LolGroupView group={group} /> : <FollowingView pendingDelete={pendingDelete} setPendingDelete={setPendingDelete} />}
     </div>
   )
 }
 
 /** Followed players, ranked against each other: the list is the leaderboard. Only fetched while shown. */
-function FollowingView() {
+function FollowingView({ pendingDelete, setPendingDelete }: {
+  pendingDelete: Set<string>
+  setPendingDelete: Dispatch<SetStateAction<Set<string>>>
+}) {
   const queryClient = useQueryClient()
   const toast = useToast()
   const [adding, setAdding] = useState(false)
-  const [pendingDelete, setPendingDelete] = useState<Set<string>>(new Set())
   const players = useQuery({ queryKey: queryKeys.lolPlayers, queryFn: api.lolPlayers })
   const version = useDdragonVersion()
 
@@ -82,7 +87,14 @@ function FollowingView() {
       onTimeout: () =>
         api
           .untrackLolPlayer(player.puuid)
-          .then(() => queryClient.invalidateQueries({ queryKey: queryKeys.lolPlayers }))
+          .then(async () => {
+            // The invalidate refetches only while the list is shown; with the group view open it returns at once,
+            // and restore would let the cached list show the player again until the next fetch. So the cache
+            // drops them first, after any older list request is cancelled so it cannot bring them back
+            await queryClient.cancelQueries({ queryKey: queryKeys.lolPlayers })
+            queryClient.setQueryData<LolPlayer[]>(queryKeys.lolPlayers, (list) => list?.filter((p) => p.puuid !== player.puuid))
+            await queryClient.invalidateQueries({ queryKey: queryKeys.lolPlayers })
+          })
           .catch((error) => toast({ message: errorMessage(error) }))
           .finally(restore),
     })
