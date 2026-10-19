@@ -106,8 +106,8 @@ export function StatGroups({ stats }: { stats: LolDeepStats }) {
       tiles: [
         tile('winRate', t.statWinRate, winPercent(stats.wins, stats.gamesFound), percentFormat, t.gamesCount(stats.wins, stats.gamesFound)),
         tile('kda', t.statKda, o.kda, twoDigits),
-        kdaLine,
         tile('kp', t.statKillParticipation, toPercent(o.killParticipation), percentFormat),
+        kdaLine,
         tile('damageShare', t.statDamageShare, toPercent(o.damageShare), percentFormat),
         tile('damage', t.statDamagePerMin, o.damagePerMinute, wholeFormat),
         tile('damageTaken', t.statDamageTakenPerMin, o.damageTakenPerMinute, wholeFormat),

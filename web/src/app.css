@@ -4011,7 +4011,7 @@ a.lol-match:active {
 .lol-tab {
   position: relative;
   height: 34px;
-  padding: 0 12px;
+  padding: 0 10px;
   border: 1px solid transparent;
   border-radius: var(--radius-m) var(--radius-m) var(--radius-s) var(--radius-s);
   font-family: var(--font-display);
@@ -4120,7 +4120,9 @@ a.lol-match:active {
   box-shadow: 0 3px 0 color-mix(in srgb, var(--group-accent) 35%, var(--bg));
 }
 
+/* Dense, so the double-width K / D / A tile never leaves a hole at the end of a row */
 .lol-stat-group .lol-tiles {
+  grid-auto-flow: row dense;
   margin-bottom: 14px;
 }
 
@@ -4134,6 +4136,18 @@ a.lol-match:active {
 
 .lol-tile.wide {
   grid-column: span 2;
+}
+
+/* On a phone four tiles to a row squeeze the labels onto three lines; three to a row keeps them even */
+@media (max-width: 440px) {
+  .lol-stat-group .lol-tiles.four {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* The four multikill names are short: they stay on one row */
+  .lol-stat-group.multikills .lol-tiles.four {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 .lol-data-note {
