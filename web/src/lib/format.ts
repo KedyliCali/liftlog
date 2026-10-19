@@ -43,6 +43,10 @@ export function errorMessage(error: unknown): string {
       return error.detail ?? t.errorConflict
     case 'signedOut':
       return t.signedOutTitle
+    case 'forbidden':
+      return t.errorForbidden
+    case 'groupRule':
+      return (error.detail && t.groupRules[error.detail]) || t.errorConflict
     case 'riotNoKey':
       return t.riotNoKey
     case 'riotUnavailable':

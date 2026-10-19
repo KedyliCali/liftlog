@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import type { LolRank } from '../api/types'
+import { useState, type CSSProperties } from 'react'
+import { Link } from 'react-router'
+import type { LolPlayer, LolRank } from '../api/types'
 import { t } from '../lib/i18n'
-import { championIconUrl, profileIconUrl, rankLabel } from '../lib/lol'
+import { championIconUrl, profileIconUrl, rankLabel, recentWinRate } from '../lib/lol'
 import { initials } from '../lib/workoutLogic'
 
 export function LolAvatar({ version, iconId, name, size = 44 }: { version: string | null; iconId: number | null; name: string; size?: number }) {
@@ -34,5 +35,48 @@ export function RankBadge({ rank }: { rank: LolRank | null }) {
     <span className="rank-badge" data-tier={rank.tier}>
       {rankLabel(rank)} <span className="num">{t.lp(rank.lp)}</span>
     </span>
+  )
+}
+
+/** Wins as a filled share of a thin bar: recent form at a glance without reading numbers. */
+export function FormBar({ wins, games }: { wins: number; games: number }) {
+  return (
+    <span className="form-bar" aria-hidden>
+      <span style={{ width: games === 0 ? 0 : `${(wins / games) * 100}%` }} />
+    </span>
+  )
+}
+
+/**
+ * One leaderboard line, shared by the follow list and the group board. On the group board the member's
+ * LiftLog name sits under the Riot name, and your own row is marked.
+ */
+export function LolBoardRow({ player, place, version, memberName, you = false, style }: {
+  player: LolPlayer
+  /** 1-based; the top three get the signal colors */
+  place: number
+  version: string | null
+  memberName?: string
+  you?: boolean
+  style?: CSSProperties
+}) {
+  return (
+    <Link to={`/game/${encodeURIComponent(player.puuid)}`} viewTransition className={you ? 'lol-row you' : 'lol-row'} style={style}>
+      {you && <span className="you-tag">{t.youTag}</span>}
+      <span className={place <= 3 ? `lol-place top-${place}` : 'lol-place'}>{place}</span>
+      <LolAvatar version={version} iconId={player.profileIconId} name={player.gameName} />
+      <span className="lol-row-main">
+        <span className="lol-name">
+          {player.gameName}
+          <small>#{player.tagLine}</small>
+        </span>
+        {memberName && <span className="lol-member-name">{memberName}</span>}
+        <RankBadge rank={player.rank} />
+      </span>
+      <span className="lol-row-side">
+        <FormBar wins={player.recentWins} games={player.recentGames} />
+        <small className="muted num">{player.recentGames > 0 ? t.winRate(Math.round(recentWinRate(player) * 100)) : '–'}</small>
+      </span>
+    </Link>
   )
 }

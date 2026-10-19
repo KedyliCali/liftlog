@@ -29,7 +29,11 @@ export function LolPlayerPage() {
     try {
       const fresh = await api.refreshLolPlayer(puuid)
       queryClient.setQueryData(queryKeys.lolPlayer(puuid), fresh)
-      await queryClient.invalidateQueries({ queryKey: queryKeys.lolPlayers })
+      // The follow list and the group board show this player's rank too
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.lolPlayers }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.lolGroup }),
+      ])
     } catch (error) {
       toast({ message: errorMessage(error) })
     } finally {
