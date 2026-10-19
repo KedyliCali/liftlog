@@ -2836,3 +2836,312 @@ body:has(.rest-timer) .set-groups {
   background: var(--surface-high);
   font-size: 14px;
 }
+
+/* ---------- League groups ---------- */
+.lol-views {
+  margin-bottom: 14px;
+}
+
+/* The card sits on an offset plate (like the recovery code), so the group reads as a stacked object */
+.lol-group-wrap {
+  position: relative;
+  isolation: isolate;
+  margin: 4px 8px 34px 0;
+}
+
+.lol-group-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 8px -8px -8px 8px;
+  z-index: 0;
+  border-radius: var(--radius-xl);
+  background: var(--surface-highest);
+}
+
+/* A lime strip down the left edge; the invite chip straddles the bottom edge on the right */
+.lol-group-card {
+  position: relative;
+  z-index: 1;
+  padding: 14px 10px 30px 20px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+}
+
+.lol-group-card::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: -1px;
+  width: 4px;
+  border-radius: 0 3px 3px 0;
+  background: var(--primary);
+}
+
+.lol-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lol-group-head h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.lol-group-head .num {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.lol-group-updated {
+  margin: 2px 0 0;
+  font-size: 12px;
+}
+
+.invite-chip {
+  position: absolute;
+  right: 14px;
+  bottom: -19px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 12px 0 14px;
+  border-radius: 19px;
+  background: var(--primary);
+  color: var(--on-primary);
+  /* a second, darker edge under the chip so it lifts off the card instead of lying flat on it */
+  box-shadow: 0 3px 0 var(--primary-container);
+}
+
+.invite-chip small {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+/* Body font, not the condensed one: condensed glyphs blur S/5 and B/8 */
+.invite-code {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.group-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px dashed color-mix(in srgb, var(--primary) 50%, var(--outline-variant));
+  border-radius: var(--radius-l);
+  background: var(--surface);
+}
+
+.group-banner p {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.group-banner .btn {
+  flex: none;
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 15px;
+}
+
+.group-name-hint {
+  display: block;
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Your own row: a lime edge and a small tag overlapping its top-right corner */
+.lol-row.you {
+  position: relative;
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--outline-variant));
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.group-board {
+  padding-top: 6px;
+}
+
+.you-tag {
+  position: absolute;
+  top: -8px;
+  right: 12px;
+  padding: 1px 7px;
+  border-radius: var(--radius-s);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.lol-member-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.lol-unlinked {
+  margin: 6px 4px 0;
+  font-size: 13px;
+}
+
+.group-start {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+  margin-top: 6px;
+}
+
+.sheet-note {
+  margin: 0;
+  font-size: 13px;
+}
+
+.invite-input {
+  resize: none;
+  font-size: 16px;
+  letter-spacing: 1px;
+}
+
+.join-preview {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--primary);
+  border-radius: 0 var(--radius-m) var(--radius-m) 0;
+  background: var(--surface-high);
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.owner-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.owner-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.owner-buttons .btn {
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.member-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+/* Initials on a tile with a second tile peeking out behind it */
+.member-initials {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-m);
+  background: var(--surface-highest);
+  box-shadow: 3px 3px 0 var(--surface-high);
+  font-family: var(--font-display);
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.member-item.you .member-initials {
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: 3px 3px 0 var(--primary-container);
+}
+
+.member-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.member-main small {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+
+.member-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.member-tag {
+  padding: 0 6px;
+  border-radius: var(--radius-s);
+  background: var(--surface-highest);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.member-tag.you {
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+}
+
+.member-remove {
+  flex: none;
+  color: var(--error);
+}

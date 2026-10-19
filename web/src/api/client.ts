@@ -2,7 +2,7 @@ import type { ApiErrorBody } from './types'
 
 export const API_BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080').replace(/\/$/, '')
 
-export type AppErrorKind = 'network' | 'notFound' | 'unauthorized' | 'validation' | 'conflict' | 'server' | 'riotNoKey' | 'riotUnavailable' | 'signedOut' | 'unknown'
+export type AppErrorKind = 'network' | 'notFound' | 'unauthorized' | 'validation' | 'conflict' | 'server' | 'riotNoKey' | 'riotUnavailable' | 'signedOut' | 'forbidden' | 'groupRule' | 'unknown'
 
 /** Typed failure the UI knows how to explain; components never inspect HTTP details. */
 export class AppError extends Error {
@@ -22,8 +22,13 @@ function errorFromResponse(status: number, body: ApiErrorBody | null): AppError 
       return new AppError('validation', Object.values(body?.fieldErrors ?? {})[0] ?? body?.message ?? null)
     case status === 401:
       return new AppError('unauthorized')
+    case status === 403:
+      return new AppError('forbidden')
     case status === 404:
       return new AppError('notFound')
+    // League group rules name themselves, so the app shows its own text instead of the English message
+    case status === 409 && body?.fieldErrors?.group != null:
+      return new AppError('groupRule', body?.fieldErrors?.group ?? null)
     case status === 409:
       return new AppError('conflict', body?.message ?? null)
     // The League tracker marks Riot problems so the app can say "not set up yet" instead of "server error"

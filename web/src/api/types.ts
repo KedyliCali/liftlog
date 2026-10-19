@@ -220,6 +220,25 @@ export interface LolPlayerDetail {
   matches: LolMatch[]
 }
 
+export interface LolGroupMember {
+  userId: number
+  displayName: string | null
+  you: boolean
+  owner: boolean
+  joinedAt: string
+  /** The member's own Riot account; null until they link one */
+  player: LolPlayer | null
+}
+
+export interface LolGroup {
+  name: string
+  /** 10 symbols without the dash; formatInviteCode adds it for display */
+  inviteCode: string
+  maxMembers: number
+  /** Join order, so the first member is the owner */
+  members: LolGroupMember[]
+}
+
 export interface ApiErrorBody {
   status: number
   message?: string

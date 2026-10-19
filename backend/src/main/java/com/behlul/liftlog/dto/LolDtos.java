@@ -3,6 +3,7 @@ package com.behlul.liftlog.dto;
 import com.behlul.liftlog.entity.LolMatchPlayer;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -60,5 +61,21 @@ public final class LolDtos {
     }
 
     public record LolPlayerDetailResponse(LolPlayerResponse player, LolSummary summary, List<LolMatchResponse> matches) {
+    }
+
+    public record GroupNameRequest(@NotBlank @Size(max = 32) String name) {
+    }
+
+    /** Any case, with the display dash or spaces; the service normalizes it. The web app extracts it from a pasted message first. */
+    public record JoinGroupRequest(@NotBlank @Size(max = 20) String code) {
+    }
+
+    /** @param player the member's linked Riot account; null until they link one */
+    public record LolGroupMemberResponse(Long userId, String displayName, boolean you, boolean owner,
+                                         LocalDateTime joinedAt, LolPlayerResponse player) {
+    }
+
+    /** @param inviteCode 10 symbols without the dash; members come in join order, so the first one is the owner */
+    public record LolGroupResponse(String name, String inviteCode, int maxMembers, List<LolGroupMemberResponse> members) {
     }
 }

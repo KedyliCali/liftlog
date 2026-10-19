@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { AuthResponse, LolPlayer, LolPlayerDetail, CatalogFood, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, PersonalRecord, Profile, ProgressPoint, SetInput, WeeklyVolume, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types'
+import type { AuthResponse, LolGroup, LolPlayer, LolPlayerDetail, CatalogFood, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, PersonalRecord, Profile, ProgressPoint, SetInput, WeeklyVolume, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types'
 
 export const api = {
   register: (email: string, password: string) =>
@@ -44,6 +44,18 @@ export const api = {
     request<LolPlayerDetail>(`/api/v1/lol/players/${encodeURIComponent(puuid)}/refresh`, { method: 'POST' }),
   untrackLolPlayer: (puuid: string) =>
     request<void>(`/api/v1/lol/players/${encodeURIComponent(puuid)}`, { method: 'DELETE', responseType: 'none' }),
+
+  // Not being in a group is a 204, which arrives as undefined; TanStack Query rejects undefined data, so it becomes null
+  lolGroup: () => request<LolGroup | undefined>('/api/v1/lol/group').then((group) => group ?? null),
+  createLolGroup: (name: string) => request<LolGroup>('/api/v1/lol/group', { method: 'POST', body: { name } }),
+  joinLolGroup: (code: string) => request<LolGroup>('/api/v1/lol/group/join', { method: 'POST', body: { code } }),
+  renameLolGroup: (name: string) => request<LolGroup>('/api/v1/lol/group', { method: 'PUT', body: { name } }),
+  rotateLolInviteCode: () => request<LolGroup>('/api/v1/lol/group/invite-code', { method: 'POST' }),
+  linkLolAccount: (riotId: string, platform: string) =>
+    request<LolGroup>('/api/v1/lol/group/me/account', { method: 'PUT', body: { riotId, platform } }),
+  leaveLolGroup: () => request<void>('/api/v1/lol/group/me', { method: 'DELETE', responseType: 'none' }),
+  removeLolGroupMember: (userId: number) =>
+    request<void>(`/api/v1/lol/group/members/${userId}`, { method: 'DELETE', responseType: 'none' }),
 
   /** The recovery code's "New code": the web app generates both passwords itself */
   changePassword: (currentPassword: string, newPassword: string) =>

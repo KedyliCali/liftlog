@@ -196,5 +196,38 @@ alanlar sızmasın; lazy ilişkiler serileştirme sırasında sorun çıkarması
 **Docker ne işe yaradı?** "Benim bilgisayarımda çalışıyordu" sorununu bitirir. Veritabanı ve API
 her yerde aynı sürümle, tek komutla kalkar. Testcontainers da testlerde gerçek PostgreSQL açmak için Docker kullanır.
 
+**League grubunun davet kodu neden 10 karakter, neden deneme sınırı yok?** 31 harfli alfabeyle 31^10 ≈ 8,2e14
+kod, yaklaşık 49,5 bit. Saniyede 300 deneme bir yıl sürse bile 10 canlı koddan birini bulma ihtimali ~1/10 000.
+8 karakter (40 bit) bir deneme sınırlayıcısı gerektirirdi; sınırlayıcı ise bedava hesaplarla herkesin
+katılmasını engellemeye açık ve bellekte durum tutar. Kod zaten yapıştırıldığı için iki karakter fazlası ucuz.
+
+**Davet kodu neden düz metin, kurtarma kodu neden BCrypt'li?** Davet kodu paylaşılmak için var: her üye onu
+tekrar görüp gönderebilmeli, yenilenince eskisi ölür ve sadece grup verisini açar. Kurtarma kodu ise bütün
+hesabı açar, bu yüzden parola gibi hash'lenir.
+
+**Gruba katılırken neden grup satırını kilitliyorsun (`FOR NO KEY UPDATE`)?** Üye sayısı kontrolü ("20'den az mı?")
+ile ekleme arasında başka biri de katılabilir. Grubu değiştiren her işlem önce grup satırını kilitlediği
+için aynı grupta işlemler sırayla çalışır; 20. koltuğa aynı anda iki kişi oturamaz, son kişi çıkınca grup
+kesin silinir. (Hibernate `PESSIMISTIC_WRITE`'ı PostgreSQL'de `FOR NO KEY UPDATE` olarak yazar; bu kilit
+kendisiyle çakıştığı için işlemleri yine sıraya sokar. Kilit kaldırılınca başarısız olan bir entegrasyon
+testi bunu kanıtlıyor.)
+
+**Riot bir maçı vermezse ne oluyor?** O maç atlanır, oyuncu yine "yenilendi" sayılır; maç kaydedilmediği için
+bir sonraki yenilemede tekrar istenir. Eskiden tek bozuk maç oyuncuyu hep "en eski" bırakıyor ve her sayfa
+açılışı onda takılıp grubun geri kalanını hiç yenilemiyordu.
+
+**Grup sahibi neden bir kolon değil?** Sahip, en önce katılan üye (`joined_at`, sonra `user_id`). Ayrılan ya
+da silinen birini gösteren bir `owner_id` hiç oluşmaz, devretme kodu da gerekmez.
+
+**`SKIP LOCKED` ve `NO KEY UPDATE` ne işe yarıyor?** Yenilemeden önce oyuncunun satırı işlem bitene kadar
+kilitlenir. `SKIP LOCKED`: satırı başka bir istek tutuyorsa beklemeden atla (o zaten yeniliyor).
+`NO KEY UPDATE`: anahtar değişmeyeceği için, o oyuncuyu takip etmek gibi yabancı anahtar kontrolleri
+(`KEY SHARE`) engellenmez. Sonuç: aynı oyuncu aynı anda iki kez Riot'a sorulmaz ve aynı maç satırı iki kez
+eklenmeye çalışılmaz. İki iş parçacıklı entegrasyon testi bunu kanıtlıyor.
+
+**`LolGroupMember` neden `Persistable`?** Kimliği kullanıcının kendi id'si, veritabanı üretmiyor. Spring Data
+id'si dolu bir varlığı "var olan" sanıp `merge` eder; iki eşzamanlı katılmada biri sessizce diğer gruba
+taşınabilirdi. `Persistable` ile her zaman `INSERT` olur ve birincil anahtar çakışması hata verir.
+
 **Tekrar yapsan neyi farklı yapardın?** Refresh token, çevrimdışı çalışma için Room, ekranlar
 için Compose UI testleri, eşzamanlı set düzenlemede optimistic locking (`@Version`).

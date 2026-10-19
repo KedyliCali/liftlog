@@ -55,7 +55,7 @@ public class RiotConfig {
         }
 
         @Override
-        public Summoner summoner(LolPlatform platform, String puuid) {
+        public Optional<Summoner> summoner(LolPlatform platform, String puuid) {
             throw missing();
         }
 
@@ -70,7 +70,7 @@ public class RiotConfig {
         }
 
         @Override
-        public Match match(LolPlatform platform, String matchId) {
+        public Optional<Match> match(LolPlatform platform, String matchId) {
             throw missing();
         }
     }

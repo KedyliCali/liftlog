@@ -1,4 +1,19 @@
-# League friend groups: design (not built yet)
+# League friend groups: design (built on `feature/lol-groups`)
+
+Built as designed, with two small departures: the join field is a textarea (a single-line input drops the
+line breaks of a pasted message and glues the code to the link), and the owner is labelled "Yönetici"
+(admin) rather than "Kurucu", because ownership passes on when the founder leaves.
+
+A review with adversarial verification (15 confirmed findings) changed four rules below:
+- A view makes at most 4 refresh *attempts*; a Riot error for one player moves on to the next one, and only
+  NO_KEY, KEY_REJECTED and RATE_LIMITED stop the loop (the "stop at the first Riot error" rule let one broken
+  match stall every board).
+- `RiotClient.match` returns Optional: a 404 is skipped, a failing match is skipped for now, and the player is
+  still marked refreshed.
+- A cached player asked for on another server is moved there (a PUUID survives a transfer); a wrong server
+  still gets the 404, because the move rolls back.
+- Hibernate sends PESSIMISTIC_WRITE as `FOR NO KEY UPDATE` on PostgreSQL, not `FOR UPDATE`; it conflicts with
+  itself, so the serialization argument holds. `LolPlayer` uses `@DynamicUpdate`.
 
 Produced on 2026-10-19 by a design workflow: three independent designs (minimal, friend UX, Riot budget)
 and a judge that checked them against the code and synthesized this one. Behlül's decisions on the open

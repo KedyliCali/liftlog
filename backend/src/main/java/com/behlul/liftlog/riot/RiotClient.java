@@ -13,14 +13,16 @@ public interface RiotClient {
 
     Optional<Account> findAccount(LolPlatform platform, String gameName, String tagLine);
 
-    Summoner summoner(LolPlatform platform, String puuid);
+    /** Empty when the account has no League profile on that server. */
+    Optional<Summoner> summoner(LolPlatform platform, String puuid);
 
     List<LeagueEntry> leagueEntries(LolPlatform platform, String puuid);
 
     /** Newest first. */
     List<String> recentMatchIds(LolPlatform platform, String puuid, int count);
 
-    Match match(LolPlatform platform, String matchId);
+    /** Empty when Riot no longer has the match, although its match list may still name it. */
+    Optional<Match> match(LolPlatform platform, String matchId);
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Account(String puuid, String gameName, String tagLine) {

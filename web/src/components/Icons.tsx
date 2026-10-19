@@ -118,3 +118,24 @@ export function KeyIcon({ size = 20 }: { size?: number }) {
     </Icon>
   )
 }
+
+export function ShareIcon({ size = 18 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M12 3v12M8 7l4-4 4 4" />
+      <path d="M8 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-2" />
+    </Icon>
+  )
+}
+
+/** Three sliders: settings without a gear's many small teeth, which blur at 20px. */
+export function SettingsIcon({ size = 20 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1" />
+      <circle cx="15" cy="6" r="2" />
+      <circle cx="9" cy="12" r="2" />
+      <circle cx="17" cy="18" r="2" />
+    </Icon>
+  )
+}

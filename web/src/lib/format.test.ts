@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { formatLoad, formatRecordSet } from './format'
+import { AppError } from '../api/client'
+import { errorMessage, formatLoad, formatRecordSet } from './format'
 import { t } from './i18n'
 
 describe('formatLoad', () => {
@@ -18,5 +19,15 @@ describe('formatRecordSet', () => {
     const record = { heaviestWeightKg: 90, heaviestAddedKg: 10, heaviestReps: 5, bodyweight: true }
     expect(formatRecordSet(record)).toBe(`${t.bodyweightPlus('10')} × 5`)
     expect(formatRecordSet({ ...record, bodyweight: false })).toBe(t.weightTimesReps('90', 5))
+  })
+})
+
+describe('errorMessage for League groups', () => {
+  it('names each group rule and falls back for unknown ones', () => {
+    for (const rule of ['ALREADY_IN_GROUP', 'GROUP_FULL', 'ACCOUNT_TAKEN', 'CANNOT_REMOVE_SELF']) {
+      expect(errorMessage(new AppError('groupRule', rule))).toBe(t.groupRules[rule])
+    }
+    expect(errorMessage(new AppError('groupRule', 'SOMETHING_NEW'))).toBe(t.errorConflict)
+    expect(errorMessage(new AppError('forbidden'))).toBe(t.errorForbidden)
   })
 })
