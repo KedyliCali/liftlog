@@ -163,6 +163,15 @@ export function ChevronIcon({ size = 18 }: { size?: number }) {
   )
 }
 
+export function DownloadIcon({ size = 18 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M12 3v12M8 11l4 4 4-4" />
+      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+    </Icon>
+  )
+}
+
 export function ShareIcon({ size = 18 }: { size?: number }) {
   return (
     <Icon size={size}>

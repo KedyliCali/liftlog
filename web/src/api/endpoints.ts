@@ -1,5 +1,5 @@
 import type { CreationOptionsJson, CredentialJson, RequestOptionsJson } from '../lib/webauthn'
-import { request } from './client'
+import { request, requestFile } from './client'
 import type { AuthResponse, LolGroup, LolPlayer, LolPlayerDetail, LolRankPoint, CatalogFood, MuscleStats, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, Passkey, PasskeyCeremony, PersonalRecord, PlanItem, Profile, ProgressPoint, Routine, RoutineInput, SetInput, Streak, WeeklyVolume, WorkoutDetail, WorkoutRecap, WorkoutSet, WorkoutSummary } from './types'
 
 export const api = {
@@ -101,4 +101,8 @@ export const api = {
   uploadAvatar: (jpeg: Blob) => request<Profile>('/api/v1/profile/avatar', { method: 'PUT', blob: jpeg }),
   avatar: () => request<Blob>('/api/v1/profile/avatar', { responseType: 'blob' }),
   deleteAvatar: () => request<void>('/api/v1/profile/avatar', { method: 'DELETE', responseType: 'none' }),
+
+  exportWorkouts: () => requestFile('/api/v1/export/workouts.csv'),
+  exportNutrition: () => requestFile('/api/v1/export/nutrition.csv'),
+  exportAll: () => requestFile('/api/v1/export/all.zip'),
 }
