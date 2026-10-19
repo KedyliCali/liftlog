@@ -43,6 +43,22 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              // React, the router and React Query change far less often than the app; in their own chunk a
+              // new deploy only re-downloads the app code, not ~100 kB (gzip) of libraries
+              name: 'react-vendor',
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler|react-router|@tanstack[\\/][^\\/]+)[\\/]/,
+            },
+          ],
+        },
+      },
+    },
+  },
   server: {
     // Reachable from a phone on the same Wi-Fi for testing
     host: true,

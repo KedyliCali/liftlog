@@ -10,13 +10,13 @@ import { Sheet } from '../components/Sheet'
 import { NutritionSkeleton } from '../components/Skeletons'
 import { ErrorState, MessageState } from '../components/StateViews'
 import { SwipeToDelete } from '../components/SwipeToDelete'
-import { WEIGHT_CARD_ID } from '../components/WeightCard'
 import { AddFoodSheet } from './AddFoodSheet'
 import { vibrate } from '../lib/feedback'
 import { errorMessage, formatKg, formatLongDate, formatShortDate } from '../lib/format'
 import { t } from '../lib/i18n'
 import { goalProgress, macroEnergySplit, portionLabel, shiftDay, suggestedProteinGoal, todayIso, validateGoals, type GoalField } from '../lib/nutrition'
 import { PlateIcon } from '../components/Icons'
+import { WEIGHT_CARD_ID } from '../lib/weight'
 
 export function NutritionPage() {
   const queryClient = useQueryClient()

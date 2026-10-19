@@ -6,6 +6,12 @@ import { locale } from './i18n'
 export const MIN_WEIGHT_KG = 20
 export const MAX_WEIGHT_KG = 400
 
+/**
+ * The Nutrition page's weight chip links to the Profile weight card with this anchor. Lives here, not in
+ * WeightCard, so the Nutrition chunk does not pull the chart library in just for a string.
+ */
+export const WEIGHT_CARD_ID = 'weight'
+
 export const WEIGHT_RANGES = [30, 90, 365] as const
 export type WeightRange = (typeof WEIGHT_RANGES)[number]
 
