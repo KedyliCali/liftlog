@@ -28,6 +28,15 @@ class PasskeyConfigTest {
     }
 
     @Test
+    void findsTheOriginsWherePasskeysCannotWork() {
+        Set<String> all = origins("https://example.com", "https://app.example.com", "https://Example.com:8443",
+                "https://other.dev", "https://notexample.com", "http://localhost:5173");
+        assertThat(PasskeyConfig.originsOutsideRpId(all, "example.com"))
+                .containsExactly("https://other.dev", "https://notexample.com", "http://localhost:5173");
+        assertThat(PasskeyConfig.originsOutsideRpId(origins("http://localhost:5173"), "localhost")).isEmpty();
+    }
+
+    @Test
     void anOriginWithoutAHostIsAConfigurationError() {
         assertThatThrownBy(() -> PasskeyConfig.rpId(origins("not-a-url"), ""))
                 .isInstanceOf(IllegalStateException.class);

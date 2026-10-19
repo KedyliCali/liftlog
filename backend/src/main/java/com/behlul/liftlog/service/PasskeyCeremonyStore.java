@@ -3,13 +3,17 @@ package com.behlul.liftlog.service;
 import com.behlul.liftlog.entity.WebAuthnCeremony;
 import com.behlul.liftlog.entity.WebAuthnCeremony.Kind;
 import com.behlul.liftlog.exception.InvalidPasskeyException;
+import com.behlul.liftlog.exception.TooManyRequestsException;
 import com.behlul.liftlog.repository.WebAuthnCeremonyRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,23 +30,40 @@ public class PasskeyCeremonyStore {
 
     private final WebAuthnCeremonyRepository repository;
     private final Clock clock;
+    private final int maxLiveLoginCeremonies;
 
-    public PasskeyCeremonyStore(WebAuthnCeremonyRepository repository, Clock clock) {
+    public PasskeyCeremonyStore(WebAuthnCeremonyRepository repository, Clock clock,
+                                @Value("${liftlog.passkey.max-live-login-ceremonies:500}") int maxLiveLoginCeremonies) {
         this.repository = repository;
         this.clock = clock;
+        this.maxLiveLoginCeremonies = maxLiveLoginCeremonies;
+    }
+
+    /** @param expiresAt when the ceremony stops being accepted, for the client to show or plan around */
+    public record Started(UUID id, Instant expiresAt) {
     }
 
     /**
      * Expired rows are swept here rather than by a scheduled job: every abandoned ceremony was started by
      * this method, so cleaning up on the next start keeps the table small without another moving part.
+     *
+     * <p>Sign-in options are anonymous, so anyone can ask for them; the per-client rate limit slows one client
+     * down, and this global cap keeps many clients together from filling the table. The count and the insert
+     * are not atomic, so concurrent requests may overshoot the cap slightly, which is harmless. The refusal
+     * does not roll back the sweep.
      */
-    @Transactional
-    public UUID start(Kind kind, Long userId, String requestJson) {
-        LocalDateTime now = LocalDateTime.now(clock);
-        repository.deleteExpired(now);
+    @Transactional(noRollbackFor = TooManyRequestsException.class)
+    public Started start(Kind kind, Long userId, String requestJson) {
+        Instant now = clock.instant();
+        LocalDateTime nowUtc = LocalDateTime.ofInstant(now, ZoneOffset.UTC);
+        repository.deleteExpired(nowUtc);
+        if (kind == Kind.LOGIN && repository.countByKindAndExpiresAtAfter(Kind.LOGIN, nowUtc) >= maxLiveLoginCeremonies) {
+            throw new TooManyRequestsException("Too many passkey sign-ins in progress, try again in a few minutes");
+        }
         UUID id = UUID.randomUUID();
-        repository.save(new WebAuthnCeremony(id, kind, userId, requestJson, now.plus(LIFETIME)));
-        return id;
+        Instant expiresAt = now.plus(LIFETIME);
+        repository.save(new WebAuthnCeremony(id, kind, userId, requestJson, LocalDateTime.ofInstant(expiresAt, ZoneOffset.UTC)));
+        return new Started(id, expiresAt);
     }
 
     /**
@@ -62,7 +83,7 @@ public class PasskeyCeremonyStore {
             throw new InvalidPasskeyException(UNKNOWN_CEREMONY);
         }
         repository.delete(ceremony);
-        boolean expired = ceremony.getExpiresAt().isBefore(LocalDateTime.now(clock));
+        boolean expired = ceremony.getExpiresAt().isBefore(LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC));
         return expired ? Optional.empty() : Optional.of(ceremony.getRequestJson());
     }
 }

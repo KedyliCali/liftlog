@@ -2,6 +2,12 @@ liftlog:
   jwt:
     # Test-only key; real keys come from the environment
     secret: test-secret-that-is-at-least-32-bytes-long!!
+  rate-limit:
+    auth:
+      # Integration tests sign in far more often than any person; the limiter has its own focused tests
+      requests-per-minute: 1000000
+  passkey:
+    max-live-login-ceremonies: 1000000
   riot:
     # Integration tests talk to the generated League data, never to Riot
     fake: true

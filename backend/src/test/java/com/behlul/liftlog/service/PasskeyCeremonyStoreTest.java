@@ -3,6 +3,7 @@ package com.behlul.liftlog.service;
 import com.behlul.liftlog.entity.WebAuthnCeremony;
 import com.behlul.liftlog.entity.WebAuthnCeremony.Kind;
 import com.behlul.liftlog.exception.InvalidPasskeyException;
+import com.behlul.liftlog.exception.TooManyRequestsException;
 import com.behlul.liftlog.repository.WebAuthnCeremonyRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -28,17 +29,31 @@ class PasskeyCeremonyStoreTest {
     private static final LocalDateTime NOW_LOCAL = LocalDateTime.ofInstant(NOW, ZoneOffset.UTC);
 
     private final WebAuthnCeremonyRepository repository = mock(WebAuthnCeremonyRepository.class);
-    private final PasskeyCeremonyStore store = new PasskeyCeremonyStore(repository, Clock.fixed(NOW, ZoneOffset.UTC));
+    private final PasskeyCeremonyStore store = new PasskeyCeremonyStore(repository, Clock.fixed(NOW, ZoneOffset.UTC), 3);
 
     @Test
     void startSweepsExpiredRowsAndStoresFiveMinutes() {
-        UUID id = store.start(Kind.LOGIN, null, "{}");
+        PasskeyCeremonyStore.Started started = store.start(Kind.LOGIN, null, "{}");
 
         verify(repository).deleteExpired(NOW_LOCAL);
         ArgumentCaptor<WebAuthnCeremony> saved = ArgumentCaptor.forClass(WebAuthnCeremony.class);
         verify(repository).save(saved.capture());
-        assertThat(saved.getValue().getId()).isEqualTo(id);
+        assertThat(saved.getValue().getId()).isEqualTo(started.id());
         assertThat(saved.getValue().getExpiresAt()).isEqualTo(NOW_LOCAL.plusMinutes(5));
+        assertThat(started.expiresAt()).isEqualTo(NOW.plusSeconds(300));
+    }
+
+    @Test
+    void liveSignInCeremoniesAreCappedButRegistrationsAreNot() {
+        when(repository.countByKindAndExpiresAtAfter(Kind.LOGIN, NOW_LOCAL)).thenReturn(3L);
+
+        assertThatThrownBy(() -> store.start(Kind.LOGIN, null, "{}"))
+                .isInstanceOf(TooManyRequestsException.class);
+        verify(repository, never()).save(any());
+
+        // A registration needs a signed-in user, so it is not part of the anonymous flood the cap is for
+        store.start(Kind.REGISTER, 7L, "{}");
+        verify(repository).save(any());
     }
 
     @Test

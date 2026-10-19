@@ -48,6 +48,11 @@ final class SoftwareAuthenticator {
     /** The user handle from the creation options; a real passkey stores it and returns it on sign-in. */
     private byte[] userHandle;
 
+    // What a misbehaving or phishing client could change; the defaults are a well-behaved phone on the web app
+    private String origin = ORIGIN;
+    private String rpIdForHash = RP_ID;
+    private boolean userVerified = true;
+
     SoftwareAuthenticator(JsonMapper json) {
         this.json = json;
         this.keyPair = newKeyPair();
@@ -62,11 +67,37 @@ final class SoftwareAuthenticator {
         return userHandle;
     }
 
+    /** A page on another origin (e.g. a phishing site) relaying the server's options. */
+    SoftwareAuthenticator usingOrigin(String origin) {
+        this.origin = origin;
+        return this;
+    }
+
+    /** An authenticator answering for another site (rpIdHash of a different RP id). */
+    SoftwareAuthenticator usingRpId(String rpId) {
+        this.rpIdForHash = rpId;
+        return this;
+    }
+
+    /** Clears the UV flag: the user only tapped, no Face ID or device PIN. */
+    SoftwareAuthenticator withoutUserVerification() {
+        this.userVerified = false;
+        return this;
+    }
+
+    /** Back to a well-behaved phone. */
+    SoftwareAuthenticator behaving() {
+        origin = ORIGIN;
+        rpIdForHash = RP_ID;
+        userVerified = true;
+        return this;
+    }
+
     /** Answers navigator.credentials.create({publicKey}) and returns the credential as the web app sends it. */
     JsonNode create(JsonNode publicKey) {
         userHandle = B64URL_DECODER.decode(publicKey.get("user").get("id").asString());
         byte[] clientData = clientData("webauthn.create", publicKey.get("challenge").asString());
-        byte[] authData = concat(rpIdHash(), new byte[]{(byte) (USER_PRESENT | USER_VERIFIED | BACKUP_ELIGIBLE
+        byte[] authData = concat(rpIdHash(), new byte[]{(byte) (USER_PRESENT | uvFlag() | BACKUP_ELIGIBLE
                         | BACKED_UP | ATTESTED_CREDENTIAL_DATA)}, counter(),
                 new byte[16], // AAGUID: all zero, as for attestation "none"
                 ByteBuffer.allocate(2).putShort((short) credentialId.length).array(), credentialId, coseKey());
@@ -95,7 +126,7 @@ final class SoftwareAuthenticator {
     private JsonNode get(JsonNode publicKey, byte[] handle, PrivateKey signingKey) {
         byte[] clientData = clientData("webauthn.get", publicKey.get("challenge").asString());
         byte[] authData = concat(rpIdHash(),
-                new byte[]{(byte) (USER_PRESENT | USER_VERIFIED | BACKUP_ELIGIBLE | BACKED_UP)}, counter());
+                new byte[]{(byte) (USER_PRESENT | uvFlag() | BACKUP_ELIGIBLE | BACKED_UP)}, counter());
         byte[] signature = sign(signingKey, concat(authData, sha256(clientData)));
         ObjectNode response = json.createObjectNode()
                 .put("clientDataJSON", B64URL.encodeToString(clientData))
@@ -120,9 +151,13 @@ final class SoftwareAuthenticator {
         ObjectNode clientData = json.createObjectNode()
                 .put("type", type)
                 .put("challenge", challenge)
-                .put("origin", ORIGIN)
+                .put("origin", origin)
                 .put("crossOrigin", false);
         return json.writeValueAsString(clientData).getBytes(StandardCharsets.UTF_8);
+    }
+
+    private int uvFlag() {
+        return userVerified ? USER_VERIFIED : 0;
     }
 
     /** Synced passkeys (iCloud Keychain) always report a signature counter of 0. */
@@ -184,8 +219,8 @@ final class SoftwareAuthenticator {
         return out;
     }
 
-    private static byte[] rpIdHash() {
-        return sha256(RP_ID.getBytes(StandardCharsets.UTF_8));
+    private byte[] rpIdHash() {
+        return sha256(rpIdForHash.getBytes(StandardCharsets.UTF_8));
     }
 
     private static byte[] sign(PrivateKey key, byte[] data) {

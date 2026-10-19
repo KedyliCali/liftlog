@@ -1,6 +1,7 @@
 package com.behlul.liftlog.repository;
 
 import com.behlul.liftlog.entity.WebAuthnCeremony;
+import com.behlul.liftlog.entity.WebAuthnCeremony.Kind;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -21,6 +22,8 @@ public interface WebAuthnCeremonyRepository extends JpaRepository<WebAuthnCeremo
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from WebAuthnCeremony c where c.id = :id")
     Optional<WebAuthnCeremony> findByIdForUpdate(@Param("id") UUID id);
+
+    long countByKindAndExpiresAtAfter(Kind kind, LocalDateTime now);
 
     @Modifying
     @Query("delete from WebAuthnCeremony c where c.expiresAt < :now")

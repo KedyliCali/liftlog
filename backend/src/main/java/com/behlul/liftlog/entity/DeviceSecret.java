@@ -30,6 +30,10 @@ public class DeviceSecret {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    /** Decides eviction: the least recently used secret goes first (see AuthService.MAX_DEVICE_SECRETS). */
+    @Column(name = "last_used_at")
+    private LocalDateTime lastUsedAt;
+
     protected DeviceSecret() {
     }
 
@@ -37,6 +41,16 @@ public class DeviceSecret {
         this.userId = userId;
         this.secretHash = secretHash;
         this.createdAt = createdAt;
+        // Getting the secret is its first use, so a brand-new device is not the first one evicted
+        this.lastUsedAt = createdAt;
+    }
+
+    public void markUsed(LocalDateTime now) {
+        this.lastUsedAt = now;
+    }
+
+    public LocalDateTime getLastUsedAt() {
+        return lastUsedAt;
     }
 
     public Long getId() {

@@ -43,6 +43,17 @@ liftlog:
     api-key: ${RIOT_API_KEY:}
     # Local development only: generated League data, no key needed
     fake: ${RIOT_FAKE:false}
+  rate-limit:
+    auth:
+      # Per client IP, shared by login, register and the passkey sign-in endpoints
+      requests-per-minute: ${AUTH_RATE_LIMIT_PER_MINUTE:30}
+      # Clients tracked at once; bounds the limiter's memory
+      max-clients: 10000
+  passkey:
+    # Empty: the host of the first allowed origin
+    rp-id: ${PASSKEY_RP_ID:}
+    # Unexpired anonymous sign-in ceremonies allowed at once, across all clients
+    max-live-login-ceremonies: 500
   jwt:
     # Required; at least 32 bytes. Set via JWT_SECRET in .env (local) or the server environment.
     secret: ${JWT_SECRET}

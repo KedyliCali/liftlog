@@ -17,6 +17,11 @@ public interface PasskeyRepository extends JpaRepository<Passkey, Long> {
 
     Optional<Passkey> findByCredentialId(String credentialId);
 
+    /** Part of a password change, which runs in its own transaction. */
+    @Modifying
+    @Query("delete from Passkey p where p.userId = :userId")
+    int deleteByUserId(@Param("userId") Long userId);
+
     /** Called right after a verified sign-in, outside any other transaction, so it brings its own. */
     @Transactional
     @Modifying

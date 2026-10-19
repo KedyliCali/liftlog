@@ -51,7 +51,6 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Passkey backup: register a passkey on a signed-in device, and sign in with it on a device that lost its
@@ -115,8 +114,9 @@ public class PasskeyService {
                         .build())
                 .build());
         try {
-            UUID ceremonyId = ceremonies.start(Kind.REGISTER, userId, options.toJson());
-            return new PasskeyOptionsResponse(ceremonyId, publicKeyOf(options.toCredentialsCreateJson()));
+            PasskeyCeremonyStore.Started ceremony = ceremonies.start(Kind.REGISTER, userId, options.toJson());
+            return new PasskeyOptionsResponse(ceremony.id(), ceremony.expiresAt(),
+                    publicKeyOf(options.toCredentialsCreateJson()));
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Could not serialize passkey creation options", e);
         }
@@ -171,8 +171,9 @@ public class PasskeyService {
                 .userVerification(UserVerificationRequirement.REQUIRED)
                 .build());
         try {
-            UUID ceremonyId = ceremonies.start(Kind.LOGIN, null, request.toJson());
-            return new PasskeyOptionsResponse(ceremonyId, publicKeyOf(request.toCredentialsGetJson()));
+            PasskeyCeremonyStore.Started ceremony = ceremonies.start(Kind.LOGIN, null, request.toJson());
+            return new PasskeyOptionsResponse(ceremony.id(), ceremony.expiresAt(),
+                    publicKeyOf(request.toCredentialsGetJson()));
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Could not serialize passkey request options", e);
         }
@@ -211,7 +212,7 @@ public class PasskeyService {
         Passkey passkey = passkeyRepository.findByCredentialId(result.getCredentialId().getBase64Url())
                 .orElseThrow(() -> new InvalidCredentialsException("Passkey sign-in failed"));
         passkeyRepository.recordUse(passkey.getId(), result.getSignatureCount(), LocalDateTime.now(clock));
-        return authService.signInWithNewDeviceSecret(passkey.getUserId(), request.deviceSecret());
+        return authService.signInWithNewDeviceSecret(passkey.getUserId(), passkey.getId(), request.deviceSecret());
     }
 
     /**

@@ -10,8 +10,12 @@ import java.util.List;
 
 public interface DeviceSecretRepository extends JpaRepository<DeviceSecret, Long> {
 
-    /** Newest first: the device that signed in most recently is the most likely one to sign in again. */
-    List<DeviceSecret> findByUserIdOrderByCreatedAtDescIdDesc(Long userId);
+    /**
+     * Most recently used first; a secret that was never marked used counts as the oldest. Eviction drops
+     * the tail of this list, and login tries the head first.
+     */
+    @Query("select d from DeviceSecret d where d.userId = :userId order by d.lastUsedAt desc nulls last, d.id desc")
+    List<DeviceSecret> findByUserIdMostRecentlyUsedFirst(@Param("userId") Long userId);
 
     @Modifying
     @Query("delete from DeviceSecret d where d.userId = :userId")

@@ -19,6 +19,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -57,6 +58,7 @@ class PasskeyIntegrationTest {
         SoftwareAuthenticator phone = new SoftwareAuthenticator(jsonMapper);
 
         JsonNode creation = registrationOptions(token);
+        assertExpiresInFiveMinutes(creation);
         JsonNode publicKey = creation.get("publicKey");
         assertThat(publicKey.get("rp").get("id").asString()).isEqualTo("localhost");
         assertThat(publicKey.get("rp").get("name").asString()).isEqualTo("LiftLog");
@@ -84,6 +86,7 @@ class PasskeyIntegrationTest {
 
         // The phone lost its data: anonymous sign-in with the passkey and a fresh device secret
         JsonNode request = loginOptions();
+        assertExpiresInFiveMinutes(request);
         assertThat(request.get("publicKey").path("allowCredentials").size()).isZero();
         assertThat(request.get("publicKey").get("userVerification").asString()).isEqualTo("required");
         assertThat(request.get("publicKey").get("rpId").asString()).isEqualTo("localhost");
@@ -234,7 +237,7 @@ class PasskeyIntegrationTest {
     }
 
     @Test
-    void newPasswordDeletesDeviceSecretsAndSignsEveryoneOut() throws Exception {
+    void newPasswordDeletesDeviceSecretsAndPasskeysAndSignsEveryoneOut() throws Exception {
         String email = randomEmail();
         String originalToken = register(email);
         SoftwareAuthenticator phone = new SoftwareAuthenticator(jsonMapper);
@@ -246,9 +249,9 @@ class PasskeyIntegrationTest {
                 .andExpect(status().isOk()).andReturn()).get("token").asString();
 
         // The restored device knows only its device secret; that is enough as the current password
-        authed(put("/api/v1/profile/password"), passkeyToken,
+        String newToken = read(authed(put("/api/v1/profile/password"), passkeyToken,
                 json("{'currentPassword':'%s','newPassword':'second-password-1'}", deviceSecret))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk()).andReturn()).get("token").asString();
 
         login(email, deviceSecret).andExpect(status().isUnauthorized());
         login(email, PASSWORD).andExpect(status().isUnauthorized());
@@ -256,31 +259,104 @@ class PasskeyIntegrationTest {
         me(originalToken).andExpect(status().isUnauthorized());
         me(passkeyToken).andExpect(status().isUnauthorized());
 
-        // The passkey itself survives: it is the backup, and it can hand out a new device secret
+        // "New code" cuts off everything: a lost phone still holding the passkey cannot come back with it
         JsonNode later = loginOptions();
-        String laterSecret = newDeviceSecret();
-        passkeyLogin(later, phone.get(later.get("publicKey")), laterSecret).andExpect(status().isOk());
-        login(email, laterSecret).andExpect(status().isOk());
+        passkeyLogin(later, phone.get(later.get("publicKey")), newDeviceSecret())
+                .andExpect(status().isUnauthorized());
+        authed(get("/api/v1/profile/passkeys"), newToken, null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test
-    void onlyTheNewestTenDeviceSecretsAreKept() throws Exception {
+    void aDeviceSecretWorksAsTheCurrentPasswordForANewCode() throws Exception {
+        String email = randomEmail();
+        SoftwareAuthenticator phone = registeredPhone(email);
+        String deviceSecret = newDeviceSecret();
+        JsonNode request = loginOptions();
+        String token = read(passkeyLogin(request, phone.get(request.get("publicKey")), deviceSecret)
+                .andExpect(status().isOk()).andReturn()).get("token").asString();
+
+        authed(put("/api/v1/profile/password"), token, json("{'currentPassword':'%s','newPassword':'%s'}",
+                newDeviceSecret(), "second-password-1"))
+                .andExpect(status().isUnauthorized());
+        authed(put("/api/v1/profile/password"), token, json("{'currentPassword':'%s','newPassword':'%s'}",
+                deviceSecret, "second-password-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty());
+        login(email, "second-password-1").andExpect(status().isOk());
+    }
+
+    @Test
+    void deviceSecretsAreEvictedLeastRecentlyUsedFirst() throws Exception {
         String email = randomEmail();
         SoftwareAuthenticator phone = registeredPhone(email);
         List<String> secrets = new ArrayList<>();
-        for (int i = 0; i < 11; i++) {
-            String secret = newDeviceSecret();
-            JsonNode request = loginOptions();
-            passkeyLogin(request, phone.get(request.get("publicKey")), secret).andExpect(status().isOk());
-            secrets.add(secret);
+        for (int i = 0; i < 20; i++) {
+            secrets.add(passkeySignInWithNewSecret(phone));
         }
-        login(email, secrets.get(0)).andExpect(status().isUnauthorized());
-        login(email, secrets.get(1)).andExpect(status().isOk());
-        login(email, secrets.get(10)).andExpect(status().isOk());
+        // The oldest device keeps signing in, so it is now the most recently used
+        login(email, secrets.get(0)).andExpect(status().isOk());
+        // A secret whose last use is unknown counts as the oldest of all
+        jdbc.update("update device_secrets set last_used_at = null where id = (select max(d.id) from device_secrets d"
+                + " join users u on u.id = d.user_id where u.email = ?)", email);
+
+        // 21st secret: the one with no last use goes
+        secrets.add(passkeySignInWithNewSecret(phone));
+        login(email, secrets.get(19)).andExpect(status().isUnauthorized());
+        // 22nd: now the least recently used is secrets[1]; secrets[0] survives because it was used
+        secrets.add(passkeySignInWithNewSecret(phone));
+        login(email, secrets.get(1)).andExpect(status().isUnauthorized());
+        login(email, secrets.get(0)).andExpect(status().isOk());
+        login(email, secrets.get(2)).andExpect(status().isOk());
+        login(email, secrets.get(21)).andExpect(status().isOk());
         Integer stored = jdbc.queryForObject(
                 "select count(*) from device_secrets d join users u on u.id = d.user_id where u.email = ?",
                 Integer.class, email);
-        assertThat(stored).isEqualTo(10);
+        assertThat(stored).isEqualTo(20);
+    }
+
+    @Test
+    void userVerificationIsRequired() throws Exception {
+        String token = register(randomEmail());
+        SoftwareAuthenticator phone = new SoftwareAuthenticator(jsonMapper).withoutUserVerification();
+        JsonNode creation = registrationOptions(token);
+        authed(post("/api/v1/profile/passkeys"), token, registerBody(creation, phone.create(creation.get("publicKey"))))
+                .andExpect(status().isBadRequest());
+
+        addPasskey(token, phone.behaving());
+        JsonNode request = loginOptions();
+        passkeyLogin(request, phone.withoutUserVerification().get(request.get("publicKey")), newDeviceSecret())
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void anotherOriginOrRpIdIsRejected() throws Exception {
+        String token = register(randomEmail());
+        SoftwareAuthenticator phone = new SoftwareAuthenticator(jsonMapper);
+
+        JsonNode creation = registrationOptions(token);
+        authed(post("/api/v1/profile/passkeys"), token,
+                registerBody(creation, phone.usingOrigin("https://evil.example").create(creation.get("publicKey"))))
+                .andExpect(status().isBadRequest());
+        JsonNode creation2 = registrationOptions(token);
+        authed(post("/api/v1/profile/passkeys"), token,
+                registerBody(creation2, phone.behaving().usingRpId("evil.example").create(creation2.get("publicKey"))))
+                .andExpect(status().isBadRequest());
+
+        addPasskey(token, phone.behaving());
+        JsonNode request = loginOptions();
+        passkeyLogin(request, phone.usingOrigin("https://evil.example").get(request.get("publicKey")), newDeviceSecret())
+                .andExpect(status().isUnauthorized());
+        JsonNode request2 = loginOptions();
+        passkeyLogin(request2, phone.behaving().usingRpId("evil.example").get(request2.get("publicKey")),
+                newDeviceSecret())
+                .andExpect(status().isUnauthorized());
+
+        // The same passkey, well behaved, still works
+        JsonNode request3 = loginOptions();
+        passkeyLogin(request3, phone.behaving().get(request3.get("publicKey")), newDeviceSecret())
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -299,6 +375,14 @@ class PasskeyIntegrationTest {
                         .content(jsonMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors.deviceSecret").exists());
+        // 43 characters, but not base64url; and base64url, but 44 characters
+        for (String wrongShape : List.of("+".repeat(43), "a".repeat(44))) {
+            body.put("deviceSecret", wrongShape);
+            mockMvc.perform(post("/api/v1/auth/passkey").contentType(MediaType.APPLICATION_JSON)
+                            .content(jsonMapper.writeValueAsString(body)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.fieldErrors.deviceSecret").exists());
+        }
 
         // A credential that is not a WebAuthn response at all
         body.put("deviceSecret", newDeviceSecret());
@@ -309,6 +393,21 @@ class PasskeyIntegrationTest {
     }
 
     // --- helpers ---
+
+    private String passkeySignInWithNewSecret(SoftwareAuthenticator phone) throws Exception {
+        String secret = newDeviceSecret();
+        JsonNode request = loginOptions();
+        passkeyLogin(request, phone.get(request.get("publicKey")), secret).andExpect(status().isOk());
+        return secret;
+    }
+
+    /** ISO-8601 in UTC ("...Z"), about five minutes ahead. */
+    private static void assertExpiresInFiveMinutes(JsonNode options) {
+        String expiresAt = options.get("expiresAt").asString();
+        assertThat(expiresAt).endsWith("Z");
+        assertThat(Instant.parse(expiresAt))
+                .isBetween(Instant.now().plusSeconds(240), Instant.now().plusSeconds(301));
+    }
 
     private SoftwareAuthenticator registeredPhone(String email) throws Exception {
         String token = register(email);
