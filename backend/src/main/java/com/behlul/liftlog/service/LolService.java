@@ -32,6 +32,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -40,6 +42,9 @@ import java.util.Set;
  * Follows League players for the current user. Riot data is cached and refreshed lazily: a player is
  * re-fetched when someone looks at them and the copy is older than {@link #STALE_AFTER}. When Riot cannot
  * answer, the cached copy is shown instead of an error.
+ *
+ * <p>Every refresh first claims the player's row (see {@link LolPlayerRepository#claimForRefresh}), so two
+ * people looking at the same player at once never refresh them twice.
  */
 @Service
 public class LolService {
@@ -54,8 +59,20 @@ public class LolService {
     static final int MAX_NEW_MATCHES_PER_REFRESH = 10;
     /** Requests a full refresh may need (profile, rank, match list and new matches), checked before starting. */
     static final int REQUESTS_PER_REFRESH = 3 + MAX_NEW_MATCHES_PER_REFRESH;
+    /** One page view refreshes at most this many players, stalest first; the rest show cached data. */
+    static final int MAX_REFRESHES_PER_VIEW = 4;
+    /** Left for actions after background refreshes: one account lookup plus one refresh (a follow or a link). */
+    static final int RESERVED_FOR_ACTIONS = 1 + REQUESTS_PER_REFRESH;
     static final int MAX_TRACKED = 20;
     static final String SOLO_QUEUE = "RANKED_SOLO_5x5";
+
+    private enum RefreshOutcome {
+        /** Fresh already, or another request is refreshing the player right now. */
+        SKIPPED,
+        REFRESHED,
+        /** Riot has no League profile for the player on their server; nothing was changed. */
+        NO_PROFILE
+    }
 
     private final LolPlayerRepository playerRepository;
     private final LolMatchPlayerRepository matchRepository;
@@ -77,15 +94,26 @@ public class LolService {
     /** Looks the Riot ID up and follows it. Needs Riot to answer, since there is nothing cached yet. */
     @Transactional
     public LolPlayerResponse track(TrackPlayerRequest request) {
+        Long userId = currentUser.currentUserId();
+        if (playerRepository.countTrackedBy(userId) >= MAX_TRACKED) {
+            throw new ConflictException("You can follow at most " + MAX_TRACKED + " players");
+        }
+        LolPlayer player = findAndCache(request);
+        playerRepository.track(userId, player.getPuuid());
+        return toResponse(player);
+    }
+
+    /**
+     * Looks a Riot ID up and stores the player in the shared cache, refreshing them if stale. Runs in the
+     * caller's transaction, so a failure also undoes the caller's own changes (a follow or a group link).
+     */
+    @Transactional
+    public LolPlayer findAndCache(TrackPlayerRequest request) {
         LolPlatform platform = LolPlatform.parse(request.platform()).orElseThrow();
         int hash = request.riotId().lastIndexOf('#');
         String gameName = request.riotId().substring(0, hash).trim();
         String tagLine = request.riotId().substring(hash + 1).trim();
 
-        Long userId = currentUser.currentUserId();
-        if (playerRepository.countTrackedBy(userId) >= MAX_TRACKED) {
-            throw new ConflictException("You can follow at most " + MAX_TRACKED + " players");
-        }
         RiotClient.Account account = riot.findAccount(platform, gameName, tagLine)
                 .orElseThrow(() -> new RiotIdNotFoundException(gameName + "#" + tagLine, platform.name()));
 
@@ -96,45 +124,36 @@ public class LolService {
         playerRepository.saveAndFlush(player);
         // The account exists (account-v1 is regional) but has no profile on the chosen server: same answer as a
         // missing Riot ID, and the exception rolls the new row back
-        if (isStale(player) && !refresh(player)) {
+        if (refreshIfStale(player, STALE_AFTER) == RefreshOutcome.NO_PROFILE) {
             throw new RiotIdNotFoundException(gameName + "#" + tagLine, platform.name());
         }
-        playerRepository.track(userId, player.getPuuid());
-        return toResponse(player);
+        return player;
     }
 
-    /** The follow list, refreshing stale players while the request budget allows. */
+    /** The follow list, refreshing its stalest players while the request budget allows. */
     @Transactional
     public List<LolPlayerResponse> list() {
         List<LolPlayer> players = playerRepository.findTrackedBy(currentUser.currentUserId());
-        for (LolPlayer player : players) {
-            refreshQuietly(player);
-        }
+        refreshSomeStale(players);
         return players.stream().map(this::toResponse).toList();
     }
 
     @Transactional
     public LolPlayerDetailResponse detail(String puuid) {
         LolPlayer player = loadTracked(puuid);
-        refreshQuietly(player);
-        List<LolMatchPlayer> matches = recentMatches(puuid);
-        return new LolPlayerDetailResponse(toResponse(player, matches), LolStats.summarize(matches),
-                matches.stream().map(LolMatchResponse::from).toList());
+        refreshSomeStale(List.of(player));
+        return detailOf(player);
     }
 
     /** Pull-to-refresh: reports Riot problems, unlike the automatic refreshes. */
     @Transactional
     public LolPlayerDetailResponse refreshNow(String puuid) {
         LolPlayer player = loadTracked(puuid);
-        boolean recentlyRefreshed = player.getRefreshedAt() != null
-                && player.getRefreshedAt().isAfter(now().minus(MIN_MANUAL_REFRESH));
-        if (!recentlyRefreshed && !refresh(player)) {
+        if (refreshIfStale(player, MIN_MANUAL_REFRESH) == RefreshOutcome.NO_PROFILE) {
             throw new RiotUnavailableException(Reason.RIOT_ERROR,
                     "Riot has no League profile for this player on " + player.getPlatform());
         }
-        List<LolMatchPlayer> matches = recentMatches(puuid);
-        return new LolPlayerDetailResponse(toResponse(player, matches), LolStats.summarize(matches),
-                matches.stream().map(LolMatchResponse::from).toList());
+        return detailOf(player);
     }
 
     @Transactional
@@ -142,6 +161,40 @@ public class LolService {
         if (playerRepository.untrack(currentUser.currentUserId(), puuid) == 0) {
             throw new ResourceNotFoundException("Followed player", puuid);
         }
+    }
+
+    /**
+     * Background refresh for a page view: stalest players first, at most {@link #MAX_REFRESHES_PER_VIEW},
+     * and never below the reserve for actions. Riot problems are logged and the cached data is shown.
+     */
+    public void refreshSomeStale(Collection<LolPlayer> players) {
+        int refreshed = 0;
+        for (LolPlayer player : staleFirst(players, now().minus(STALE_AFTER))) {
+            if (refreshed == MAX_REFRESHES_PER_VIEW || limiter.remaining() < REQUESTS_PER_REFRESH + RESERVED_FOR_ACTIONS) {
+                return;
+            }
+            try {
+                switch (refreshIfStale(player, STALE_AFTER)) {
+                    case REFRESHED -> refreshed++;
+                    case NO_PROFILE -> log.info("Riot has no League profile for {} on {}; showing cached data",
+                            player.getPuuid(), player.getPlatform());
+                    // Another viewer holds this player; theirs is refreshed by them, so move on to the next one
+                    case SKIPPED -> { }
+                }
+            } catch (RiotUnavailableException e) {
+                // Riot down, key missing or budget gone: the remaining players would fail the same way
+                log.info("Showing cached League data: {}", e.getMessage());
+                return;
+            }
+        }
+    }
+
+    /** Stale players only, never-refreshed ones first, then the oldest data. */
+    static List<LolPlayer> staleFirst(Collection<LolPlayer> players, LocalDateTime staleBefore) {
+        return players.stream()
+                .filter(p -> p.getRefreshedAt() == null || p.getRefreshedAt().isBefore(staleBefore))
+                .sorted(Comparator.comparing(LolPlayer::getRefreshedAt, Comparator.nullsFirst(Comparator.naturalOrder())))
+                .toList();
     }
 
     private LolPlayer loadTracked(String puuid) {
@@ -152,26 +205,18 @@ public class LolService {
         return playerRepository.findById(puuid).orElseThrow(() -> new ResourceNotFoundException("Followed player", puuid));
     }
 
-    private void refreshQuietly(LolPlayer player) {
-        if (!isStale(player) || limiter.remaining() < REQUESTS_PER_REFRESH) {
-            return;
+    /**
+     * Refreshes the player when their data is older than {@code olderThan}. The claim locks their row until
+     * this transaction ends, so only its holder downloads and stores their matches.
+     */
+    private RefreshOutcome refreshIfStale(LolPlayer player, Duration olderThan) {
+        if (playerRepository.claimForRefresh(player.getPuuid(), now().minus(olderThan)).isEmpty()) {
+            return RefreshOutcome.SKIPPED;
         }
-        try {
-            if (!refresh(player)) {
-                log.info("Riot has no League profile for {} on {}; showing cached data", player.getPuuid(),
-                        player.getPlatform());
-            }
-        } catch (RiotUnavailableException e) {
-            log.info("Showing cached League data for {}: {}", player.getPuuid(), e.getMessage());
-        }
-    }
-
-    /** False when Riot has no League profile for the player on their server; nothing is changed then. */
-    private boolean refresh(LolPlayer player) {
         LolPlatform platform = LolPlatform.parse(player.getPlatform()).orElseThrow();
         Optional<Summoner> found = riot.summoner(platform, player.getPuuid());
         if (found.isEmpty()) {
-            return false;
+            return RefreshOutcome.NO_PROFILE;
         }
         player.updateProfile(found.get().profileIconId(), found.get().summonerLevel());
 
@@ -189,7 +234,7 @@ public class LolService {
                 .forEach(id -> storeMatch(riot.match(platform, id), player.getPuuid()));
         player.markRefreshed(now());
         playerRepository.save(player);
-        return true;
+        return RefreshOutcome.REFRESHED;
     }
 
     private void storeMatch(Match match, String puuid) {
@@ -201,19 +246,21 @@ public class LolService {
                         p.win())));
     }
 
-    private List<LolMatchPlayer> recentMatches(String puuid) {
-        return matchRepository.findByPuuidOrderByEndedAtDesc(puuid, PageRequest.of(0, MATCHES_SHOWN));
+    private LolPlayerDetailResponse detailOf(LolPlayer player) {
+        List<LolMatchPlayer> matches = recentMatches(player.getPuuid());
+        return new LolPlayerDetailResponse(toResponse(player, matches), LolStats.summarize(matches),
+                matches.stream().map(LolMatchResponse::from).toList());
     }
 
-    private boolean isStale(LolPlayer player) {
-        return player.getRefreshedAt() == null || player.getRefreshedAt().isBefore(now().minus(STALE_AFTER));
+    private List<LolMatchPlayer> recentMatches(String puuid) {
+        return matchRepository.findByPuuidOrderByEndedAtDesc(puuid, PageRequest.of(0, MATCHES_SHOWN));
     }
 
     private LocalDateTime now() {
         return LocalDateTime.now(clock);
     }
 
-    private LolPlayerResponse toResponse(LolPlayer player) {
+    public LolPlayerResponse toResponse(LolPlayer player) {
         return toResponse(player, recentMatches(player.getPuuid()));
     }
 

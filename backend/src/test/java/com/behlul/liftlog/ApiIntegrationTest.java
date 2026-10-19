@@ -1,5 +1,7 @@
 package com.behlul.liftlog;
 
+import com.behlul.liftlog.entity.LolPlayer;
+import com.behlul.liftlog.repository.LolPlayerRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,13 +17,22 @@ import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -47,6 +58,8 @@ class ApiIntegrationTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private JsonMapper jsonMapper;
     @Autowired private JwtEncoder jwtEncoder;
+    @Autowired private LolPlayerRepository playerRepository;
+    @Autowired private PlatformTransactionManager transactionManager;
 
     @Test
     void protectedEndpointsRequireAToken() throws Exception {
@@ -406,6 +419,54 @@ class ApiIntegrationTest {
                 .andExpect(status().isNoContent());
         mockMvc.perform(get("/api/v1/lol/players").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void refreshClaimLetsOneRequestRefreshAPlayerAtATime() throws Exception {
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        String puuid = "claim-" + UUID.randomUUID();
+        LocalDateTime now = LocalDateTime.now();
+        tx.executeWithoutResult(status -> playerRepository.save(new LolPlayer(puuid, "TR1", "Claim", "TR1")));
+
+        ExecutorService threads = Executors.newFixedThreadPool(2);
+        CountDownLatch claimed = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        try {
+            // The first request claims the never-refreshed player and keeps its transaction open
+            Future<Optional<String>> first = threads.submit(() -> tx.execute(status -> {
+                Optional<String> claim = playerRepository.claimForRefresh(puuid, now);
+                claimed.countDown();
+                awaitQuietly(release);
+                return claim;
+            }));
+            assertThat(claimed.await(10, TimeUnit.SECONDS)).isTrue();
+
+            // A second request skips the row at once instead of waiting for the first one to commit
+            Future<Optional<String>> second = threads.submit(() -> tx.execute(status ->
+                    playerRepository.claimForRefresh(puuid, now)));
+            assertThat(second.get(5, TimeUnit.SECONDS)).isEmpty();
+
+            release.countDown();
+            assertThat(first.get(10, TimeUnit.SECONDS)).contains(puuid);
+        } finally {
+            release.countDown();
+            threads.shutdownNow();
+        }
+
+        tx.executeWithoutResult(status -> playerRepository.findById(puuid).orElseThrow().markRefreshed(now));
+        // Fresh data is not claimed; once it is older than the cut-off, it is again
+        Optional<String> whileFresh = tx.execute(status -> playerRepository.claimForRefresh(puuid, now.minusMinutes(10)));
+        Optional<String> onceStale = tx.execute(status -> playerRepository.claimForRefresh(puuid, now.plusMinutes(1)));
+        assertThat(whileFresh).isEmpty();
+        assertThat(onceStale).contains(puuid);
+    }
+
+    private static void awaitQuietly(CountDownLatch latch) {
+        try {
+            latch.await(10, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     @Test
