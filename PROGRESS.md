@@ -363,3 +363,21 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
 **Sıradaki adımlar:**
 1. PR aç ve birleştir; canlıda özet ve seri uçlarını kontrol et.
 2. Android'e aynı özet ve seri (isteğe bağlı).
+
+## 2026-10-19 — Verilerini indir (branch `feature/data-export`)
+
+- **Backend:** `GET /api/v1/export/workouts.csv` (set başına bir satır: tarih, not, hareket, set, ağırlık, tekrar, RPE,
+  vücut ağırlığı bayrağı, tahmini 1RM), `/nutrition.csv` (tarih, yemek, kcal, protein, karbonhidrat, yağ) ve `/all.zip`
+  (iki CSV + `profile.json`: ad, boy, kilo, hedefler; e-posta/şifre/token asla). `CsvWriter`: UTF-8 BOM, `;` ayraç,
+  ondalık virgül, RFC 4180 tırnaklama, `=+-@` ile başlayan metne `'` (CSV injection). Satırlar `Stream` + fetch size ile
+  doğrudan yanıta akıyor; kullanıcı kimliği token'dan. CORS `Content-Disposition` başlığını açıyor. Migration yok.
+- **Web:** Profil → "Verilerini indir" kartı (Antrenmanlar CSV, Beslenme CSV, Hepsi ZIP). `requestFile` token'la indirir;
+  `saveFile` iPhone/iPad'de `navigator.share({files})`, diğerlerinde `<a download>`. Safari dokunma süresi dolarsa
+  (`NotAllowedError`) kartta "Kaydet" butonu çıkar.
+- Beslenme CSV'sinde **gram sütunu yok**: `food_entries` porsiyon gramını saklamıyor (migration istenmedi).
+- Doğrulama: `mvnw verify` (CsvWriterTest 13, ExportIntegrationTest 6), web 344 test, tsc, lint, build. Yerel Postgres +
+  backend + Vite ile tarayıcıda (375 px): kart, CSV içeriği ve ZIP indirme gerçek API ile.
+
+**Sıradaki adımlar:**
+1. PR aç; gerçek iPhone'da (Safari + ana ekran uygulaması) paylaşım sayfasını dene.
+2. Gram isteniyorsa `food_entries.grams` için migration (ayrı iş).

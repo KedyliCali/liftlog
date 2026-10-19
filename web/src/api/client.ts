@@ -67,8 +67,9 @@ interface RequestOptions {
   responseType?: 'json' | 'blob' | 'none'
 }
 
-export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, blob, anonymous = false, responseType = 'json' } = options
+/** Sends the request and turns a failed status into an AppError; callers read the body they expect. */
+async function send(path: string, options: RequestOptions): Promise<Response> {
+  const { method = 'GET', body, blob, anonymous = false } = options
   const headers: Record<string, string> = {}
   const token = anonymous ? null : tokenSource.getToken()
   if (token) headers.Authorization = `Bearer ${token}`
@@ -92,7 +93,41 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     const errorBody = (await response.json().catch(() => null)) as ApiErrorBody | null
     throw errorFromResponse(response.status, errorBody)
   }
+  return response
+}
+
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { responseType = 'json' } = options
+  const response = await send(path, options)
   if (responseType === 'none' || response.status === 204) return undefined as T
   if (responseType === 'blob') return (await response.blob()) as T
   return (await response.json()) as T
+}
+
+export interface DownloadedFile {
+  blob: Blob
+  /** The name the server chose (Content-Disposition), or null when it did not send one. */
+  filename: string | null
+}
+
+/** A file download that still carries the bearer token, which a plain link to the API cannot. */
+export async function requestFile(path: string): Promise<DownloadedFile> {
+  const response = await send(path, {})
+  return { blob: await response.blob(), filename: filenameFromDisposition(response.headers.get('Content-Disposition')) }
+}
+
+/** Reads `attachment; filename="x.csv"` or the RFC 5987 form `filename*=UTF-8''x.csv`. */
+export function filenameFromDisposition(header: string | null): string | null {
+  if (!header) return null
+  const encoded = /filename\*\s*=\s*UTF-8''([^;]+)/i.exec(header)
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded[1].trim())
+    } catch {
+      // Malformed escape: fall back to the plain parameter below
+    }
+  }
+  const plain = /filename\s*=\s*"([^"]*)"|filename\s*=\s*([^;]+)/i.exec(header)
+  const name = (plain?.[1] ?? plain?.[2])?.trim()
+  return name ? name : null
 }

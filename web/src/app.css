@@ -2779,6 +2779,164 @@ body:has(.rest-timer) .set-groups {
   font-size: 14px;
 }
 
+/* ---------- Data export ---------- */
+/* Card on an offset plate with a tag over its top edge; each format chip overlaps its tile's corner */
+.export-card {
+  position: relative;
+  margin: 10px 8px 22px 0;
+  padding: 18px 16px 16px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: 8px 8px 0 var(--surface-high);
+}
+
+.export-tag {
+  position: absolute;
+  top: -10px;
+  right: 14px;
+  padding: 2px 8px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-s);
+  background: var(--bg);
+  color: var(--primary);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.export-text {
+  margin: 10px 0 0;
+  font-size: 13px;
+}
+
+.export-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 10px;
+  margin-top: 18px;
+}
+
+.export-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 2px;
+  min-height: 64px;
+  padding: 12px;
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-l);
+  background: var(--surface-high);
+  color: var(--text);
+  text-align: left;
+  transition: transform 120ms var(--ease-out), box-shadow 120ms var(--ease-out);
+}
+
+.export-tile strong {
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.export-tile small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.export-tile:active:not(:disabled) {
+  transform: translate(2px, 2px);
+}
+
+.export-tile:disabled {
+  opacity: 0.6;
+}
+
+/* The ZIP tile spans the row in lime, lifted off a darker plate */
+.export-tile.all {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: 4px 4px 0 var(--primary-container);
+}
+
+.export-tile.all small {
+  color: var(--on-primary);
+  opacity: 0.75;
+}
+
+.export-tile.all:active:not(:disabled) {
+  box-shadow: 2px 2px 0 var(--primary-container);
+}
+
+.export-format {
+  position: absolute;
+  top: -8px;
+  right: 10px;
+  padding: 1px 6px;
+  border-radius: var(--radius-s);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.export-tile.all .export-format {
+  background: var(--on-primary);
+  color: var(--primary);
+}
+
+.export-tile-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-m);
+  background: var(--on-primary);
+  color: var(--primary);
+}
+
+.export-tile .spinner.small {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.export-ready {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-m);
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  font-size: 13px;
+}
+
+.export-ready span {
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+}
+
+.export-ready .btn {
+  flex: none;
+}
+
 /* ---------- Passkey backup ---------- */
 /* Card on an offset plate with a lime strip down its left edge and a "Passkey" tag overlapping the top */
 .backup-card {
