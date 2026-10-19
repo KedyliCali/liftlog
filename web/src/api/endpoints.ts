@@ -1,6 +1,6 @@
 import type { CreationOptionsJson, CredentialJson, RequestOptionsJson } from '../lib/webauthn'
 import { request } from './client'
-import type { AuthResponse, LolGroup, LolPlayer, LolPlayerDetail, LolRankPoint, CatalogFood, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, Passkey, PasskeyCeremony, PersonalRecord, PlanItem, Profile, ProgressPoint, Routine, RoutineInput, SetInput, WeeklyVolume, WorkoutDetail, WorkoutSet, WorkoutSummary } from './types'
+import type { AuthResponse, LolGroup, LolPlayer, LolPlayerDetail, LolRankPoint, CatalogFood, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, Passkey, PasskeyCeremony, PersonalRecord, PlanItem, Profile, ProgressPoint, Routine, RoutineInput, SetInput, Streak, WeeklyVolume, WorkoutDetail, WorkoutRecap, WorkoutSet, WorkoutSummary } from './types'
 
 export const api = {
   register: (email: string, password: string) =>
@@ -36,9 +36,11 @@ export const api = {
   startRoutine: (id: number, workoutDate?: string) =>
     request<WorkoutDetail>(`/api/v1/routines/${id}/start`, { method: 'POST', body: workoutDate ? { workoutDate } : {} }),
   workoutPlan: (workoutId: number) => request<PlanItem[]>(`/api/v1/workouts/${workoutId}/plan`),
+  workoutRecap: (workoutId: number) => request<WorkoutRecap>(`/api/v1/workouts/${workoutId}/summary`),
 
   personalRecords: () => request<PersonalRecord[]>('/api/v1/stats/prs'),
   progress: (exerciseId: number) => request<ProgressPoint[]>(`/api/v1/stats/progress?exerciseId=${exerciseId}`),
+  streak: () => request<Streak>('/api/v1/stats/streak'),
   weeklyVolume: (weeks: number) => request<WeeklyVolume[]>(`/api/v1/stats/volume?weeks=${weeks}`),
 
   nutritionDay: (date: string) => request<NutritionDay>(`/api/v1/nutrition/days/${date}`),
