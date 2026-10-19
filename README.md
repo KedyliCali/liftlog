@@ -29,6 +29,7 @@ the same JWT-secured Spring Boot REST API backed by PostgreSQL, packaged with Do
 - **In the gym:** rest timer after each set (vibration, plus a tone on iPhone), swipe a set or workout away with undo, start a new workout from a past one with its weights, confetti on a new PR.
 - **Nutrition:** search a built-in list of 315 Turkish dishes, breakfast foods, street food and basic ingredients (per-100 g values plus a typical serving; pick servings in halves or grams) or enter foods by hand. Tracks calories, protein, carbs and fat, shows where the day's calories came from, daily goals shown as two overlapping rings (with a protein suggestion of 1.8 g per kg body weight), one-tap "eat again" for your most frequent foods, swipe to delete with undo, and a day switcher.
 - **League of Legends tracker:** follow yourself and friends by Riot ID; a leaderboard by rank and LP, and per-player win rate, KDA, CS per minute, last ten results, top champions and recent matches. Riot data is cached on the server and refreshed lazily within a personal key's rate limits ([setup](docs/RIOT.md)).
+- **League friend groups:** create a group, share its 10-character invite code, and everyone who joins links their own Riot account to one shared board. The owner can rename, issue a new code and remove members; one refresh per player at a time across all viewers (row claim with `SKIP LOCKED`).
 - **Progress:** heaviest set and best estimated 1RM per exercise, an e1RM trend chart and weekly training volume.
 - **PR alerts:** the app celebrates when a new set beats your previous best.
 - **English and Turkish UI**, light and dark theme following the system.
@@ -143,6 +144,10 @@ All endpoints are under `/api/v1`. Everything except `auth/register`, `auth/logi
 | GET / POST | `/lol/players` | Followed League players with rank / follow a Riot ID |
 | GET / DELETE | `/lol/players/{puuid}` | Stats and recent matches / unfollow |
 | POST | `/lol/players/{puuid}/refresh` | Fetch fresh data from Riot (at most once a minute) |
+| GET / POST / PUT | `/lol/group` | Your League group and its board (204 when in none) / create / rename (owner) |
+| POST | `/lol/group/join`, `/lol/group/invite-code` | Join with an invite code / issue a new code (owner) |
+| PUT / DELETE | `/lol/group/me/account`, `/lol/group/me` | Link your own Riot account / leave the group |
+| DELETE | `/lol/group/members/{userId}` | Remove a member (owner); the invite code changes |
 | PUT | `/profile/password` | Change the password (the web app's "New code"); every older token stops working |
 | GET | `/foods` | Built-in food catalog (Turkish and English names, per 100 g and per serving) |
 

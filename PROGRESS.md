@@ -237,3 +237,38 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
    Render loglarında açılış ~1 dakikanın altında, League sekmesi kalıcı Riot anahtarıyla çalışıyor.
 2. iPhone'da: Profil → Kurtarma kodu → Kopyala, Notlar'a kaydet.
 3. League grupları: `docs/design/lol-groups.md`'ye göre (V11, önce HttpRiotClient 404 düzeltmesi).
+
+## 2026-10-19 — League arkadaş grupları (branch `feature/lol-groups`)
+
+- PR #16 (kurtarma kodu) ve #17 (açılış hızı) Behlül'ün onayıyla birleştirildi ve canlıya çıktı. Canlı API
+  uykudan **64 sn**'de uyandı (önceden ~3 dk), sonraki istekler ~0,15 sn.
+- **Riot 404 düzeltmesi:** yanlış sunucuda seçilen Riot ID (TR1 yerine EUW1) 500 yerine "bulunamadı" (404);
+  sessiz yenilemede kayıtlı veri gösteriliyor, elle yenilemede 503 RIOT_ERROR.
+- **Yenileme kuralları:** oyuncu satırı `FOR NO KEY UPDATE SKIP LOCKED` ile kilitlenip yenileniyor (aynı oyuncu
+  aynı anda iki kez yenilenmez), sayfa başına en fazla 4 oyuncu, takip/bağlama için 14 isteklik yedek.
+- **V11 `lol_groups` + `lol_group_members`:** kişi başı tek grup (user_id birincil anahtar), sahip = en eski
+  üye, 10 karakterlik davet kodu (49,5 bit, deneme sınırı gerekmiyor).
+- **API** `/api/v1/lol/group`: oluştur, koda katıl, yeniden adlandır, yeni kod, kendi Riot hesabını bağla,
+  ayrıl, üye çıkar (kod değişir). Kural ihlalleri 409 + `fieldErrors.group`, sahiplik 403.
+- **Web:** League sekmesinde Grup / Takip geçişi (`?view=`), grup kartı + kenara taşan davet çipi (Paylaş →
+  mesajın tamamı, yoksa kopyala), mesajın tamamını yapıştırarak katılma, "SEN" etiketli satır, ayarlar
+  sayfası (ad, yeni kod, üye çıkar, ayrıl). Türkçe sayfada marka "LİFTLOG" görünüyordu → düzeltildi.
+- İlk doğrulama (inceleme öncesi): backend 95 test (66'dan), web 102 test (87'den), lint, build.
+  Yerel Docker + `RIOT_FAKE=true` ile telefon boyutunda: kur → bağla → ikinci kullanıcı küçük harf ve tireyle
+  katılır → aynı tahta → arkadaşın sayfası grup üzerinden açılır → çıkar (kod değişir, eski kod 404) →
+  yönetici ayrılır (yönetim geçer) → son üye ayrılır (grup silinir). Açık ve koyu tema kontrol edildi.
+- **İnceleme iş akışı** (3 açı + her açı için şüpheci doğrulayıcı): 20 bulgu, 15'i doğrulandı, 5'i çürütüldü.
+  Düzeltmeler ikinci bir iş akışında yapıldı (backend ve web paralel, her biri ayrıca şüpheciyle kontrol, 5 ek
+  bulgu daha düzeltildi). Önemlileri: tek bozuk maç bütün tahtanın yenilenmesini durduruyordu; sunucu değiştiren
+  oyuncu bir daha bağlanamıyordu; yeniden adlandırma eşzamanlı yenilemenin üstüne eski veriyi yazabiliyordu;
+  web'de geç gelen eski istek yenilenmiş davet kodunu geri getirebiliyordu; ayarlar açıkken başarısız yenileme
+  sayfayı siliyordu. Yeni testler mutasyonla denendi (düzeltme kaldırılınca ilgili test kırılıyor).
+- Son durum: backend **116 test**, web **113 test**, lint, build; her ara commit tek başına derleniyor ve birim
+  testlerini geçiyor.
+
+**Sıradaki adımlar:**
+1. PR'ı CI yeşil olunca birleştir (Behlül'ün onayıyla). Canlıda V11 Neon'a uygulanacak.
+2. iPhone'da: League → Grup → Grup kur, kodu arkadaşlara WhatsApp'tan gönder; arkadaşlar LiftLog'u ana
+   ekrandan açıp "Koda katıl"a mesajın tamamını yapıştırsın.
+3. Canlıda League sekmesinin kalıcı Riot anahtarıyla çalıştığını telefondan kontrol et (bu oturumda
+   tarayıcıda canlı hesap açılmadı).
