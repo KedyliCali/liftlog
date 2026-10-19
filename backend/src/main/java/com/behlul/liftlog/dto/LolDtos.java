@@ -53,28 +53,30 @@ public final class LolDtos {
      * @param damageShare       share of the team's champion damage, 0..1
      * @param items             seven item ids, 0 for an empty slot; the last one is the trinket
      * @param summonerSpells    two summoner spell ids
+     * @param teamId            100 (blue) or 200 (red); null for a match stored before whole matches were
      */
     public record LolMatchResponse(String matchId, int queueId, LocalDateTime endedAt, int durationS, String champion,
                                    String position, int kills, int deaths, int assists, int cs, int damage, boolean win,
                                    Integer gold, Integer vision, Integer champLevel, Integer damageTaken,
                                    BigDecimal killParticipation, BigDecimal damageShare, Integer largestMultiKill,
-                                   Integer wardsPlaced, List<Integer> items, List<Integer> summonerSpells, String gameMode) {
+                                   Integer wardsPlaced, List<Integer> items, List<Integer> summonerSpells, String gameMode,
+                                   Integer teamId) {
 
-        public static LolMatchResponse from(LolMatchPlayer m) {
+        public static LolMatchResponse from(LolMatchPlayer m, Integer teamId) {
             return new LolMatchResponse(m.getMatchId(), m.getQueueId(), m.getEndedAt(), m.getDurationS(), m.getChampion(),
                     m.getPosition(), m.getKills(), m.getDeaths(), m.getAssists(), m.getCs(), m.getDamage(), m.isWin(),
                     m.getGoldEarned(), m.getVisionScore(), m.getChampLevel(), m.getDamageTaken(), m.getKillParticipation(),
                     m.getDamageShare(), m.getLargestMultiKill(), m.getWardsPlaced(), ids(m.getItems()),
-                    ids(m.getSummonerSpells()), m.getGameMode());
+                    ids(m.getSummonerSpells()), m.getGameMode(), teamId);
         }
+    }
 
-        /** "3006,0,3031" to [3006, 0, 3031]; null stays null. */
-        private static List<Integer> ids(String commaSeparated) {
-            if (commaSeparated == null || commaSeparated.isBlank()) {
-                return null;
-            }
-            return Arrays.stream(commaSeparated.split(",")).map(String::trim).map(Integer::valueOf).toList();
+    /** "3006,0,3031" to [3006, 0, 3031]; null stays null. */
+    public static List<Integer> ids(String commaSeparated) {
+        if (commaSeparated == null || commaSeparated.isBlank()) {
+            return null;
         }
+        return Arrays.stream(commaSeparated.split(",")).map(String::trim).map(Integer::valueOf).toList();
     }
 
     public record ChampionStats(String champion, int games, int wins, BigDecimal kda, BigDecimal csPerMinute,
