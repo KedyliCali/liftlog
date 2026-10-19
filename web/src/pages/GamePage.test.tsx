@@ -172,16 +172,21 @@ describe('League tab', () => {
   })
 
   it('leaves as a member and stays on the group view, which offers to create or join again', async () => {
-    const confirm = vi.fn(() => true)
-    vi.stubGlobal('confirm', confirm)
     const calls = serverWithLeave([member(1, 'Ece', null, { owner: true }), member(2, 'Behlul', null, { you: true })])
     // No ?view=, so the group view is only the default while there is a group
     const user = renderGame('/game')
 
     const settings = await openSettings(user)
     await user.click(within(settings).getByRole('button', { name: t.leaveGroup }))
+    const question = screen.getByRole('alertdialog', { name: t.leaveConfirmTitle })
+    expect(question).toHaveTextContent(t.leaveConfirmMember)
+    // Cancel answers only the question: the settings stay open and nothing is sent
+    await user.click(within(question).getByRole('button', { name: t.cancel }))
+    expect(screen.getByRole('dialog', { name: t.manageGroup })).toBeInTheDocument()
+    expect(calls.some((call) => call.method === 'DELETE')).toBe(false)
 
-    expect(confirm).toHaveBeenCalledWith(`${t.leaveConfirmTitle}\n${t.leaveConfirmMember}`)
+    await user.click(within(settings).getByRole('button', { name: t.leaveGroup }))
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: t.leaveAction }))
     expect(await screen.findByText(t.groupEmptyTitle)).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.getByRole('tab', { name: t.lolViewGroup })).toHaveAttribute('aria-selected', 'true')
@@ -191,8 +196,6 @@ describe('League tab', () => {
   })
 
   it('tells the owner who takes the group over before leaving', async () => {
-    const confirm = vi.fn(() => true)
-    vi.stubGlobal('confirm', confirm)
     serverWithLeave([member(1, 'Behlul', null, { owner: true, you: true }), member(2, 'Ece', null), member(3, 'Ali', null)])
     const user = renderGame('/game?view=group')
 
@@ -200,12 +203,35 @@ describe('League tab', () => {
     await user.click(within(settings).getByRole('button', { name: t.leaveGroup }))
 
     // Members come in join order, so the next owner is the first other member
-    expect(confirm).toHaveBeenCalledWith(`${t.leaveConfirmTitle}\n${t.leaveConfirmOwner('Ece')}`)
+    const question = screen.getByRole('alertdialog', { name: t.leaveConfirmTitle })
+    expect(question).toHaveTextContent(t.leaveConfirmOwner('Ece'))
+    await user.click(within(question).getByRole('button', { name: t.leaveAction }))
     expect(await screen.findByText(t.groupEmptyTitle)).toBeInTheDocument()
   })
 
+  it('removes a member only after the owner confirms', async () => {
+    const toast = vi.fn()
+    const calls = fakeServer({
+      'GET /api/v1/lol/group': () => jsonResponse(200, group([member(1, 'Behlul', null, { owner: true, you: true }), member(2, 'Ece', null)])),
+      'DELETE /api/v1/lol/group/members/2': () => jsonResponse(204, undefined),
+    })
+    const user = renderGame('/game?view=group', toast)
+
+    const settings = await openSettings(user)
+    await user.click(within(settings).getByRole('button', { name: t.removeMember }))
+    const question = screen.getByRole('alertdialog', { name: t.removeMemberTitle })
+    expect(question).toHaveTextContent('Ece')
+    expect(question).toHaveTextContent(t.removeMemberConsequence)
+    await user.click(within(question).getByRole('button', { name: t.cancel }))
+    expect(calls.some((call) => call.method === 'DELETE')).toBe(false)
+
+    await user.click(within(settings).getByRole('button', { name: t.removeMember }))
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: t.removeMember }))
+    await waitFor(() => expect(toast).toHaveBeenCalledWith({ message: t.memberRemoved }))
+    expect(calls.filter((call) => call.method === 'DELETE').map((call) => call.path)).toEqual(['/api/v1/lol/group/members/2'])
+  })
+
   it('keeps the new invite code when a board request from before the change answers late', async () => {
-    vi.stubGlobal('confirm', () => true)
     const toast = vi.fn()
     const members = [member(1, 'Behlul', null, { owner: true, you: true })]
     const rotated = { ...group(members), inviteCode: 'H3RTW8NBC4' }
@@ -225,6 +251,7 @@ describe('League tab', () => {
 
     const settings = await openSettings(user)
     await user.click(within(settings).getByRole('button', { name: t.newInviteCode }))
+    await user.click(within(screen.getByRole('alertdialog', { name: t.newInviteCodeTitle })).getByRole('button', { name: t.newCode }))
     await waitFor(() => expect(toast).toHaveBeenCalledWith({ message: t.inviteCodeChanged }))
     expect(screen.getByText('H3RTW-8NBC4')).toBeInTheDocument()
 
@@ -259,7 +286,6 @@ describe('League tab', () => {
   })
 
   it('says only the admin can change the code when ownership moved, and shows the group as it is now', async () => {
-    vi.stubGlobal('confirm', () => true)
     const toast = vi.fn()
     let ownerNow = true
     const calls = fakeServer({
@@ -275,6 +301,7 @@ describe('League tab', () => {
 
     const settings = await openSettings(user)
     await user.click(within(settings).getByRole('button', { name: t.newInviteCode }))
+    await user.click(within(screen.getByRole('alertdialog', { name: t.newInviteCodeTitle })).getByRole('button', { name: t.newCode }))
 
     await waitFor(() => expect(toast).toHaveBeenCalledWith({ message: t.errorForbidden }))
     await waitFor(() => expect(screen.queryByRole('button', { name: t.newInviteCode })).toBeNull())
