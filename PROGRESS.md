@@ -272,3 +272,17 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
    ekrandan açıp "Koda katıl"a mesajın tamamını yapıştırsın.
 3. Canlıda League sekmesinin kalıcı Riot anahtarıyla çalıştığını telefondan kontrol et (bu oturumda
    tarayıcıda canlı hesap açılmadı).
+
+## 2026-10-19 — Ayrıntılı League istatistikleri (branch `feature/lol-stats`)
+
+- Behlül "daha çok bilgi, tablo, istatistik" istedi. Tasarım: `docs/design/lol-stats.md`.
+- **Backend:** V14 maç ayrıntıları (altın, görüş, seviye, alınan hasar, kill katılımı, hasar payı, en büyük seri,
+  totem, eşyalar, büyüler, oyun modu) ve `lol_rank_history`. Eski maçlar yenilemede bütçe içinde tamamlanıyor.
+  Özet: dakika başı ortalamalar, seri, roller, kuyruklar, tüm şampiyonlar, rekorlar; `GET .../rank-history`.
+- **Web:** oyuncu sayfasında seri çipi, LP grafiği, 8 istatistik kutusu, roller, sıralanabilir şampiyon tablosu,
+  kuyruklar, rekorlar, eşya/büyü ikonlu maç satırları; grup tahtasında "Tablo" karşılaştırması (`?board=table`).
+- Doğrulama: backend 157 test, web 140 test (passkey ile birleşik halde 186); yerel Docker + sahte Riot ile
+  tarayıcıda: yenileme sonrası 8 kutu, rekorlar, rozetler, eşya ikonları, grup tablosu.
+- **Not:** passkey PR'ı (#19, V12/V13) önce birleşmeli; sonra bu dala main birleştirilip `endpoints.ts` import
+  satırındaki küçük çakışma çözülecek.
+
