@@ -1,6 +1,6 @@
 import type { CreationOptionsJson, CredentialJson, RequestOptionsJson } from '../lib/webauthn'
 import { request, requestFile } from './client'
-import type { AuthResponse, GroupTraining, LolDeepStats, LolGroup, LolGroupDuo, LolGroupLive, LolLiveGame, LolMastery, LolMatchDetail, LolPlayer, LolPlayerDetail, LolRankPoint, LolStatsQueue, LolStatsWindow, LolTimeline, CatalogFood, MuscleStats, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, Passkey, PasskeyCeremony, PersonalRecord, PlanItem, Profile, ProgressPoint, Routine, RoutineInput, SetInput, Streak, WeeklyVolume, WeightEntry, WeightHistory, WorkoutDetail, WorkoutRecap, WorkoutSet, WorkoutSummary } from './types'
+import type { AuthResponse, GroupTraining, LolDeepStats, LolGroup, LolGroupDuo, LolGroupLive, LolLiveGame, LolMastery, LolMatchDetail, LolPlayer, LolPlayerDetail, LolRankPoint, LolRankQueue, LolStatsQueue, LolStatsWindow, LolTimeline, CatalogFood, MuscleStats, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, Passkey, PasskeyCeremony, PersonalRecord, PlanItem, Profile, ProgressPoint, Routine, RoutineInput, SetInput, Streak, WeeklyVolume, WeightEntry, WeightHistory, WorkoutDetail, WorkoutRecap, WorkoutSet, WorkoutSummary } from './types'
 
 export const api = {
   register: (email: string, password: string) =>
@@ -62,7 +62,8 @@ export const api = {
   refreshLolPlayer: (puuid: string) =>
     request<LolPlayerDetail>(`/api/v1/lol/players/${encodeURIComponent(puuid)}/refresh`, { method: 'POST' }),
   /** Solo/duo rank snapshots, oldest first */
-  lolRankHistory: (puuid: string) => request<LolRankPoint[]>(`/api/v1/lol/players/${encodeURIComponent(puuid)}/rank-history`),
+  lolRankHistory: (puuid: string, queue: LolRankQueue = 'SOLO') =>
+    request<LolRankPoint[]>(`/api/v1/lol/players/${encodeURIComponent(puuid)}/rank-history${queue === 'FLEX' ? '?queue=FLEX' : ''}`),
   untrackLolPlayer: (puuid: string) =>
     request<void>(`/api/v1/lol/players/${encodeURIComponent(puuid)}`, { method: 'DELETE', responseType: 'none' }),
   /** tzOffsetMinutes (east of UTC, e.g. 180 for Turkey) puts the time-of-day and weekday split on the phone's clock */

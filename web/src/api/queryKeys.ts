@@ -1,3 +1,5 @@
+import type { LolRankQueue } from './types'
+
 // TanStack Query cache keys, shared so any screen can refresh another screen's data after a change.
 export const queryKeys = {
   workouts: ['workouts'] as const,
@@ -24,7 +26,8 @@ export const queryKeys = {
   foods: ['foods'] as const,
   lolPlayers: ['lol', 'players'] as const,
   lolPlayer: (puuid: string) => ['lol', 'player', puuid] as const,
-  lolRankHistory: (puuid: string) => ['lol', 'rank-history', puuid] as const,
+  /** Without a queue it is the prefix of both queues' keys, so one invalidation refreshes both charts */
+  lolRankHistory: (puuid: string, queue?: LolRankQueue) => (queue ? ['lol', 'rank-history', puuid, queue] : ['lol', 'rank-history', puuid]) as readonly unknown[],
   // Under the player's own key, so a refresh (which invalidates the player) refreshes every filter too
   lolStats: (puuid: string, queue: string, games: number) => ['lol', 'player', puuid, 'stats', queue, games] as const,
   lolMatch: (matchId: string) => ['lol', 'match', matchId] as const,

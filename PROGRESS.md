@@ -567,3 +567,11 @@ yüzünden her yeni istek limiter'dan geçiyor ve sonuçlar saklanıp tembelce y
 **Sıradaki adımlar:**
 1. PR aç; canlıda V23'ü kontrol et (diğer dal V24 kullanıyor).
 2. Android'deki yemek seçiciye yeni kategori adlarını ekle.
+
+## 2026-10-21 — LP grafiğinde Solo/Flex seçici (branch `feature/lp-chart-queue`)
+
+- Oyuncu sayfasındaki LP geçmişi kartında Solo/Duo ve Flex düğmeleri var. Flex geçmişi yalnızca Flex seçilince
+  isteniyor (`rank-history?queue=FLEX`). Seçilen kuyrukta iki kayıt yoksa kart gizlenmiyor, "henüz yeterli LP değişimi
+  yok" yazıyor. Flex rütbesi olmayan oyuncuda düğmeler görünmüyor, grafik eskisi gibi.
+- Temizlik: birleşmiş dallar ve ajan çalışma klasörleri silindi; yalnızca main kaldı.
+- Doğrulama: web 485 test, tsc, lint, build; Docker'da sahte Riot verisiyle 375 px'te iki kuyruk da denendi.
