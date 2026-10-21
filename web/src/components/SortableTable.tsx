@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { t } from '../lib/i18n'
+import { t, termLang } from '../lib/i18n'
 import { nextSort, sortRows, type SortDirection, type SortState } from '../lib/lolStats'
 
 export interface SortableColumn<T> {
@@ -44,6 +44,7 @@ export function SortableTable<T>({ rows, columns, rowKey, initialSort, rowClassN
                 return (
                   <th key={column.key} scope="col" aria-sort={direction ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'} className={direction ? 'sorted' : undefined}>
                     <button
+                      lang={termLang(column.label)}
                       type="button"
                       title={t.sortBy(column.label)}
                       onClick={() => setSort((current) => (current ? nextSort(current, column.key, column.firstDirection ?? 'desc') : { key: column.key, direction: column.firstDirection ?? 'desc' }))}

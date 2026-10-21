@@ -4,7 +4,7 @@ import { useNow } from './useNow'
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { LolLiveGame, LolLiveParticipant, LolRank } from '../api/types'
-import { t } from '../lib/i18n'
+import { t, termLang } from '../lib/i18n'
 import { queueKey, rankLabel, timeAgo } from '../lib/lol'
 import { compact } from '../lib/lolFormat'
 import { gameClock, liveElapsedSeconds, liveTeams, lpChangeText, masteryRows } from '../lib/lolLive'
@@ -33,7 +33,7 @@ export function LpChip({ change }: { change: number | null | undefined }) {
 export function QueueRank({ label, rank }: { label: string; rank: LolRank | null | undefined }) {
   return (
     <span className="queue-rank">
-      <span className="queue-rank-label">{label}</span>
+      <span className="queue-rank-label" lang="en">{label}</span>
       <RankBadge rank={rank ?? null} />
     </span>
   )
@@ -181,7 +181,7 @@ export function MasteryTab({ puuid, version }: { puuid: string; version: string 
           <strong className="num">{mastery.data.totalPoints != null ? compact(mastery.data.totalPoints) : '–'}</strong>
         </div>
       </div>
-      <h2 className="section-title">{t.masteryTitle}</h2>
+      <h2 className="section-title" lang={termLang(t.masteryTitle)}>{t.masteryTitle}</h2>
       <ol className="mastery-list" aria-label={t.masteryTitle}>
         {rows.map((row, index) => {
           const champion = championKeys?.[row.championId] ?? String(row.championId)

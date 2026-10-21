@@ -31,7 +31,7 @@ import { SetListSkeleton } from '../components/Skeletons'
 import { ErrorState, MessageState } from '../components/StateViews'
 import { ControllerIcon } from '../components/Icons'
 import { errorMessage } from '../lib/format'
-import { t } from '../lib/i18n'
+import { t, termLang } from '../lib/i18n'
 import { rankLabel, seasonWinRate, timeAgo } from '../lib/lol'
 import { peakAboveCurrent } from '../lib/lolLive'
 import { inQueue, matchPath, PLAYER_TABS, playerTab, QUEUE_CHIPS, statsQueue, statsWindow, tzOffsetMinutes, WINDOW_CHIPS, type PlayerTab } from '../lib/lolDeep'
@@ -203,13 +203,15 @@ function PlayerContent({ puuid, data, rankHistory, version }: {
                   aria-selected={key === tab}
                   aria-controls="lol-tab-panel"
                   className={key === tab ? 'lol-tab selected' : 'lol-tab'}
+                  lang={termLang(t.playerTabs[key])}
                   onClick={() => openTab(key)}
                 >
                   {t.playerTabs[key]}
                 </button>
               ))}
             </div>
-            <FilterBar queue={queue} games={games} onQueue={(q) => setParam('queue', q, 'ALL')} onGames={(g) => setParam('games', String(g), '20')} />
+            {/* Mastery is not about stored games, so the game filter would do nothing there */}
+            {tab !== 'mastery' && <FilterBar queue={queue} games={games} onQueue={(q) => setParam('queue', q, 'ALL')} onGames={(g) => setParam('games', String(g), '20')} />}
           </div>
 
           <div id="lol-tab-panel" role="tabpanel" aria-labelledby={`lol-tab-${tab}`} className={stats.isPlaceholderData ? 'lol-tab-panel stale' : 'lol-tab-panel'}>

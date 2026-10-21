@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { LolChampionCount, LolDeepChampion, LolDeepStats, LolDuo, LolGroupDuo, LolMatchup, LolWinCount } from '../api/types'
 import { formatKg } from '../lib/format'
-import { locale, t } from '../lib/i18n'
+import { locale, t, termLang } from '../lib/i18n'
 import { average, buildItems, signedNumber, spellPair, TREND_METRICS, trendPoints, weekdayName, winRateRows, type ItemInfo, type RuneInfo, type TrendMetric, type WinRateRow } from '../lib/lolDeep'
 import { DASH, decimal, percentText, shortDate } from '../lib/lolFormat'
 import { roundTo, toPercent, winPercent } from '../lib/lolStats'
@@ -54,7 +54,7 @@ const championColumn = <T extends { champion: string }>(version: string | null):
 function TableSection({ title, empty, children }: { title: string; empty: boolean; children: ReactNode }) {
   return (
     <>
-      <h2 className="section-title">{title}</h2>
+      <h2 className="section-title" lang={termLang(title)}>{title}</h2>
       {empty ? <p className="lol-empty-line muted">{t.notEnoughGames}</p> : children}
     </>
   )
@@ -149,11 +149,11 @@ export function StatGroups({ stats }: { stats: LolDeepStats }) {
         if (tiles.length === 0) return null
         return (
           <section key={group.key} className={`lol-stat-group ${group.key}`} aria-label={t.statGroups[group.key]}>
-            <h3>{t.statGroups[group.key]}</h3>
+            <h3 lang={termLang(t.statGroups[group.key])}>{t.statGroups[group.key]}</h3>
             <div className="lol-tiles four">
               {tiles.map((x) => (
                 <div key={x.key} className={x.wide ? 'lol-tile wide' : 'lol-tile'} data-testid={`tile-${x.key}`}>
-                  <small>{x.label}</small>
+                  <small lang={termLang(x.label)}>{x.label}</small>
                   <strong>{x.value}</strong>
                   <span className="lol-tile-caption">{x.caption ?? t.lastGames(stats.gamesFound)}</span>
                 </div>
@@ -186,7 +186,7 @@ export function TrendChart({ trend }: { trend: LolDeepStats['trend'] }) {
       <p className="muted">{t.trendSubtitle}</p>
       <div className="chip-row lol-metric-chips" role="group" aria-label={t.trendMetricLabel}>
         {available.map((m) => (
-          <button key={m} type="button" className={m === shown ? 'filter-chip selected' : 'filter-chip'} aria-pressed={m === shown} onClick={() => setMetric(m)}>
+          <button key={m} type="button" className={m === shown ? 'filter-chip selected' : 'filter-chip'} aria-pressed={m === shown} lang={termLang(t.trendMetrics[m])} onClick={() => setMetric(m)}>
             {t.trendMetrics[m]}
           </button>
         ))}
@@ -243,7 +243,7 @@ function WinRateBars({ title, rows, label }: { title: string; rows: WinRateRow[]
   if (rows.length === 0) return null
   return (
     <div className="lol-split">
-      <h3>{title}</h3>
+      <h3 lang={termLang(title)}>{title}</h3>
       <ul className="lol-bars" aria-label={title}>
         {rows.map((row) => (
           <BarRow key={row.key} label={label(row.key)} share={row.share} games={row.games} wins={row.wins} />
@@ -286,13 +286,13 @@ export function ObjectivesSection({ objectives }: { objectives: LolDeepStats['ob
   ]
   return (
     <>
-      <h2 className="section-title">{t.objectivesTitle}</h2>
+      <h2 className="section-title" lang={termLang(t.objectivesTitle)}>{t.objectivesTitle}</h2>
       {averages.length > 0 && (
         <div className="lol-objective-strip">
           {averages.map(([key, field]) => (
             <span key={key} className="lol-objective">
               <strong className="num">{oneDigit(objectives[field]!)}</strong>
-              <small>{t.objectiveNames[key]}</small>
+              <small lang={termLang(t.objectiveNames[key])}>{t.objectiveNames[key]}</small>
             </span>
           ))}
           <span className="lol-objective-caption muted">{t.teamAverageCaption}</span>
@@ -405,7 +405,7 @@ export function DuoTable({ duos, version, playerName, onFollow }: {
   ]
   return (
     <>
-      <h2 className="section-title">{t.duosTitle}</h2>
+      <h2 className="section-title" lang={termLang(t.duosTitle)}>{t.duosTitle}</h2>
       {duos.length === 0 ? (
         <p className="lol-empty-line muted">{t.duosEmpty}</p>
       ) : (
@@ -440,7 +440,7 @@ export function GroupDuosTable({ duos }: { duos: LolGroupDuo[] | null | undefine
   ]
   return (
     <>
-      <h2 className="section-title">{t.groupDuosTitle}</h2>
+      <h2 className="section-title" lang={termLang(t.groupDuosTitle)}>{t.groupDuosTitle}</h2>
       <SortableTable label={t.groupDuosTitle} rows={duos} columns={columns} rowKey={(d) => `${d.a.userId}-${d.b.userId}`} initialSort={{ key: 'games', direction: 'desc' }} />
     </>
   )

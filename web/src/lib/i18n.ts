@@ -1453,3 +1453,27 @@ const isTurkish = locale.toLowerCase().startsWith('tr')
 export const t: Strings = isTurkish ? tr : en
 // text-transform: uppercase uses the page language: with lang="en" a Turkish "i" became "I" instead of "İ"
 if (typeof document !== 'undefined') document.documentElement.lang = isTurkish ? 'tr' : 'en'
+
+/** Every plain English string, to tell the League jargon kept in English apart from Turkish words. */
+function englishStrings(value: unknown, into: Set<string>): Set<string> {
+  if (typeof value === 'string') into.add(value)
+  else if (value && typeof value === 'object') for (const nested of Object.values(value)) englishStrings(nested, into)
+  return into
+}
+// Plus the Turkish labels that are League jargon worded differently from the English ones. Only an "i" makes the
+// two uppercasings differ, so only labels with one need to be here
+const englishTerms = englishStrings(en, new Set([
+  'Solo kill', 'First Blood', 'First Tower', 'First Dragon', 'First Baron', 'Objective DMG/dk', 'Vision/dk', 'Vision',
+  'Vision score', 'Multikill', 'Voidgrubs', 'Inhibitor', 'Wards killed', 'Wards placed', 'Ward kill', 'Kill',
+  'Building DMG', 'Spells', 'Summoner Spells', 'Side', 'Objectives', 'Items', 'Item', 'Bans', 'Victory', 'Shield',
+  'Mid', 'Quickplay', 'Lane matchup', 'Build',
+]))
+
+/**
+ * "en" for a label that is the same English term in both languages ("Vision", "First Blood", "Build"). Set as
+ * the element's lang where text is uppercased, so a Turkish page writes "VISION", not "VİSİON"; Turkish words
+ * keep the page language and their dotted İ.
+ */
+export function termLang(text: string | null | undefined): 'en' | undefined {
+  return isTurkish && text != null && englishTerms.has(text) ? 'en' : undefined
+}

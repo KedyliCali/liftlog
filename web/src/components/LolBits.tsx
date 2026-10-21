@@ -1,7 +1,7 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import type { LolPlayer, LolRank } from '../api/types'
-import { t } from '../lib/i18n'
+import { t, termLang } from '../lib/i18n'
 import { championIconUrl, itemIconUrl, profileIconUrl, rankLabel, recentWinRate, runeIconUrl, summonerSpellIconUrl } from '../lib/lol'
 import type { RuneInfo } from '../lib/lolDeep'
 import { initials } from '../lib/workoutLogic'
@@ -66,9 +66,10 @@ export function RuneIcon({ runeId, runes, size = 22 }: { runeId: number | null |
 
 /** Tier name with LP; the tier sets the badge color (CSS keys on data-tier). */
 export function RankBadge({ rank }: { rank: LolRank | null }) {
-  if (!rank) return <span className="rank-badge unranked">{t.unranked}</span>
+  if (!rank) return <span className="rank-badge unranked" lang={termLang(t.unranked)}>{t.unranked}</span>
+  // Tier names are English in every language (as in the game client), so they uppercase as English
   return (
-    <span className="rank-badge" data-tier={rank.tier}>
+    <span className="rank-badge" data-tier={rank.tier} lang="en">
       {rankLabel(rank)} <span className="num">{t.lp(rank.lp)}</span>
     </span>
   )

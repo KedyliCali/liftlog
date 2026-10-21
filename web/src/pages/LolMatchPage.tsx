@@ -16,7 +16,7 @@ import { SetListSkeleton } from '../components/Skeletons'
 import { ErrorState, MessageState } from '../components/StateViews'
 import { ControllerIcon } from '../components/Icons'
 import { errorMessage, formatKg } from '../lib/format'
-import { locale, t } from '../lib/i18n'
+import { locale, t, termLang } from '../lib/i18n'
 import { formatDuration, kdaRatio, queueKey } from '../lib/lol'
 import { goldLeadPoints, laneDiffs, patchOf, signedNumber, splitTeams, zeroOffset, type ItemInfo, type LaneDiff, type RuneInfo } from '../lib/lolDeep'
 import { compact, DASH, percentText, utcDate } from '../lib/lolFormat'
@@ -448,7 +448,7 @@ function LaneDiffTable({ rows, version }: { rows: LaneDiff[]; version: string | 
   ]
   return (
     <>
-      <h2 className="section-title">{t.laneDiffTitle}</h2>
+      <h2 className="section-title" lang={termLang(t.laneDiffTitle)}>{t.laneDiffTitle}</h2>
       <p className="muted lol-section-caption">{t.laneDiffSubtitle}</p>
       <SortableTable label={t.laneDiffTitle} rows={rows} columns={columns} rowKey={(r) => r.lane} initialSort={{ key: 'lane', direction: 'asc' }} />
     </>

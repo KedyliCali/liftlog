@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { LolChampionStats, LolMatch, LolRankPoint, LolRecord, LolRecords, LolStreak, LolSummary } from '../api/types'
 import { formatKg } from '../lib/format'
-import { t } from '../lib/i18n'
+import { t, termLang } from '../lib/i18n'
 import { formatDuration, kdaRatio, ladderAxis, ladderLabel, queueKey, timeAgo } from '../lib/lol'
 import { findMatch, itemSlots, multikillKey, queueRows, rankChartPoints, roleRows, roundTo, toPercent, winPercent } from '../lib/lolStats'
 import { compact, DASH, decimal, percentText, shortDate } from '../lib/lolFormat'
@@ -91,7 +91,7 @@ export function StatTiles({ summary }: { summary: LolSummary }) {
     <div className={tiles.length > 3 ? 'lol-tiles four' : 'lol-tiles'}>
       {tiles.map((tile) => (
         <div key={tile.key} className="lol-tile" data-testid={`tile-${tile.key}`}>
-          <small>{tile.label}</small>
+          <small lang={termLang(tile.label)}>{tile.label}</small>
           <strong>{tile.value}</strong>
           <span className="lol-tile-caption">{t.lastGames(summary.games)}</span>
         </div>
@@ -123,7 +123,7 @@ export function RoleBars({ roles }: { roles: LolSummary['roles'] }) {
   if (rows.length === 0) return null
   return (
     <>
-      <h2 className="section-title">{t.rolesTitle}</h2>
+      <h2 className="section-title" lang={termLang(t.rolesTitle)}>{t.rolesTitle}</h2>
       <ul className="lol-bars" aria-label={t.rolesTitle}>
         {rows.map((row) => (
           <BarRow key={row.key} label={t.positions[row.key]} share={row.share} games={row.games} wins={row.wins} />
@@ -138,7 +138,7 @@ export function QueueBars({ queues }: { queues: LolSummary['queues'] }) {
   if (rows.length === 0) return null
   return (
     <>
-      <h2 className="section-title">{t.queuesTitle}</h2>
+      <h2 className="section-title" lang={termLang(t.queuesTitle)}>{t.queuesTitle}</h2>
       <ul className="lol-bars" aria-label={t.queuesTitle}>
         {rows.map((row) => (
           <BarRow key={row.key} label={t.queues[row.key]} share={row.share} games={row.games} wins={row.wins} />
@@ -172,7 +172,7 @@ export function ChampionsTable({ champions, version }: { champions: LolChampionS
   ]
   return (
     <>
-      <h2 className="section-title">{t.championsTitle}</h2>
+      <h2 className="section-title" lang={termLang(t.championsTitle)}>{t.championsTitle}</h2>
       <SortableTable label={t.championsTitle} rows={champions} columns={columns} rowKey={(c) => c.champion} initialSort={{ key: 'games', direction: 'desc' }} />
     </>
   )
@@ -211,7 +211,7 @@ export function RecordList({ records, matches, version, onShowMatch }: {
   if (entries.length === 0) return null
   return (
     <>
-      <h2 className="section-title">{t.recordsTitle}</h2>
+      <h2 className="section-title" lang={termLang(t.recordsTitle)}>{t.recordsTitle}</h2>
       <ul className="lol-records">
         {entries.map(({ key, record, match }) => {
           const content = (
