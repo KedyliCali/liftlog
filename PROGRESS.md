@@ -544,3 +544,26 @@ yüzünden her yeni istek limiter'dan geçiyor ve sonuçlar saklanıp tembelce y
 1. PR aç; canlıda V24'ü kontrol et (V23 başka branch'te, sırayla birleştir).
 2. Gerçek anahtarla bir maç sonrası LP çipinin geldiğini gör.
 3. İstenirse: LP grafiğinde Solo/Flex seçici (`rank-history?queue=FLEX` hazır), Android'de aynı ekranlar.
+
+## 2026-10-21 — Daha fazla yemek (`feature/more-foods`)
+
+- **Backend:** `V23__more_foods.sql` katalog 315 → 1067 satır (+752). Gruplar: zincirler ve sokak lezzetleri 150
+  (McDonald's, Burger King, KFC, Popeyes, Domino's, Little Caesars, Sbarro, Starbucks, Simit Sarayı, Usta Dönerci;
+  döner/dürüm, pide, tost…), sporcu ürünleri 77 (whey/izolat/kazein/vegan, gainer, kreatin, BCAA, Barebells, Grenade,
+  Quest, ProBar, proteinli süt/puding, pirinç patlağı, fıstık ezmeleri, yulaf), market ürünleri 165 (Eti, Ülker,
+  Nestlé, Milka, cipsler, gazlı içecekler, meyve suları, hazır çorba/noodle, kahvaltılık, şarküteri), ev yemekleri 360
+  (tatlı, börek/poğaça, çorba, zeytinyağlı, et/tavuk, kebap, meze, sebze, baklagil, tahıl, kuruyemiş, meyve).
+  Zincir ürünleri ürün başı değerden 100 g'a çevrildi; karbonhidrat AB etiketi gibi (lif hariç).
+  Zaten olan isim atlanıyor (`WHERE NOT EXISTS`), tekrar çalışsa 0 satır ekliyor.
+- **Yeni kategoriler:** `fastfood`, `supplement`, `packaged` (backend'de enum/doğrulama yok, sadece web etiketleri).
+- **Web:** ekle sayfasında yatay kaydırılan kategori çipleri (`.chip-row`, sekme kaydırması bu alanı bırakıyor);
+  çip hem listeyi hem aramayı daraltıyor. Arama: kesme işareti siliniyor, tire boşluk oluyor, boşluksuz eşleşme de var
+  ("mcdonalds", "cocacola", "kitkat"); her satır bir kez katlanıyor. 1000+ satır için `content-visibility: auto`.
+- **Testler:** `FoodCatalogIntegrationTest` (V23 sayısı, yeni kategoriler, tekrar çalıştırma 0 satır, tüm satırlarda
+  kcal ≈ 4P+4K+9Y ve porsiyon > 0, düz yazılmış arama), web'de çip testleri ve V23 SQL'ini okuyup gerçek satırlarda arama.
+- Doğrulama: backend 289 test (`mvnw verify`), web 464 test, tsc, lint, build; iPhone genişliğinde (375 px) uygulamada
+  denendi: 15 çip, sayfa yatay taşmıyor, "Zincirler" + "mcdonalds" 20 ürün, Big Mac 1 adet = 550 kcal.
+
+**Sıradaki adımlar:**
+1. PR aç; canlıda V23'ü kontrol et (diğer dal V24 kullanıyor).
+2. Android'deki yemek seçiciye yeni kategori adlarını ekle.

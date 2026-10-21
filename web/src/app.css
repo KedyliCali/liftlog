@@ -2246,6 +2246,34 @@ body:has(.rest-timer) .set-groups {
 [data-category='nut'] { --muscle-color: #c0a080; }
 [data-category='sweet'] { --muscle-color: #b197fc; }
 [data-category='drink'] { --muscle-color: #66d9e8; }
+[data-category='breakfast'] { --muscle-color: #ffd43b; }
+[data-category='street'] { --muscle-color: #ff8787; }
+[data-category='fastfood'] { --muscle-color: #ffa94d; }
+[data-category='supplement'] { --muscle-color: #a9e34b; }
+[data-category='packaged'] { --muscle-color: #91a7ff; }
+
+/* Category chips above the food list: each category chip carries its colour as a small dot */
+.food-category-chips {
+  margin: 0 -4px;
+  padding: 2px 4px 4px;
+}
+
+.food-category-chips .filter-chip[data-category]::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--muscle-color);
+  vertical-align: 1px;
+}
+
+/* About a thousand rows when browsing everything: the browser skips laying out the ones off screen */
+.food-results > div {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 56px;
+}
 
 .amount-food {
   display: flex;

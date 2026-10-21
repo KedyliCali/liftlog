@@ -149,3 +149,61 @@ describe('portion in grams', () => {
     expect(onSave.mock.calls[0][0]).not.toHaveProperty('grams')
   })
 })
+
+describe('category chips', () => {
+  const row = (id: number, category: string, name: string) => ({
+    id, category, nameTr: name, nameEn: name, kcalPer100g: 250, proteinPer100g: 12, carbsPer100g: 20, fatPer100g: 13, servingG: 100, servingTr: '1 adet', servingEn: '1 piece',
+  })
+  const foods = [
+    row(1, 'dish', 'Mercimek corbasi'),
+    row(2, 'fastfood', "Big Mac (McDonald's)"),
+    row(3, 'fastfood', 'Whopper (Burger King)'),
+    row(4, 'supplement', 'Whey izolat'),
+  ]
+  const shownFoods = () => [...document.querySelectorAll('.food-result-name')].map((el) => el.textContent)
+
+  it('narrows the list and the search to one category, in a sideways strip the tab swipe leaves alone', async () => {
+    fakeServer({ 'GET /api/v1/foods': () => jsonResponse(200, foods) })
+    const { user } = renderSheet()
+    await screen.findByText('Whey izolat')
+
+    const strip = screen.getByRole('group', { name: t.foodCategoryFilter })
+    expect(strip).toHaveClass('chip-row')
+    // "All" first, then the categories that have foods, in browsing order
+    expect([...strip.querySelectorAll('button')].map((b) => b.textContent)).toEqual([
+      t.allFoods,
+      t.foodCategoryChips.dish,
+      t.foodCategoryChips.fastfood,
+      t.foodCategoryChips.supplement,
+    ])
+
+    await user.click(screen.getByRole('button', { name: t.foodCategoryChips.fastfood }))
+    expect(screen.getByRole('button', { name: t.foodCategoryChips.fastfood })).toHaveAttribute('aria-pressed', 'true')
+    expect(shownFoods()).toEqual(["Big Mac (McDonald's)", 'Whopper (Burger King)'])
+
+    // Typing searches inside the chosen category only
+    await user.type(screen.getByLabelText(t.searchFoods), 'mcdonalds')
+    expect(shownFoods()).toEqual(["Big Mac (McDonald's)"])
+    await user.clear(screen.getByLabelText(t.searchFoods))
+    await user.type(screen.getByLabelText(t.searchFoods), 'whey')
+    expect(shownFoods()).toEqual([])
+
+    // Tapping the chosen chip again, or "All", shows everything
+    await user.click(screen.getByRole('button', { name: t.foodCategoryChips.fastfood }))
+    expect(shownFoods()).toEqual(['Whey izolat'])
+    await user.clear(screen.getByLabelText(t.searchFoods))
+    await user.click(screen.getByRole('button', { name: t.foodCategoryChips.supplement }))
+    await user.click(screen.getByRole('button', { name: t.allFoods }))
+    expect(shownFoods()).toHaveLength(4)
+  })
+
+  it('keeps the chosen category after coming back from the amount step', async () => {
+    fakeServer({ 'GET /api/v1/foods': () => jsonResponse(200, foods) })
+    const { user } = renderSheet()
+    await user.click(await screen.findByRole('button', { name: t.foodCategoryChips.supplement }))
+    await user.click(screen.getByRole('button', { name: /^Whey izolat/ }))
+    await user.click(screen.getByRole('button', { name: new RegExp(t.back) }))
+    expect(screen.getByRole('button', { name: t.foodCategoryChips.supplement })).toHaveAttribute('aria-pressed', 'true')
+    expect(shownFoods()).toEqual(['Whey izolat'])
+  })
+})
