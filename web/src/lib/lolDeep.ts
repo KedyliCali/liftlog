@@ -4,7 +4,7 @@ import { positionKey, type PositionKey } from './lolStats'
 // Pure helpers for the tabbed League player page and the match detail page: URL choices, chart data,
 // Data Dragon parsing and the lane comparisons.
 
-export const PLAYER_TABS = ['overview', 'champions', 'duos', 'opponents', 'build', 'matches'] as const
+export const PLAYER_TABS = ['overview', 'champions', 'mastery', 'duos', 'opponents', 'build', 'matches'] as const
 export type PlayerTab = (typeof PLAYER_TABS)[number]
 
 /** The tab named in the URL (?tab=), or the overview for anything else. */

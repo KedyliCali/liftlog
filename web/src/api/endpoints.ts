@@ -1,6 +1,6 @@
 import type { CreationOptionsJson, CredentialJson, RequestOptionsJson } from '../lib/webauthn'
 import { request, requestFile } from './client'
-import type { AuthResponse, GroupTraining, LolDeepStats, LolGroup, LolGroupDuo, LolMatchDetail, LolPlayer, LolPlayerDetail, LolRankPoint, LolStatsQueue, LolStatsWindow, LolTimeline, CatalogFood, MuscleStats, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, Passkey, PasskeyCeremony, PersonalRecord, PlanItem, Profile, ProgressPoint, Routine, RoutineInput, SetInput, Streak, WeeklyVolume, WeightEntry, WeightHistory, WorkoutDetail, WorkoutRecap, WorkoutSet, WorkoutSummary } from './types'
+import type { AuthResponse, GroupTraining, LolDeepStats, LolGroup, LolGroupDuo, LolGroupLive, LolLiveGame, LolMastery, LolMatchDetail, LolPlayer, LolPlayerDetail, LolRankPoint, LolStatsQueue, LolStatsWindow, LolTimeline, CatalogFood, MuscleStats, Exercise, FoodEntry, FoodInput, FrequentFood, NutritionDay, NutritionGoals, Page, Passkey, PasskeyCeremony, PersonalRecord, PlanItem, Profile, ProgressPoint, Routine, RoutineInput, SetInput, Streak, WeeklyVolume, WeightEntry, WeightHistory, WorkoutDetail, WorkoutRecap, WorkoutSet, WorkoutSummary } from './types'
 
 export const api = {
   register: (email: string, password: string) =>
@@ -68,6 +68,12 @@ export const api = {
   /** tzOffsetMinutes (east of UTC, e.g. 180 for Turkey) puts the time-of-day and weekday split on the phone's clock */
   lolStats: (puuid: string, queue: LolStatsQueue, games: LolStatsWindow, tzOffsetMinutes: number) =>
     request<LolDeepStats>(`/api/v1/lol/players/${encodeURIComponent(puuid)}/stats?queue=${queue}&games=${games}&tzOffsetMinutes=${tzOffsetMinutes}`),
+  lolMastery: (puuid: string) => request<LolMastery>(`/api/v1/lol/players/${encodeURIComponent(puuid)}/mastery`),
+  /** The live game; 204 (not in a game) becomes null */
+  lolLive: (puuid: string) =>
+    request<LolLiveGame | undefined>(`/api/v1/lol/players/${encodeURIComponent(puuid)}/live`).then((game) => game ?? null),
+  /** Which group members are in a game; 204 (not in a group) becomes null */
+  lolGroupLive: () => request<LolGroupLive | undefined>('/api/v1/lol/group/live').then((live) => live ?? null),
   lolMatch: (matchId: string) => request<LolMatchDetail>(`/api/v1/lol/matches/${encodeURIComponent(matchId)}`),
   /** The first request asks Riot (503 when it is unavailable, 404 when it no longer has the match) */
   lolTimeline: (matchId: string) => request<LolTimeline>(`/api/v1/lol/matches/${encodeURIComponent(matchId)}/timeline`),

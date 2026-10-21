@@ -7297,3 +7297,359 @@ body:has(.rest-timer) .finish-btn {
 .share-toggle-text small {
   font-size: 12px;
 }
+
+/* ---------- League: flex, LP change, live games and mastery ---------- */
+
+.solo-flex,
+.lol-row-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The queue name is a dark plate the tier badge leans on, so solo and flex read as two tabs, not one strip */
+.queue-rank {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.queue-rank-label {
+  display: flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: var(--radius-s) 0 0 var(--radius-s);
+  background: var(--surface-highest);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.queue-rank .rank-badge {
+  border-radius: 0 var(--radius-s) var(--radius-s) 0;
+}
+
+.lol-peak {
+  align-self: flex-start;
+  padding-left: 6px;
+  border-left: 2px solid var(--primary);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.lp-chip {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--radius-s);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-chip.up {
+  color: var(--on-primary);
+  background: var(--primary);
+  box-shadow: 0 2px 0 var(--primary-container);
+}
+
+.lp-chip.down {
+  color: var(--on-error);
+  background: var(--error);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--error) 45%, black);
+}
+
+/* On a match row the chip hangs over the top edge, like the multikill tag on the other corner */
+.lol-match .lp-chip {
+  position: absolute;
+  top: -8px;
+  left: 14px;
+}
+
+.lol-match-result-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+  animation: live-pulse 1.6s ease-out infinite;
+}
+
+@keyframes live-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 60%, transparent); }
+  100% { box-shadow: 0 0 0 7px transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot { animation: none; }
+}
+
+/* Tag over the hero's top-left corner (the streak takes the right one) */
+.live-badge {
+  position: absolute;
+  top: -11px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: var(--error);
+  color: var(--on-error);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--error) 45%, black);
+  cursor: pointer;
+}
+
+.live-badge .num {
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--on-error);
+  color: var(--error);
+  font-family: var(--font-display);
+  font-size: 13px;
+}
+
+.in-game-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 7px 1px 5px;
+  border-radius: var(--radius-s);
+  border: 1px solid color-mix(in srgb, var(--error) 55%, transparent);
+  background: color-mix(in srgb, var(--error) 14%, transparent);
+  color: var(--error);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.in-game-tag .champion-icon {
+  border-radius: 3px;
+}
+
+.live-game {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 8px;
+}
+
+.live-game-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--error);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.live-game-meta .num {
+  margin-left: auto;
+  color: var(--text);
+}
+
+/* Each team is a card with its side color as a thick edge and a raised plate under it */
+.live-team {
+  --side: #4a90ff;
+  border: 1px solid var(--outline-variant);
+  border-left: 4px solid var(--side);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  box-shadow: 4px 4px 0 color-mix(in srgb, var(--side) 22%, var(--surface-highest));
+  overflow: hidden;
+}
+
+.live-team.red {
+  --side: #ff5a5f;
+}
+
+.live-team header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--side) 10%, transparent);
+}
+
+.live-team h3 {
+  margin: 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--side);
+}
+
+.live-bans {
+  display: flex;
+  gap: 3px;
+}
+
+.live-bans .champion-icon {
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+
+.live-team ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.live-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-top: 1px solid var(--outline-variant);
+}
+
+.live-row.me {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.live-row-loadout {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.live-row-loadout .spell-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.live-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.live-row-name a {
+  color: inherit;
+}
+
+.live-row-name small {
+  margin-left: 2px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.live-row-rank {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mastery-totals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.mastery-totals strong {
+  font-family: var(--font-display);
+  font-size: 26px;
+}
+
+.mastery-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mastery-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  animation: card-in 0.3s var(--ease-out) both;
+}
+
+.mastery-row:first-child {
+  border-left: 3px solid var(--primary);
+  box-shadow: 4px 4px 0 var(--surface-highest);
+}
+
+/* The level hangs off the icon's bottom edge, half over it */
+.mastery-champ {
+  position: relative;
+  flex: none;
+  padding-bottom: 6px;
+}
+
+.mastery-level {
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  transform: translateX(-50%);
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.mastery-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mastery-bar {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--surface-highest);
+  overflow: hidden;
+}
+
+.mastery-bar span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}
+
+.mastery-side {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-weight: 700;
+}
+
+.mastery-side small {
+  font-size: 11px;
+  font-weight: 400;
+}

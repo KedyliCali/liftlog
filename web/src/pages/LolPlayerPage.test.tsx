@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { LolDeepStats, LolGroupDuo, LolMatch, LolPlayerDetail, LolRankPoint } from '../api/types'
+import type { LolDeepStats, LolGroupDuo, LolLiveGame, LolMastery, LolMatch, LolPlayerDetail, LolRankPoint } from '../api/types'
 import { ToastContext } from '../components/contexts'
 import { t } from '../lib/i18n'
 import { tzOffsetMinutes } from '../lib/lolDeep'
@@ -44,6 +44,18 @@ interface ServerOptions {
   /** null: an older server without the stats endpoint (404) */
   stats?: LolDeepStats | null
   groupDuos?: LolGroupDuo[] | null
+  /** null: not in a game (204); undefined: an older server without the endpoint (404) */
+  live?: LolLiveGame | null
+  mastery?: LolMastery
+}
+
+const championJson = {
+  data: {
+    Ahri: { id: 'Ahri', key: '103' },
+    Jinx: { id: 'Jinx', key: '222' },
+    LeeSin: { id: 'LeeSin', key: '64' },
+    Yasuo: { id: 'Yasuo', key: '157' },
+  },
 }
 
 interface Call {
@@ -53,7 +65,7 @@ interface Call {
 }
 
 /** Answers the player, rank history, stats, group duos and follow; Data Dragon gets a version and its files. */
-function fakeServer({ detail, history = null, stats = null, groupDuos = null }: ServerOptions): Call[] {
+function fakeServer({ detail, history = null, stats = null, groupDuos = null, live, mastery }: ServerOptions): Call[] {
   const calls: Call[] = []
   vi.stubGlobal(
     'fetch',
@@ -62,6 +74,7 @@ function fakeServer({ detail, history = null, stats = null, groupDuos = null }: 
       if (input.includes('summoner.json')) return jsonResponse(200, summonerJson)
       if (input.includes('item.json')) return jsonResponse(200, itemJson)
       if (input.includes('runesReforged.json')) return jsonResponse(200, runesJson)
+      if (input.includes('champion.json')) return jsonResponse(200, championJson)
       const url = new URL(input)
       const method = init.method ?? 'GET'
       calls.push({ method, url, body: typeof init.body === 'string' ? JSON.parse(init.body) : undefined })
@@ -73,6 +86,11 @@ function fakeServer({ detail, history = null, stats = null, groupDuos = null }: 
         // Echo the filter back, like the server does
         return jsonResponse(200, { ...stats, queue: url.searchParams.get('queue'), games: Number(url.searchParams.get('games')) })
       }
+      if (route === 'GET /api/v1/lol/players/p1/live') {
+        if (live === undefined) return jsonResponse(404, { status: 404 })
+        return live === null ? new Response(null, { status: 204 }) : jsonResponse(200, live)
+      }
+      if (route === 'GET /api/v1/lol/players/p1/mastery') return mastery ? jsonResponse(200, mastery) : jsonResponse(404, { status: 404 })
       if (route === 'GET /api/v1/lol/group/duos') return groupDuos ? jsonResponse(200, groupDuos) : new Response(null, { status: 204 })
       if (route === 'POST /api/v1/lol/players') return jsonResponse(201, { puuid: 'd2' })
       if (route === 'GET /api/v1/lol/players') return jsonResponse(200, [])
@@ -599,5 +617,141 @@ describe('League player page with deep stats', () => {
 
     expect(await screen.findByText(t.statsNoGames)).toBeInTheDocument()
     expect(screen.queryByRole('table')).toBeNull()
+  })
+})
+
+describe('League player page: flex, LP changes, live game and mastery', () => {
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllGlobals()
+    vi.useRealTimers()
+  })
+
+  const liveGame = (): LolLiveGame => ({
+    gameId: 99,
+    gameMode: 'CLASSIC',
+    queueId: 420,
+    gameStartTime: Date.now() - 754_000,
+    gameLengthS: 750,
+    fetchedAt: Date.now(),
+    participants: Array.from({ length: 10 }, (_, i) => ({
+      puuid: i === 0 ? 'p1' : `x${i}`,
+      riotName: i === 0 ? 'Behlul' : `Player${i}`,
+      riotTag: 'TR1',
+      teamId: i < 5 ? 100 : 200,
+      championId: i === 0 ? 103 : 222,
+      spells: [4, 14],
+      keystone: 8112,
+      primaryStyle: 8100,
+      secondaryStyle: 8300,
+      rank: i === 0 ? { tier: 'GOLD', division: 'II', lp: 45, wins: 30, losses: 25 } : null,
+      tracked: i === 0,
+      bot: false,
+    })),
+    bans: [{ championId: 157, teamId: 100 }],
+  })
+
+  const ranked: LolPlayerDetail = {
+    ...newDetail,
+    player: { ...newDetail.player, flexRank: { tier: 'SILVER', division: 'I', lp: 12, wins: 8, losses: 9 } },
+    seasonPeak: { recordedAt: '2026-03-01T10:00:00', tier: 'PLATINUM', division: 'IV', lp: 20, queue: 'SOLO' },
+    matches: [{ ...newDetail.matches[0], lpChange: 18 }, { ...newDetail.matches[1], lpChange: null }, { ...newDetail.matches[2], lpChange: -21 }],
+  }
+
+  it('shows solo and flex ranks and the season peak in the hero', async () => {
+    fakeServer({ detail: ranked, stats: deepStats, live: null })
+    renderPlayer()
+
+    const hero = await screen.findByTestId('lol-hero')
+    expect(within(hero).getByText(t.soloQueueShort)).toBeInTheDocument()
+    expect(within(hero).getByText(t.flexQueueShort)).toBeInTheDocument()
+    expect(within(hero).getByText(/Silver I/)).toBeInTheDocument()
+    expect(screen.getByTestId('season-peak')).toHaveTextContent(t.seasonPeak('Platinum IV 20 LP'))
+  })
+
+  it('leaves the peak out when the player stands there now or higher', async () => {
+    fakeServer({ detail: { ...ranked, seasonPeak: { recordedAt: '2026-03-01T10:00:00', tier: 'GOLD', division: 'III', lp: 0 } }, stats: deepStats, live: null })
+    renderPlayer()
+
+    await screen.findByTestId('lol-hero')
+    expect(screen.queryByTestId('season-peak')).toBeNull()
+  })
+
+  it('puts an LP chip on the match rows that have one', async () => {
+    fakeServer({ detail: ranked, stats: deepStats, live: null })
+    renderPlayer('/game/p1?tab=matches')
+
+    await waitFor(() => expect(screen.getAllByTestId('match-row')).toHaveLength(3))
+    const chips = screen.getAllByTestId('lp-chip')
+    expect(chips.map((chip) => chip.textContent)).toEqual(['+18 LP', '−21 LP'])
+    expect(chips[0]).toHaveClass('up')
+    expect(chips[1]).toHaveClass('down')
+  })
+
+  it('shows a ticking live badge that opens both teams', async () => {
+    fakeServer({ detail: ranked, stats: deepStats, live: liveGame() })
+    const { user } = renderPlayer()
+
+    const badge = await screen.findByTestId('live-badge')
+    expect(badge).toHaveTextContent(t.liveBadge)
+    expect(badge).toHaveTextContent(/12:3\d/)
+
+    await user.click(badge)
+    const dialog = await screen.findByRole('dialog', { name: t.liveGameTitle })
+    const blue = within(dialog).getByRole('region', { name: t.teamNames[100] })
+    const red = within(dialog).getByRole('region', { name: t.teamNames[200] })
+    expect(within(blue).getAllByRole('listitem')).toHaveLength(5)
+    expect(within(red).getAllByRole('listitem')).toHaveLength(5)
+    // The page's player links to their page and shows the rank the server knew; strangers get a dash
+    expect(within(blue).getByRole('link', { name: 'Behlul' })).toHaveAttribute('href', '/game/p1')
+    expect(within(blue).getByText('Gold II')).toBeInTheDocument()
+    expect(within(red).getAllByText('–')).toHaveLength(5)
+    await waitFor(() => expect(within(blue).getAllByRole('img', { name: 'Ahri' }).length).toBeGreaterThan(0))
+  })
+
+  it('has no live badge when the player is not in a game, or the server does not know live games', async () => {
+    fakeServer({ detail: ranked, stats: deepStats, live: null })
+    renderPlayer()
+    await screen.findByTestId('lol-hero')
+    expect(screen.queryByTestId('live-badge')).toBeNull()
+    cleanup()
+    vi.unstubAllGlobals()
+
+    fakeServer({ detail: ranked, stats: deepStats })
+    renderPlayer()
+    await screen.findByTestId('lol-hero')
+    expect(screen.queryByTestId('live-badge')).toBeNull()
+  })
+
+  it('lists mastery champions with level, points and the score', async () => {
+    const mastery: LolMastery = {
+      score: 412,
+      totalPoints: 2_345_000,
+      refreshedAt: '2026-10-21T10:00:00',
+      champions: [
+        { championId: 222, level: 12, points: 140_000, lastPlayed: '2026-10-20T10:00:00' },
+        { championId: 103, level: 31, points: 980_000, lastPlayed: '2026-10-21T09:00:00' },
+      ],
+    }
+    const calls = fakeServer({ detail: ranked, stats: deepStats, live: null, mastery })
+    renderPlayer('/game/p1?tab=mastery')
+
+    await waitFor(() => expect(screen.getAllByTestId('mastery-row')).toHaveLength(2))
+    expect(screen.getByTestId('mastery-score')).toHaveTextContent('412')
+    const rows = screen.getAllByTestId('mastery-row')
+    // Most points first, named from champion.json once it has arrived
+    await waitFor(() => expect(rows[0]).toHaveTextContent('Ahri'))
+    expect(rows[0]).toHaveTextContent(t.masteryLevel(31))
+    expect(rows[1]).toHaveTextContent('Jinx')
+    expect(calls.some((call) => call.url.pathname === '/api/v1/lol/players/p1/mastery')).toBe(true)
+    // Mastery does not need the stats
+    expect(screen.getByRole('tab', { name: t.playerTabs.mastery })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('says so when mastery was not fetched yet', async () => {
+    fakeServer({ detail: ranked, stats: deepStats, live: null, mastery: { score: null, totalPoints: null, refreshedAt: null, champions: [] } })
+    renderPlayer('/game/p1?tab=mastery')
+
+    expect(await screen.findByText(t.masteryEmptyTitle)).toBeInTheDocument()
   })
 })

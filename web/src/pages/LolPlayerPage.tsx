@@ -1,11 +1,12 @@
 import { keepPreviousData, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { LolDeepStats, LolDuo, LolPlayerDetail, LolRankPoint, LolStatsQueue, LolStatsWindow } from '../api/types'
 import { useToast } from '../components/contexts'
-import { LolAvatar, RankBadge } from '../components/LolBits'
+import { LolAvatar } from '../components/LolBits'
+import { LiveBadge, LiveGameSheet, MasteryTab, SoloFlexRanks } from '../components/LolLiveSections'
 import {
   ChampionCountTable,
   DeepChampionsTable,
@@ -31,7 +32,8 @@ import { ErrorState, MessageState } from '../components/StateViews'
 import { ControllerIcon } from '../components/Icons'
 import { errorMessage } from '../lib/format'
 import { t } from '../lib/i18n'
-import { seasonWinRate, timeAgo } from '../lib/lol'
+import { rankLabel, seasonWinRate, timeAgo } from '../lib/lol'
+import { peakAboveCurrent } from '../lib/lolLive'
 import { inQueue, matchPath, PLAYER_TABS, playerTab, QUEUE_CHIPS, statsQueue, statsWindow, tzOffsetMinutes, WINDOW_CHIPS, type PlayerTab } from '../lib/lolDeep'
 import { currentStreak } from '../lib/lolStats'
 
@@ -57,6 +59,7 @@ export function LolPlayerPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.lolGroup }),
         queryClient.invalidateQueries({ queryKey: queryKeys.lolRankHistory(puuid) }),
         queryClient.invalidateQueries({ queryKey: [...queryKeys.lolPlayer(puuid), 'stats'] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.lolMastery(puuid) }),
       ])
     } catch (error) {
       toast({ message: errorMessage(error) })
@@ -115,6 +118,12 @@ function PlayerContent({ puuid, data, rankHistory, version }: {
   })
   const updated = player.refreshedAt ? timeAgo(player.refreshedAt) : null
   const streak = currentStreak(summary.streak, summary.form)
+  // The server caches the answer for a minute, so polling at that pace costs Riot at most one request a minute.
+  // Errors (an older server, the budget running low) simply hide the badge
+  const liveQuery = useQuery({ queryKey: queryKeys.lolLive(puuid), queryFn: () => api.lolLive(puuid), refetchInterval: 60_000, retry: false })
+  const live = liveQuery.data ?? null
+  const [liveOpen, setLiveOpen] = useState(false)
+  const closeLive = useCallback(() => setLiveOpen(false), [])
 
   // The tab strip scrolls sideways on a phone: the open tab is brought into view (Matches sits off-screen)
   const tabList = useRef<HTMLDivElement>(null)
@@ -146,7 +155,7 @@ function PlayerContent({ puuid, data, rankHistory, version }: {
 
   return (
     <>
-      <section className="lol-hero">
+      <section className="lol-hero" data-testid="lol-hero">
         <LolAvatar version={version} iconId={player.profileIconId} name={player.gameName} size={72} />
         <div className="lol-hero-text">
           <span className="lol-hero-name">
@@ -158,15 +167,22 @@ function PlayerContent({ puuid, data, rankHistory, version }: {
             {player.summonerLevel != null && ` · ${t.level(player.summonerLevel)}`}
             {updated && ` · ${t.updatedAgo(updated.value, updated.unit)}`}
           </span>
-          <RankBadge rank={player.rank} />
+          <SoloFlexRanks rank={player.rank} flexRank={player.flexRank} />
           {player.rank && (
             <span className="muted num lol-season">
               {t.seasonRecord(player.rank.wins, player.rank.losses, Math.round(seasonWinRate(player.rank) * 100))}
             </span>
           )}
+          {data.seasonPeak && peakAboveCurrent(data.seasonPeak, player.rank) && (
+            <span className="lol-peak num" data-testid="season-peak">
+              {t.seasonPeak(`${rankLabel({ ...data.seasonPeak, wins: 0, losses: 0 })} ${t.lp(data.seasonPeak.lp)}`)}
+            </span>
+          )}
         </div>
         {summary.games > 0 && <StreakChip streak={streak} />}
+        {live && <LiveBadge game={live} onOpen={() => setLiveOpen(true)} />}
       </section>
+      {live && liveOpen && <LiveGameSheet game={live} version={version} viewer={puuid} onClose={closeLive} />}
 
       {summary.games === 0 ? (
         <>
@@ -245,6 +261,8 @@ function TabContent({ tab, puuid, data, stats, queue, games, rankHistory, versio
   const { summary, matches } = data
   // Stored matches, not the stats: the list works on any server and is filtered here the same way
   if (tab === 'matches') return <MatchList puuid={puuid} data={data} queue={queue} games={games} version={version} />
+  // Mastery is not about the stored games, so the queue and window filter do not apply to it
+  if (tab === 'mastery') return <MasteryTab puuid={puuid} version={version} />
 
   // An older server has no stats endpoint (404): the overview and champions fall back to the summary
   const fallback =

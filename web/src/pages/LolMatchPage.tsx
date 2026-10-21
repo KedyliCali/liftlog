@@ -7,6 +7,7 @@ import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { LolMatchDetail, LolMatchParticipant, LolMatchTeam, LolTimeline } from '../api/types'
 import { ChampionIcon, ItemIcon, RuneIcon, SpellIcon } from '../components/LolBits'
+import { LpChip } from '../components/LolLiveSections'
 import { SortableTable, type SortableColumn } from '../components/SortableTable'
 import { useChampionKeys, useItemData, useRuneData } from '../components/useDdragonData'
 import { useDdragonVersion } from '../components/useDdragonVersion'
@@ -130,7 +131,12 @@ function MatchHeader({ match, me, version }: { match: LolMatchDetail; me: LolMat
     <section className={`lol-match-hero ${tone}`} data-testid="match-header">
       {me && <ChampionIcon version={version} champion={me.champion} size={52} />}
       <div className="lol-match-hero-text">
-        {result && <strong className="lol-match-result">{result}</strong>}
+        {result && (
+          <span className="lol-match-result-row">
+            <strong className="lol-match-result">{result}</strong>
+            <LpChip change={me?.lpChange} />
+          </span>
+        )}
         <span className="muted">
           {t.queues[queueKey(match.queueId)]} · {formatDuration(match.durationS)} · {date}
         </span>

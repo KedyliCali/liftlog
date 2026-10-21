@@ -559,6 +559,74 @@ describe('League group table', () => {
   })
 })
 
+describe('League group: live games and flex ranks', () => {
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllGlobals()
+  })
+
+  const liveMember = (userId: number, puuid: string, inGame: boolean | null) => ({
+    userId,
+    puuid,
+    inGame,
+    queueId: inGame ? 420 : null,
+    gameMode: inGame ? 'CLASSIC' : null,
+    gameStartTime: inGame ? Date.now() - 300_000 : null,
+    gameLengthS: inGame ? 300 : null,
+    fetchedAt: inGame === null ? null : Date.now(),
+    championId: inGame ? 103 : null,
+  })
+
+  const liveServer = (live: () => Response) =>
+    fakeServer({
+      'GET /api/v1/lol/group': () =>
+        jsonResponse(200, group([
+          member(1, 'Behlul', { ...player('gold-player', 'GOLD'), flexRank: { tier: 'SILVER', division: 'I', lp: 5, wins: 3, losses: 4 } }, { owner: true, you: true }),
+          member(2, 'Ece', { ...player('plat-player', 'PLATINUM'), flexRank: null }),
+          member(3, 'Can', player('silver-player', 'SILVER')),
+        ])),
+      'GET /api/v1/lol/group/live': live,
+    })
+
+  it('marks the members who are in a game right now on the board and in the table', async () => {
+    const calls = liveServer(() =>
+      jsonResponse(200, { members: [liveMember(1, 'gold-player', true), liveMember(2, 'plat-player', false), liveMember(3, 'silver-player', null)] }),
+    )
+    const user = renderGame('/game')
+
+    const tag = await screen.findByTestId('in-game-tag')
+    expect(tag).toHaveTextContent(t.inGameNow)
+    expect(tag).toHaveAccessibleName(t.inGameNowLabel('Behlul'))
+    const rows = screen.getAllByRole('link')
+    // Platinum first; only Behlul is in a game (Ece is not, Can was not asked this time)
+    expect(within(rows[0]).queryByTestId('in-game-tag')).toBeNull()
+    expect(within(rows[1]).getByTestId('in-game-tag')).toBeInTheDocument()
+    expect(calls.filter((call) => call.path === '/api/v1/lol/group/live')).toHaveLength(1)
+
+    await user.click(screen.getByRole('button', { name: t.boardViewTable }))
+    const table = screen.getByRole('table', { name: t.boardViewTable })
+    const myRow = within(table).getAllByRole('row').find((row) => row.classList.contains('you'))!
+    expect(within(myRow).getByTestId('in-game-tag')).toBeInTheDocument()
+    // Solo and flex side by side; unranked in flex says so, an older server without flex shows solo only
+    expect(within(myRow).getByText(t.soloQueueShort)).toBeInTheDocument()
+    expect(within(myRow).getByText(t.flexQueueShort)).toBeInTheDocument()
+    expect(within(myRow).getByText(/Silver I/)).toBeInTheDocument()
+    const eceRow = within(table).getAllByRole('row').find((row) => row.textContent?.includes('Ece'))!
+    expect(within(eceRow).getByText(t.unranked)).toBeInTheDocument()
+    const canRow = within(table).getAllByRole('row').find((row) => row.textContent?.includes('Can'))!
+    expect(within(canRow).queryByText(t.flexQueueShort)).toBeNull()
+  })
+
+  it('shows the board without tags when the live check fails', async () => {
+    liveServer(() => jsonResponse(503, { status: 503, riot: 'RATE_LIMITED' }))
+    renderGame('/game')
+
+    expect(await screen.findByText('Duo Queue')).toBeInTheDocument()
+    expect(screen.getAllByRole('link')).toHaveLength(3)
+    expect(screen.queryByTestId('in-game-tag')).toBeNull()
+  })
+})
+
 /** Drags a follow-list row to the left far enough to unfollow and confirms, as a finger would. */
 async function swipeAway(label: string) {
   await swipeRowLeft(label)

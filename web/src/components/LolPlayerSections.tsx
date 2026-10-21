@@ -9,6 +9,7 @@ import { findMatch, itemSlots, multikillKey, queueRows, rankChartPoints, roleRow
 import { compact, DASH, decimal, percentText, shortDate } from '../lib/lolFormat'
 import { CountUp } from './CountUp'
 import { ChampionIcon, ItemIcon, SpellIcon } from './LolBits'
+import { LpChip } from './LolLiveSections'
 import { SortableTable, type SortableColumn } from './SortableTable'
 
 // The sections of the League player page below the hero, top to bottom. Each one copes with older answers
@@ -293,6 +294,7 @@ export function MatchRow({ match, version, spells, index, to }: {
           </span>
         </span>
         {badge && <span className={`multikill-badge ${badge}`}>{t.multikills[badge]}</span>}
+        <LpChip change={match.lpChange} />
       </span>
 
       {(items || extras.length > 0) && (
