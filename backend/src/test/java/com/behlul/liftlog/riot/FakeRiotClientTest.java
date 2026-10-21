@@ -79,6 +79,52 @@ class FakeRiotClientTest {
     }
 
     @Test
+    void masteryIsThirtyChampionsMostPointsFirstAndTheSameEachTime() {
+        List<RiotClient.ChampionMastery> masteries = fake.championMasteries(LolPlatform.TR1, "fake-mastery");
+
+        assertThat(masteries).hasSize(30);
+        assertThat(masteries).extracting(RiotClient.ChampionMastery::championId).doesNotHaveDuplicates();
+        for (int i = 1; i < masteries.size(); i++) {
+            assertThat(masteries.get(i).championPoints()).isLessThanOrEqualTo(masteries.get(i - 1).championPoints());
+            assertThat(masteries.get(i).championLevel()).isLessThanOrEqualTo(masteries.get(i - 1).championLevel());
+        }
+        assertThat(masteries.getFirst().championLevel()).isGreaterThan(5);
+        assertThat(new FakeRiotClient().championMasteries(LolPlatform.TR1, "fake-mastery"))
+                .extracting(RiotClient.ChampionMastery::championId)
+                .containsExactlyElementsOf(masteries.stream().map(RiotClient.ChampionMastery::championId).toList());
+    }
+
+    @Test
+    void namedPlayersAreAlwaysOrNeverInALiveGame() {
+        String live = fake.findAccount(LolPlatform.TR1, "Ingame Kuzey", "TR1").orElseThrow().puuid();
+        String offline = fake.findAccount(LolPlatform.TR1, "Offline Ege", "TR1").orElseThrow().puuid();
+
+        RiotClient.LiveGame game = fake.activeGame(LolPlatform.TR1, live).orElseThrow();
+        assertThat(fake.activeGame(LolPlatform.TR1, offline)).isEmpty();
+
+        assertThat(game.participants()).hasSize(10);
+        assertThat(game.participants()).extracting(RiotClient.LiveParticipant::puuid).doesNotHaveDuplicates();
+        assertThat(game.participants()).extracting(RiotClient.LiveParticipant::championId).doesNotHaveDuplicates();
+        RiotClient.LiveParticipant me = game.participants().stream().filter(p -> live.equals(p.puuid())).findFirst().orElseThrow();
+        assertThat(me.riotId()).isEqualTo("Ingame Kuzey#TR1");
+        assertThat(me.keystone()).isNotNull();
+        assertThat(game.participants()).anyMatch(p -> p.puuid().equals(FakeRiotClient.duoOf(live)) && p.teamId() == me.teamId());
+        assertThat(game.gameStartTime()).isLessThanOrEqualTo(System.currentTimeMillis());
+        assertThat(game.bannedChampions()).hasSize(10);
+        // Asked again within the window, it is the same game
+        assertThat(fake.activeGame(LolPlatform.TR1, live).orElseThrow().gameId()).isEqualTo(game.gameId());
+    }
+
+    @Test
+    void mostRankedPlayersAlsoHaveAFlexRank() {
+        long withFlex = java.util.stream.IntStream.range(0, 60)
+                .mapToObj(i -> fake.leagueEntries(LolPlatform.TR1, "fake-flex-" + i))
+                .filter(entries -> entries.stream().anyMatch(e -> "RANKED_FLEX_SR".equals(e.queueType())))
+                .count();
+        assertThat(withFlex).isBetween(20L, 50L);
+    }
+
+    @Test
     void aChosenTeammateLeavesTheFollowedPlayersNumbersAlone() {
         // The followed player is drawn first, so whoever else is in the match does not change their line
         Match match = FakeRiotClient.matchWith("TR1_1a2b_480", "someone", null);

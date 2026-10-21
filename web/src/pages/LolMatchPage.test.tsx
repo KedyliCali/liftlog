@@ -260,4 +260,24 @@ describe('League match page', () => {
     expect(await screen.findByTestId('match-header')).toHaveTextContent(t.teamWon(t.teamNames[100]))
     expect(teamRows(100).some((row) => row.classList.contains('you'))).toBe(false)
   })
+
+  it('shows the visiting player’s LP change next to the result', async () => {
+    const withLp: LolMatchDetail = {
+      ...detail,
+      participants: detail.participants.map((p) => ({ ...p, lpChange: p.puuid === 'me' ? 19 : p.puuid === 'p8' ? -17 : null })),
+    }
+    fakeServer(
+      () => jsonResponse(200, withLp),
+      () => jsonResponse(200, timeline),
+    )
+    renderMatch()
+
+    const header = await screen.findByTestId('match-header')
+    expect(within(header).getByTestId('lp-chip')).toHaveTextContent('+19 LP')
+    cleanup()
+
+    // Without a player, or for one without a known change, no chip
+    renderMatch('/game/match/TR1_9')
+    expect(within(await screen.findByTestId('match-header')).queryByTestId('lp-chip')).toBeNull()
+  })
 })

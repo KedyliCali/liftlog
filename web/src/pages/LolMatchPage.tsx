@@ -7,6 +7,7 @@ import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { LolMatchDetail, LolMatchParticipant, LolMatchTeam, LolTimeline } from '../api/types'
 import { ChampionIcon, ItemIcon, RuneIcon, SpellIcon } from '../components/LolBits'
+import { LpChip } from '../components/LolLiveSections'
 import { SortableTable, type SortableColumn } from '../components/SortableTable'
 import { useChampionKeys, useItemData, useRuneData } from '../components/useDdragonData'
 import { useDdragonVersion } from '../components/useDdragonVersion'
@@ -15,7 +16,7 @@ import { SetListSkeleton } from '../components/Skeletons'
 import { ErrorState, MessageState } from '../components/StateViews'
 import { ControllerIcon } from '../components/Icons'
 import { errorMessage, formatKg } from '../lib/format'
-import { locale, t } from '../lib/i18n'
+import { locale, t, termLang } from '../lib/i18n'
 import { formatDuration, kdaRatio, queueKey } from '../lib/lol'
 import { goldLeadPoints, laneDiffs, patchOf, signedNumber, splitTeams, zeroOffset, type ItemInfo, type LaneDiff, type RuneInfo } from '../lib/lolDeep'
 import { compact, DASH, percentText, utcDate } from '../lib/lolFormat'
@@ -130,7 +131,12 @@ function MatchHeader({ match, me, version }: { match: LolMatchDetail; me: LolMat
     <section className={`lol-match-hero ${tone}`} data-testid="match-header">
       {me && <ChampionIcon version={version} champion={me.champion} size={52} />}
       <div className="lol-match-hero-text">
-        {result && <strong className="lol-match-result">{result}</strong>}
+        {result && (
+          <span className="lol-match-result-row">
+            <strong className="lol-match-result">{result}</strong>
+            <LpChip change={me?.lpChange} />
+          </span>
+        )}
         <span className="muted">
           {t.queues[queueKey(match.queueId)]} · {formatDuration(match.durationS)} · {date}
         </span>
@@ -442,7 +448,7 @@ function LaneDiffTable({ rows, version }: { rows: LaneDiff[]; version: string | 
   ]
   return (
     <>
-      <h2 className="section-title">{t.laneDiffTitle}</h2>
+      <h2 className="section-title" lang={termLang(t.laneDiffTitle)}>{t.laneDiffTitle}</h2>
       <p className="muted lol-section-caption">{t.laneDiffSubtitle}</p>
       <SortableTable label={t.laneDiffTitle} rows={rows} columns={columns} rowKey={(r) => r.lane} initialSort={{ key: 'lane', direction: 'asc' }} />
     </>

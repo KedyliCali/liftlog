@@ -78,5 +78,15 @@ public class RiotConfig {
         public Optional<Timeline> timeline(LolPlatform platform, String matchId) {
             throw missing();
         }
+
+        @Override
+        public List<ChampionMastery> championMasteries(LolPlatform platform, String puuid) {
+            throw missing();
+        }
+
+        @Override
+        public Optional<LiveGame> activeGame(LolPlatform platform, String puuid) {
+            throw missing();
+        }
     }
 }

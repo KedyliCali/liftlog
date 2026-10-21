@@ -5,6 +5,8 @@ import com.behlul.liftlog.entity.LolMatchPlayer;
 import com.behlul.liftlog.entity.LolPlayer;
 import com.behlul.liftlog.entity.LolRankHistory;
 import com.behlul.liftlog.exception.RiotIdNotFoundException;
+import com.behlul.liftlog.entity.LolChampionMastery;
+import com.behlul.liftlog.repository.LolChampionMasteryRepository;
 import com.behlul.liftlog.repository.LolMatchPlayerRepository;
 import com.behlul.liftlog.repository.LolPlayerRepository;
 import com.behlul.liftlog.repository.LolRankHistoryRepository;
@@ -39,6 +41,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -68,6 +71,9 @@ class LolServiceTest {
     @Mock private LolMatchStore matchStore;
     @Mock private RiotRateLimiter limiter;
     @Mock private CurrentUserProvider currentUser;
+    @Mock private LolChampionMasteryRepository masteryRepository;
+
+    private static final java.time.LocalDate SEASON_START = java.time.LocalDate.of(2026, 1, 8);
 
     private final RiotClient riot = spy(new FakeRiotClient());
     private final Clock clock = Clock.fixed(NOW.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
@@ -76,7 +82,7 @@ class LolServiceTest {
     @BeforeEach
     void setUp() {
         service = new LolService(playerRepository, matchRepository, rankHistoryRepository, matchStore, riot, limiter,
-                currentUser, clock);
+                currentUser, clock, masteryRepository, SEASON_START);
         lenient().when(currentUser.currentUserId()).thenReturn(USER_ID);
     }
 
@@ -390,12 +396,13 @@ class LolServiceTest {
         verify(riot, times(LolService.MAX_NEW_MATCHES_PER_REFRESH)).match(any(), anyString());
     }
 
-    /** The history table as the service sees it: what it saved, newest last. */
+    /** The history table as the service sees it: what it saved, newest last, both queues together. */
     private List<LolRankHistory> rankHistoryKeptInMemory() {
         List<LolRankHistory> history = new ArrayList<>();
-        when(rankHistoryRepository.findFirstByPuuidOrderByRecordedAtDesc("a"))
-                .thenAnswer(call -> history.isEmpty() ? Optional.empty() : Optional.of(history.getLast()));
-        when(rankHistoryRepository.save(any())).thenAnswer(call -> {
+        lenient().when(rankHistoryRepository.findFirstByPuuidAndQueueOrderByRecordedAtDesc(eq("a"), any()))
+                .thenAnswer(call -> history.stream().filter(h -> h.getQueue() == call.getArgument(1))
+                        .reduce((first, second) -> second));
+        lenient().when(rankHistoryRepository.save(any())).thenAnswer(call -> {
             history.add(call.getArgument(0));
             return call.getArgument(0);
         });
@@ -408,36 +415,214 @@ class LolServiceTest {
         service.refreshSomeStale(List.of(player));
     }
 
+    private static RiotClient.LeagueEntry solo(String tier, String division, int lp, int wins, int losses) {
+        return new RiotClient.LeagueEntry("RANKED_SOLO_5x5", tier, division, lp, wins, losses);
+    }
+
     @Test
-    void rankHistoryGetsARowOnlyWhenTheRankMoves() {
+    void rankHistoryGetsARowOnlyWhenTheRankMovesInEachQueue() {
         when(limiter.remaining()).thenReturn(90);
         everyClaimSucceeds();
         List<LolRankHistory> history = rankHistoryKeptInMemory();
         LolPlayer player = player("a", 60);
         RiotClient.LeagueEntry flex = new RiotClient.LeagueEntry("RANKED_FLEX_SR", "GOLD", "I", 10, 5, 5);
 
-        refreshWithRank(player, flex, new RiotClient.LeagueEntry("RANKED_SOLO_5x5", "SILVER", "II", 50, 10, 8));
+        refreshWithRank(player, flex, solo("SILVER", "II", 50, 10, 8));
+        assertThat(player.getFlexTier()).isEqualTo("GOLD");
+        assertThat(player.getFlexLp()).isEqualTo(10);
         // Same tier, division and LP: a game that changed nothing visible (wins move with every game)
-        refreshWithRank(player, new RiotClient.LeagueEntry("RANKED_SOLO_5x5", "SILVER", "II", 50, 11, 9));
-        assertThat(history).hasSize(1);
+        refreshWithRank(player, solo("SILVER", "II", 50, 11, 9));
+        assertThat(player.getFlexTier()).isNull();
+        assertThat(history).hasSize(2);
 
-        refreshWithRank(player, new RiotClient.LeagueEntry("RANKED_SOLO_5x5", "SILVER", "II", 68, 12, 9));
-        // Unranked (only flex) records nothing
+        refreshWithRank(player, solo("SILVER", "II", 68, 12, 9));
+        // Unranked in solo records nothing there; flex did not move, so it records nothing either
         refreshWithRank(player, flex);
+        assertThat(player.getSoloTier()).isNull();
 
-        assertThat(history).extracting(LolRankHistory::getLp).containsExactly(50, 68);
-        assertThat(history).extracting(LolRankHistory::getTier).containsOnly("SILVER");
+        assertThat(history).filteredOn(h -> h.getQueue() == LolRankQueue.SOLO)
+                .extracting(LolRankHistory::getLp).containsExactly(50, 68);
+        assertThat(history).filteredOn(h -> h.getQueue() == LolRankQueue.FLEX)
+                .extracting(LolRankHistory::getTier).containsExactly("GOLD");
         assertThat(history.getFirst().getRecordedAt()).isEqualTo(NOW);
-        verify(rankHistoryRepository, times(2)).deleteAllButNewest("a", LolService.RANK_HISTORY_KEPT);
+        verify(rankHistoryRepository, times(2)).deleteAllButNewest("a", "SOLO", LolService.RANK_HISTORY_KEPT);
+        verify(rankHistoryRepository, times(1)).deleteAllButNewest("a", "FLEX", LolService.RANK_HISTORY_KEPT);
+    }
+
+    /** One stored solo game of the player's, the only one after the previous snapshot. */
+    private LolMatchPlayer gameBetweenSnapshots(boolean win, LocalDateTime previousSnapshot, LolMatchPlayer... more) {
+        LolMatchPlayer game = new LolMatchPlayer("TR1_9", "a", 420, NOW.minusMinutes(20), 1_800, "Ahri", "MIDDLE",
+                5, 3, 7, 180, 20_000, win);
+        List<LolMatchPlayer> found = new ArrayList<>(List.of(game));
+        found.addAll(List.of(more));
+        when(matchRepository.findByPuuidAndQueueIdAndEndedAtAfter("a", 420, previousSnapshot)).thenReturn(found);
+        return game;
+    }
+
+    private LocalDateTime previousSoloSnapshot(List<LolRankHistory> history, String tier, String division, int lp, int wins,
+                                               int losses) {
+        LocalDateTime at = NOW.minusHours(2);
+        history.add(new LolRankHistory("a", LolRankQueue.SOLO, at, tier, division, lp, wins, losses));
+        return at;
+    }
+
+    @Test
+    void theOneGameBetweenTwoSnapshotsGetsTheLpDifferenceAcrossADivision() {
+        when(limiter.remaining()).thenReturn(90);
+        everyClaimSucceeds();
+        List<LolRankHistory> history = rankHistoryKeptInMemory();
+        LocalDateTime before = previousSoloSnapshot(history, "GOLD", "IV", 90, 10, 8);
+        LolMatchPlayer game = gameBetweenSnapshots(true, before);
+
+        // GOLD IV 90 → GOLD III 15 after one win: +25, the LP carried over the division line
+        refreshWithRank(player("a", 60), solo("GOLD", "III", 15, 11, 8));
+
+        assertThat(game.getLpChange()).isEqualTo(25);
+    }
+
+    @Test
+    void aLossThatDemotesIsNegative() {
+        when(limiter.remaining()).thenReturn(90);
+        everyClaimSucceeds();
+        List<LolRankHistory> history = rankHistoryKeptInMemory();
+        LocalDateTime before = previousSoloSnapshot(history, "PLATINUM", "IV", 10, 40, 40);
+        LolMatchPlayer game = gameBetweenSnapshots(false, before);
+
+        // PLATINUM IV 10 → GOLD I 85 after one loss: down a tier, −25
+        refreshWithRank(player("a", 60), solo("GOLD", "I", 85, 40, 41));
+
+        assertThat(game.getLpChange()).isEqualTo(-25);
+    }
+
+    @Test
+    void twoGamesBetweenSnapshotsGiveNoLpChange() {
+        when(limiter.remaining()).thenReturn(90);
+        everyClaimSucceeds();
+        List<LolRankHistory> history = rankHistoryKeptInMemory();
+        previousSoloSnapshot(history, "GOLD", "IV", 50, 10, 8);
+
+        // Two more games counted (12 + 8 = 20 against 18): whatever moved cannot be split between them
+        refreshWithRank(player("a", 60), solo("GOLD", "IV", 90, 12, 8));
+
+        verify(matchRepository, never()).findByPuuidAndQueueIdAndEndedAtAfter(anyString(), anyInt(), any());
+    }
+
+    @Test
+    void noLpChangeWithoutExactlyOneMatchingStoredGame() {
+        when(limiter.remaining()).thenReturn(90);
+        everyClaimSucceeds();
+        List<LolRankHistory> history = rankHistoryKeptInMemory();
+        LocalDateTime before = previousSoloSnapshot(history, "GOLD", "IV", 50, 10, 8);
+        LolMatchPlayer other = new LolMatchPlayer("TR1_8", "a", 420, NOW.minusMinutes(70), 1_800, "Lux", "MIDDLE",
+                1, 1, 1, 100, 10_000, true);
+        LolMatchPlayer game = gameBetweenSnapshots(true, before, other);
+
+        // One game counted, but two stored after the snapshot: which one it was is unknown
+        refreshWithRank(player("a", 60), solo("GOLD", "IV", 72, 11, 8));
+        assertThat(game.getLpChange()).isNull();
+        assertThat(other.getLpChange()).isNull();
+    }
+
+    @Test
+    void noLpChangeWhenTheStoredResultContradictsTheCounts() {
+        when(limiter.remaining()).thenReturn(90);
+        everyClaimSucceeds();
+        List<LolRankHistory> history = rankHistoryKeptInMemory();
+        LocalDateTime before = previousSoloSnapshot(history, "GOLD", "IV", 50, 10, 8);
+        // The counts say a win, the stored game is a loss: some other game was counted
+        LolMatchPlayer game = gameBetweenSnapshots(false, before);
+
+        refreshWithRank(player("a", 60), solo("GOLD", "IV", 72, 11, 8));
+
+        assertThat(game.getLpChange()).isNull();
+    }
+
+    @Test
+    void masteryIsStoredOnTheFirstRefreshTopFiftyWithTotalsOverAll() {
+        when(limiter.remaining()).thenReturn(90);
+        everyClaimSucceeds();
+        List<RiotClient.ChampionMastery> sixty = new ArrayList<>();
+        for (int i = 0; i < 60; i++) {
+            sixty.add(new RiotClient.ChampionMastery(i + 1, 2, 1_000L * (i + 1), NOW.toInstant(ZoneOffset.UTC).toEpochMilli()));
+        }
+        doReturn(sixty).when(riot).championMasteries(LolPlatform.TR1, "a");
+        LolPlayer player = player("a", 60);
+
+        service.refreshSomeStale(List.of(player));
+
+        org.mockito.InOrder order = inOrder(masteryRepository);
+        order.verify(masteryRepository).deleteByPuuid("a");
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<LolChampionMastery>> saved = ArgumentCaptor.forClass(List.class);
+        order.verify(masteryRepository).saveAll(saved.capture());
+        assertThat(saved.getValue()).hasSize(LolService.MASTERY_KEPT);
+        // Most points first: champion 60 had the most
+        assertThat(saved.getValue().getFirst().getChampionId()).isEqualTo(60);
+        assertThat(saved.getValue().getFirst().getLastPlayTime()).isEqualTo(NOW);
+        assertThat(player.getMasteryScore()).isEqualTo(120);
+        assertThat(player.getMasteryPoints()).isEqualTo(1_830_000L);
+        assertThat(player.getMasteryRefreshedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void masteryIsSkippedWhenNothingWasPlayedSinceARecentFetch() {
+        when(limiter.remaining()).thenReturn(90);
+        everyClaimSucceeds();
+        List<String> ids = riot.recentMatchIds(LolPlatform.TR1, "a", LolService.MATCH_IDS_REQUESTED);
+        when(matchRepository.findStoredIds(eq("a"), any())).thenReturn(Set.copyOf(ids));
+        LolPlayer player = player("a", 60);
+        player.updateMastery(100, 1_000_000L, NOW.minusHours(3));
+
+        service.refreshSomeStale(List.of(player));
+        verify(riot, never()).championMasteries(any(), anyString());
+
+        // A day later it is asked for anyway
+        player.updateMastery(100, 1_000_000L, NOW.minus(LolService.MASTERY_MAX_AGE).minusMinutes(1));
+        player.markRefreshed(NOW.minusMinutes(60));
+        service.refreshSomeStale(List.of(player));
+        verify(riot).championMasteries(LolPlatform.TR1, "a");
+    }
+
+    @Test
+    void aMasteryRiotErrorKeepsTheOldMasteryAndStillRefreshes() {
+        when(limiter.remaining()).thenReturn(90);
+        everyClaimSucceeds();
+        doThrow(new RiotUnavailableException(Reason.RIOT_ERROR, "boom")).when(riot).championMasteries(any(), anyString());
+        LolPlayer player = player("a", 60);
+
+        service.refreshSomeStale(List.of(player));
+
+        verify(masteryRepository, never()).deleteByPuuid(anyString());
+        assertThat(player.getRefreshedAt()).isEqualTo(NOW);
+        assertThat(player.getMasteryRefreshedAt()).isNull();
+    }
+
+    @Test
+    void theSeasonPeakIsTheHighestSnapshotSinceTheSeasonStarted() {
+        LocalDateTime start = SEASON_START.atStartOfDay();
+        when(rankHistoryRepository.findByPuuidAndQueueAndRecordedAtGreaterThanEqual("a", LolRankQueue.SOLO, start))
+                .thenReturn(List.of(
+                        new LolRankHistory("a", LolRankQueue.SOLO, start.plusDays(1), "GOLD", "I", 80, 1, 0),
+                        new LolRankHistory("a", LolRankQueue.SOLO, start.plusDays(2), "PLATINUM", "IV", 20, 2, 0),
+                        new LolRankHistory("a", LolRankQueue.SOLO, start.plusDays(3), "GOLD", "I", 99, 2, 1),
+                        new LolRankHistory("a", LolRankQueue.SOLO, start.plusDays(4), "PLATINUM", "IV", 20, 3, 1)));
+
+        var peak = service.seasonPeak("a", LolRankQueue.SOLO);
+
+        assertThat(peak.tier()).isEqualTo("PLATINUM");
+        assertThat(peak.lp()).isEqualTo(20);
+        // Reached twice: the first time counts
+        assertThat(peak.recordedAt()).isEqualTo(start.plusDays(2));
+        assertThat(service.seasonPeak("a", LolRankQueue.FLEX)).isNull();
     }
 
     @Test
     void rankHistoryOfAPlayerYouCannotSeeIsNotFound() {
         when(playerRepository.isVisibleTo(USER_ID, "hidden")).thenReturn(false);
 
-        assertThatThrownBy(() -> service.rankHistory("hidden"))
+        assertThatThrownBy(() -> service.rankHistory("hidden", LolRankQueue.SOLO))
                 .isInstanceOf(com.behlul.liftlog.exception.ResourceNotFoundException.class);
-        verify(rankHistoryRepository, never()).findByPuuidOrderByRecordedAtAsc(anyString());
+        verify(rankHistoryRepository, never()).findByPuuidAndQueueOrderByRecordedAtAsc(anyString(), any());
     }
 
     @Test

@@ -8,6 +8,7 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
 import java.time.Clock;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -248,5 +249,82 @@ class HttpRiotClientTest {
         assertThat(match.participants().get(1).goldEarned()).isEqualTo(11000);
         assertThat(match.participants().get(1).challenges().killParticipation()).isNull();
         assertThat(match.participants().get(1).challenges().teamDamagePercentage()).isNull();
+    }
+
+    @Test
+    void masteryComesFromThePlatformHost() {
+        riot.expect(requestTo("https://tr1.api.riotgames.com/lol/champion-mastery/v5/champion-masteries/by-puuid/abc"))
+                .andExpect(header("X-Riot-Token", "RGAPI-test"))
+                .andRespond(withSuccess("""
+                        [{"puuid":"abc","championId":103,"championLevel":42,"championPoints":512345,
+                          "lastPlayTime":1760000000000,"championPointsSinceLastLevel":1000,"markRequiredForNextLevel":2},
+                         {"puuid":"abc","championId":222,"championLevel":7,"championPoints":60000,"lastPlayTime":1750000000000}]
+                        """, MediaType.APPLICATION_JSON));
+
+        List<RiotClient.ChampionMastery> masteries = client.championMasteries(LolPlatform.TR1, "abc");
+
+        assertThat(masteries).hasSize(2);
+        assertThat(masteries.getFirst().championId()).isEqualTo(103);
+        assertThat(masteries.getFirst().championLevel()).isEqualTo(42);
+        assertThat(masteries.getFirst().championPoints()).isEqualTo(512_345);
+        assertThat(masteries.getFirst().lastPlayTime()).isEqualTo(1_760_000_000_000L);
+        riot.verify();
+    }
+
+    @Test
+    void masteryOfAnUnknownPlayerIsEmpty() {
+        riot.expect(requestTo("https://euw1.api.riotgames.com/lol/champion-mastery/v5/champion-masteries/by-puuid/nobody"))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND));
+
+        assertThat(client.championMasteries(LolPlatform.EUW1, "nobody")).isEmpty();
+    }
+
+    @Test
+    void liveGameIsMappedFromSpectatorV5() {
+        riot.expect(requestTo("https://tr1.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/abc"))
+                .andRespond(withSuccess("""
+                        {"gameId":123,"mapId":11,"gameMode":"CLASSIC","gameType":"MATCHED","gameQueueConfigId":420,
+                         "gameStartTime":1760000000000,"gameLength":615,"platformId":"TR1",
+                         "participants":[{"puuid":"abc","teamId":100,"spell1Id":4,"spell2Id":14,"championId":103,
+                                          "profileIconId":1,"riotId":"Behlul#TR1","bot":false,
+                                          "perks":{"perkIds":[8112,8126,8138],"perkStyle":8100,"perkSubStyle":8300}},
+                                         {"puuid":"def","teamId":200,"spell1Id":4,"spell2Id":11,"championId":64,
+                                          "riotId":"Other#EUW"}],
+                         "bannedChampions":[{"championId":157,"teamId":100,"pickTurn":1},
+                                            {"championId":-1,"teamId":200,"pickTurn":2}]}
+                        """, MediaType.APPLICATION_JSON));
+
+        RiotClient.LiveGame game = client.activeGame(LolPlatform.TR1, "abc").orElseThrow();
+
+        assertThat(game.gameQueueConfigId()).isEqualTo(420);
+        assertThat(game.gameStartTime()).isEqualTo(1_760_000_000_000L);
+        assertThat(game.gameLength()).isEqualTo(615);
+        assertThat(game.participants()).hasSize(2);
+        RiotClient.LiveParticipant me = game.participants().getFirst();
+        assertThat(me.riotId()).isEqualTo("Behlul#TR1");
+        assertThat(me.championId()).isEqualTo(103);
+        assertThat(me.keystone()).isEqualTo(8112);
+        assertThat(me.perks().perkSubStyle()).isEqualTo(8300);
+        // No perks at all (some modes) is no keystone, not a failure
+        assertThat(game.participants().get(1).keystone()).isNull();
+        assertThat(game.bannedChampions()).extracting(RiotClient.LiveBan::championId).containsExactly(157, -1);
+    }
+
+    @Test
+    void notInAGameIsEmpty() {
+        riot.expect(requestTo("https://tr1.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/abc"))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND));
+
+        assertThat(client.activeGame(LolPlatform.TR1, "abc")).isEmpty();
+    }
+
+    @Test
+    void liveGameErrorsAreRiotErrors() {
+        riot.expect(requestTo("https://tr1.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/abc"))
+                .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+
+        assertThatThrownBy(() -> client.activeGame(LolPlatform.TR1, "abc"))
+                .isInstanceOfSatisfying(RiotUnavailableException.class,
+                        e -> assertThat(e.reason()).isEqualTo(RiotUnavailableException.Reason.RATE_LIMITED));
     }
 }

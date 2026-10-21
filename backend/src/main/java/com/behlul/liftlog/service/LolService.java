@@ -1,6 +1,14 @@
 package com.behlul.liftlog.service;
 
+import com.behlul.liftlog.dto.LolDtos.ChampionMasteryResponse;
+import com.behlul.liftlog.dto.LolDtos.LolMasteryResponse;
 import com.behlul.liftlog.dto.LolDtos.LolMatchResponse;
+import com.behlul.liftlog.entity.LolChampionMastery;
+import com.behlul.liftlog.repository.LolChampionMasteryRepository;
+import com.behlul.liftlog.riot.RiotClient.ChampionMastery;
+import org.springframework.beans.factory.annotation.Value;
+import java.time.Instant;
+import java.time.LocalDate;
 import com.behlul.liftlog.dto.LolDtos.LolPlayerDetailResponse;
 import com.behlul.liftlog.dto.LolDtos.LolPlayerResponse;
 import com.behlul.liftlog.dto.LolDtos.RankHistoryPoint;
@@ -68,8 +76,18 @@ public class LolService {
      * matches and re-downloads of old rows without details together.
      */
     static final int MAX_NEW_MATCHES_PER_REFRESH = 10;
-    /** Requests a full refresh may need (profile, rank, match list and new matches), checked before starting. */
-    static final int REQUESTS_PER_REFRESH = 3 + MAX_NEW_MATCHES_PER_REFRESH;
+    /**
+     * Requests a full refresh may need (profile, rank, match list, mastery and new matches), checked before
+     * starting. Mastery is often skipped (see {@link #MASTERY_MAX_AGE}), but the budget check plans for it.
+     */
+    static final int REQUESTS_PER_REFRESH = 4 + MAX_NEW_MATCHES_PER_REFRESH;
+    /** Mastery rows kept per player, most points first; the totals still count every champion. */
+    static final int MASTERY_KEPT = 50;
+    /**
+     * Mastery only changes when the player plays, so a refresh asks for it when it found new matches, and otherwise
+     * only once this old, which keeps a quiet player's refreshes one request cheaper.
+     */
+    static final Duration MASTERY_MAX_AGE = Duration.ofDays(1);
     /**
      * One page view makes at most this many refresh attempts, stalest first; the rest show cached data. Every
      * attempt that reached Riot counts, including one that found no profile or failed, since each spent requests.
@@ -78,7 +96,6 @@ public class LolService {
     /** Left for actions after background refreshes: one account lookup plus one refresh (a follow or a link). */
     static final int RESERVED_FOR_ACTIONS = 1 + REQUESTS_PER_REFRESH;
     static final int MAX_TRACKED = 20;
-    static final String SOLO_QUEUE = "RANKED_SOLO_5x5";
     /** Rank history rows kept per player: months of play when a row is added only on a change. */
     static final int RANK_HISTORY_KEPT = 200;
 
@@ -98,10 +115,15 @@ public class LolService {
     private final RiotRateLimiter limiter;
     private final CurrentUserProvider currentUser;
     private final Clock clock;
+    private final LolChampionMasteryRepository masteryRepository;
+    /** The ranked season's first day; the season peak only looks at rank snapshots from then on. */
+    private final LocalDate seasonStart;
 
     public LolService(LolPlayerRepository playerRepository, LolMatchPlayerRepository matchRepository,
                       LolRankHistoryRepository rankHistoryRepository, LolMatchStore matchStore, RiotClient riot,
-                      RiotRateLimiter limiter, CurrentUserProvider currentUser, Clock clock) {
+                      RiotRateLimiter limiter, CurrentUserProvider currentUser, Clock clock,
+                      LolChampionMasteryRepository masteryRepository,
+                      @Value("${liftlog.riot.season-start:2026-01-08}") LocalDate seasonStart) {
         this.playerRepository = playerRepository;
         this.matchRepository = matchRepository;
         this.rankHistoryRepository = rankHistoryRepository;
@@ -110,6 +132,8 @@ public class LolService {
         this.limiter = limiter;
         this.currentUser = currentUser;
         this.clock = clock;
+        this.masteryRepository = masteryRepository;
+        this.seasonStart = seasonStart;
     }
 
     /** Looks the Riot ID up and follows it. Needs Riot to answer, since there is nothing cached yet. */
@@ -183,13 +207,24 @@ public class LolService {
         return detailOf(player);
     }
 
-    /** The LP chart's points, oldest first. Same visibility as the detail page; never calls Riot. */
+    /** The LP chart's points for one ranked queue, oldest first. Same visibility as the detail page; never calls Riot. */
     @Transactional(readOnly = true)
-    public List<RankHistoryPoint> rankHistory(String puuid) {
+    public List<RankHistoryPoint> rankHistory(String puuid, LolRankQueue queue) {
         LolPlayer player = loadVisible(puuid);
-        return rankHistoryRepository.findByPuuidOrderByRecordedAtAsc(player.getPuuid()).stream()
-                .map(h -> new RankHistoryPoint(h.getRecordedAt(), h.getTier(), h.getDivision(), h.getLp()))
+        return rankHistoryRepository.findByPuuidAndQueueOrderByRecordedAtAsc(player.getPuuid(), queue).stream()
+                .map(LolService::point)
                 .toList();
+    }
+
+    /** The stored champion mastery; never calls Riot (a refresh keeps it current). */
+    @Transactional(readOnly = true)
+    public LolMasteryResponse mastery(String puuid) {
+        LolPlayer player = loadVisible(puuid);
+        return new LolMasteryResponse(player.getMasteryScore(), player.getMasteryPoints(), player.getMasteryRefreshedAt(),
+                masteryRepository.findByPuuidOrderByChampionPointsDesc(puuid).stream()
+                        .map(m -> new ChampionMasteryResponse(m.getChampionId(), m.getChampionLevel(), m.getChampionPoints(),
+                                m.getLastPlayTime()))
+                        .toList());
     }
 
     @Transactional
@@ -267,12 +302,18 @@ public class LolService {
         }
         player.updateProfile(found.get().profileIconId(), found.get().summonerLevel());
 
-        LeagueEntry solo = riot.leagueEntries(platform, player.getPuuid()).stream()
-                .filter(e -> SOLO_QUEUE.equals(e.queueType())).findFirst().orElse(null);
+        List<LeagueEntry> entries = riot.leagueEntries(platform, player.getPuuid());
+        LeagueEntry solo = entryOf(entries, LolRankQueue.SOLO);
+        LeagueEntry flex = entryOf(entries, LolRankQueue.FLEX);
         if (solo == null) {
             player.updateSoloRank(null, null, null, null, null);
         } else {
             player.updateSoloRank(solo.tier(), solo.rank(), solo.leaguePoints(), solo.wins(), solo.losses());
+        }
+        if (flex == null) {
+            player.updateFlexRank(null, null, null, null, null);
+        } else {
+            player.updateFlexRank(flex.tier(), flex.rank(), flex.leaguePoints(), flex.wins(), flex.losses());
         }
 
         List<String> ids = riot.recentMatchIds(platform, player.getPuuid(), MATCH_IDS_REQUESTED);
@@ -294,28 +335,109 @@ public class LolService {
             matchStore.storeIfAbsent(match, platform);
         }));
 
+        LocalDateTime masteryAt = player.getMasteryRefreshedAt();
+        if (masteryAt == null || !newIds.isEmpty() || masteryAt.isBefore(now().minus(MASTERY_MAX_AGE))) {
+            refreshMastery(platform, player);
+        }
+
+        // After the matches, so the game between two snapshots is already stored when its LP change is worked out
         if (solo != null) {
-            recordRank(player.getPuuid(), solo);
+            recordRank(player.getPuuid(), LolRankQueue.SOLO, solo);
+        }
+        if (flex != null) {
+            recordRank(player.getPuuid(), LolRankQueue.FLEX, flex);
         }
         player.markRefreshed(now());
         playerRepository.save(player);
         return RefreshOutcome.REFRESHED;
     }
 
+    private static LeagueEntry entryOf(List<LeagueEntry> entries, LolRankQueue queue) {
+        return entries.stream().filter(e -> queue.riotName().equals(e.queueType())).findFirst().orElse(null);
+    }
+
     /**
-     * Adds a rank history point when tier, division or LP moved since the newest one (or there is none yet), so a
-     * player who did not play adds nothing. Unranked players record nothing: the chart has no value for them.
+     * Replaces the stored top champions and the totals. A Riot error on this one request leaves the old mastery in
+     * place rather than failing the refresh (same rule as a broken match); key and budget errors still propagate.
      */
-    private void recordRank(String puuid, LeagueEntry solo) {
-        Optional<LolRankHistory> newest = rankHistoryRepository.findFirstByPuuidOrderByRecordedAtDesc(puuid);
-        if (newest.isPresent() && newest.get().sameRank(solo.tier(), solo.rank(), solo.leaguePoints())) {
+    private void refreshMastery(LolPlatform platform, LolPlayer player) {
+        List<ChampionMastery> all;
+        try {
+            all = riot.championMasteries(platform, player.getPuuid());
+        } catch (RiotUnavailableException e) {
+            if (e.reason() != Reason.RIOT_ERROR) {
+                throw e;
+            }
+            log.info("Keeping the old mastery of {} for now: {}", player.getPuuid(), e.getMessage());
+            return;
+        }
+        masteryRepository.deleteByPuuid(player.getPuuid());
+        masteryRepository.saveAll(all.stream()
+                .sorted(Comparator.comparingLong(ChampionMastery::championPoints).reversed())
+                .limit(MASTERY_KEPT)
+                .map(m -> new LolChampionMastery(player.getPuuid(), (int) m.championId(), m.championLevel(),
+                        m.championPoints(), m.lastPlayTime() <= 0 ? null
+                        : LocalDateTime.ofInstant(Instant.ofEpochMilli(m.lastPlayTime()), ZoneOffset.UTC)))
+                .toList());
+        player.updateMastery(all.stream().mapToInt(ChampionMastery::championLevel).sum(),
+                all.stream().mapToLong(ChampionMastery::championPoints).sum(), now());
+    }
+
+    /**
+     * Adds a rank history point when tier, division or LP moved since the newest one of that queue (or there is none
+     * yet), so a player who did not play adds nothing. Unranked players record nothing: the chart has no value for
+     * them. A new point right after exactly one game also gives that game its LP change.
+     */
+    private void recordRank(String puuid, LolRankQueue queue, LeagueEntry entry) {
+        Optional<LolRankHistory> newest = rankHistoryRepository.findFirstByPuuidAndQueueOrderByRecordedAtDesc(puuid, queue);
+        if (newest.isPresent() && newest.get().sameRank(entry.tier(), entry.rank(), entry.leaguePoints())) {
             return;
         }
         // Microseconds, what a Postgres TIMESTAMP keeps, so the key in memory matches the stored one
         LocalDateTime recordedAt = LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC).truncatedTo(ChronoUnit.MICROS);
-        rankHistoryRepository.save(new LolRankHistory(puuid, recordedAt, solo.tier(), solo.rank(), solo.leaguePoints(),
-                solo.wins(), solo.losses()));
-        rankHistoryRepository.deleteAllButNewest(puuid, RANK_HISTORY_KEPT);
+        rankHistoryRepository.save(new LolRankHistory(puuid, queue, recordedAt, entry.tier(), entry.rank(),
+                entry.leaguePoints(), entry.wins(), entry.losses()));
+        newest.ifPresent(previous -> attributeLpChange(puuid, queue, previous, entry));
+        rankHistoryRepository.deleteAllButNewest(puuid, queue.name(), RANK_HISTORY_KEPT);
+    }
+
+    /**
+     * Gives the one game played between two snapshots its LP change. Only when the snapshots' win/loss counts say
+     * exactly one game was played, exactly one stored game of that queue ended after the older snapshot, and its
+     * result is the one the counts moved by; anything else (several games, a game not stored yet) leaves it unknown.
+     */
+    private void attributeLpChange(String puuid, LolRankQueue queue, LolRankHistory previous, LeagueEntry now) {
+        if (now.wins() + now.losses() - previous.games() != 1) {
+            return;
+        }
+        List<LolMatchPlayer> between = matchRepository.findByPuuidAndQueueIdAndEndedAtAfter(puuid, queue.queueId(),
+                previous.getRecordedAt());
+        if (between.size() != 1) {
+            return;
+        }
+        LolMatchPlayer game = between.getFirst();
+        boolean won = now.wins() - previous.getWins() == 1;
+        if (game.isWin() != won || game.getLpChange() != null) {
+            return;
+        }
+        game.setLpChange(LolRanks.lpChange(previous.getTier(), previous.getDivision(), previous.getLp(), now.tier(),
+                now.rank(), now.leaguePoints(), won));
+    }
+
+    /** The highest rank of the season in one queue, from its rank history; null without a snapshot this season. */
+    RankHistoryPoint seasonPeak(String puuid, LolRankQueue queue) {
+        return rankHistoryRepository.findByPuuidAndQueueAndRecordedAtGreaterThanEqual(puuid, queue,
+                        seasonStart.atStartOfDay()).stream()
+                .filter(h -> LolRanks.score(h.getTier(), h.getDivision(), h.getLp()).isPresent())
+                // The first time the peak was reached, when it was reached more than once
+                .min(Comparator.comparingInt((LolRankHistory h) -> -LolRanks.score(h.getTier(), h.getDivision(), h.getLp()).getAsInt())
+                        .thenComparing(LolRankHistory::getRecordedAt))
+                .map(LolService::point)
+                .orElse(null);
+    }
+
+    private static RankHistoryPoint point(LolRankHistory h) {
+        return new RankHistoryPoint(h.getRecordedAt(), h.getTier(), h.getDivision(), h.getLp(), h.getQueue().name());
     }
 
     /**
@@ -381,7 +503,19 @@ public class LolService {
         Map<String, Integer> teamIds = matchStore.teamIds(player.getPuuid(),
                 matches.stream().map(LolMatchPlayer::getMatchId).toList());
         return new LolPlayerDetailResponse(toResponse(player, matches), LolStats.summarize(matches),
-                matches.stream().map(m -> LolMatchResponse.from(m, teamIds.get(m.getMatchId()))).toList());
+                matches.stream().map(m -> LolMatchResponse.from(m, teamIds.get(m.getMatchId()))).toList(),
+                seasonPeak(player.getPuuid(), LolRankQueue.SOLO), seasonPeak(player.getPuuid(), LolRankQueue.FLEX));
+    }
+
+    /** The estimated LP changes of followed players in one match, by puuid; players without one are left out. */
+    public Map<String, Integer> lpChanges(String matchId) {
+        Map<String, Integer> changes = new java.util.HashMap<>();
+        for (LolMatchPlayer line : matchRepository.findByMatchId(matchId)) {
+            if (line.getLpChange() != null) {
+                changes.put(line.getPuuid(), line.getLpChange());
+            }
+        }
+        return changes;
     }
 
     /** The player's newest stored lines, at most {@link #MATCHES_KEPT}. */
@@ -400,10 +534,12 @@ public class LolService {
     private static LolPlayerResponse toResponse(LolPlayer player, List<LolMatchPlayer> matches) {
         RankResponse rank = player.getSoloTier() == null ? null : new RankResponse(player.getSoloTier(),
                 player.getSoloDivision(), player.getSoloLp(), player.getSoloWins(), player.getSoloLosses());
+        RankResponse flexRank = player.getFlexTier() == null ? null : new RankResponse(player.getFlexTier(),
+                player.getFlexDivision(), player.getFlexLp(), player.getFlexWins(), player.getFlexLosses());
         int wins = (int) matches.stream().filter(LolMatchPlayer::isWin).count();
         return new LolPlayerResponse(player.getPuuid(), player.getGameName(), player.getTagLine(), player.getPlatform(),
                 player.getProfileIconId(), player.getSummonerLevel(), rank, matches.size(), wins, player.getRefreshedAt(),
-                LolStats.playerSummary(matches));
+                LolStats.playerSummary(matches), flexRank);
     }
 
     private static String emptyToNull(String text) {

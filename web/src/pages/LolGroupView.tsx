@@ -1,5 +1,5 @@
-import { useQueryClient, type QueryClient, type UseQueryResult } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useQuery, useQueryClient, type QueryClient, type UseQueryResult } from '@tanstack/react-query'
+import { useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { AppError } from '../api/client'
 import { api } from '../api/endpoints'
@@ -7,7 +7,9 @@ import { queryKeys } from '../api/queryKeys'
 import type { LolGroup, LolGroupMember } from '../api/types'
 import { useConfirm, useToast } from '../components/contexts'
 import { ControllerIcon, SettingsIcon, ShareIcon } from '../components/Icons'
-import { LolBoardRow, RankBadge } from '../components/LolBits'
+import { LolBoardRow } from '../components/LolBits'
+import { InGameTag, SoloFlexRanks } from '../components/LolLiveSections'
+import { useChampionKeys } from '../components/useDdragonData'
 import { RiotIdSheet } from '../components/RiotIdSheet'
 import { Sheet } from '../components/Sheet'
 import { SortableTable, type SortableColumn } from '../components/SortableTable'
@@ -18,6 +20,7 @@ import { GroupTrainingView } from './GroupTrainingView'
 import { errorMessage, formatKg } from '../lib/format'
 import { locale, t } from '../lib/i18n'
 import { rankScore, timeAgo } from '../lib/lol'
+import { inGameByPuuid } from '../lib/lolLive'
 import { roundTo, toPercent, winPercent } from '../lib/lolStats'
 import { extractInviteCode, formatInviteCode, inviteMessage, oldestRefresh, splitGroupBoard, type LinkedMember } from '../lib/lolGroup'
 import { isStandalone } from '../lib/platform'
@@ -280,6 +283,21 @@ function LeagueBoard({ group, mode, selectMode, onLink }: {
   const version = useDdragonVersion()
   const me = group.members.find((member) => member.you)
   const { ranked, unlinked } = splitGroupBoard(group.members)
+  // The server keeps each answer about two minutes, so polling at that pace adds no Riot requests of its own.
+  // Errors (an older server, Riot busy) just leave the tags out
+  const groupLive = useQuery({
+    queryKey: queryKeys.lolGroupLive,
+    queryFn: api.lolGroupLive,
+    enabled: ranked.length > 0,
+    refetchInterval: 120_000,
+    retry: false,
+  })
+  const inGame = inGameByPuuid(groupLive.data?.members)
+  const championKeys = useChampionKeys(inGame.size > 0 ? version : null)
+  const liveTag = (member: LinkedMember) => {
+    const live = inGame.get(member.player.puuid)
+    return live ? <InGameTag name={nameOf(member)} championId={live.championId} version={version} championKeys={championKeys} /> : null
+  }
   return (
     <>
       {me && !me.player && (
@@ -304,7 +322,7 @@ function LeagueBoard({ group, mode, selectMode, onLink }: {
 
       <div className="lol-board group-board">
         {mode === 'table' && ranked.length > 0 ? (
-          <GroupTable members={ranked} />
+          <GroupTable members={ranked} liveTag={liveTag} />
         ) : (
           ranked.map((member, index) => (
             <LolBoardRow
@@ -315,6 +333,7 @@ function LeagueBoard({ group, mode, selectMode, onLink }: {
               memberName={nameOf(member)}
               you={member.you}
               style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+              badge={liveTag(member)}
             />
           ))
         )}
@@ -327,7 +346,7 @@ function LeagueBoard({ group, mode, selectMode, onLink }: {
 const dash = (value: number | null | undefined, format: (n: number) => string) => (value == null ? '–' : format(value))
 
 /** The members side by side with their averages from the stored recent games; a header tap sorts. */
-function GroupTable({ members }: { members: LinkedMember[] }) {
+function GroupTable({ members, liveTag }: { members: LinkedMember[]; liveTag: (member: LinkedMember) => ReactNode }) {
   const recentWin = (m: LinkedMember) => winPercent(m.player.recentWins, m.player.recentGames)
   const columns: SortableColumn<LinkedMember>[] = [
     {
@@ -342,10 +361,16 @@ function GroupTable({ members }: { members: LinkedMember[] }) {
             {m.you && <span className="table-you">{t.youTag}</span>}
           </span>
           <small>{nameOf(m)}</small>
+          {liveTag(m)}
         </Link>
       ),
     },
-    { key: 'rank', label: t.rankColumn, sortValue: (m) => rankScore(m.player.rank), render: (m) => <RankBadge rank={m.player.rank} /> },
+    {
+      key: 'rank',
+      label: t.rankColumn,
+      sortValue: (m) => rankScore(m.player.rank),
+      render: (m) => <SoloFlexRanks rank={m.player.rank} flexRank={m.player.flexRank} />,
+    },
     { key: 'winRate', label: t.winRateColumn, sortValue: recentWin, render: (m) => dash(recentWin(m), t.percent) },
     { key: 'kda', label: t.statKda, sortValue: (m) => m.player.summary?.kda, render: (m) => dash(m.player.summary?.kda, (n) => formatKg(roundTo(n, 2))) },
     {

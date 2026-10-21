@@ -319,6 +319,8 @@ export interface LolPlayer {
   refreshedAt: string | null
   /** Averages over the stored recent matches; missing from older servers */
   summary?: LolPlayerSummary | null
+  /** Ranked flex; null while unranked there, missing from older servers */
+  flexRank?: LolRank | null
 }
 
 /** Each value is null when no stored match has it (older matches lack the detailed numbers). */
@@ -363,6 +365,8 @@ export interface LolMatch {
   gameMode?: string | null
   /** 100 blue, 200 red; missing from servers before the full matches were stored */
   teamId?: number | null
+  /** LP won or lost, estimated from rank snapshots; null when unknown */
+  lpChange?: number | null
 }
 
 export interface LolChampionStats {
@@ -413,6 +417,8 @@ export interface LolRankPoint {
   tier: string
   division: string
   lp: number
+  /** SOLO or FLEX; missing from older servers, which only had solo */
+  queue?: 'SOLO' | 'FLEX'
 }
 
 export interface LolSummary {
@@ -445,6 +451,9 @@ export interface LolPlayerDetail {
   player: LolPlayer
   summary: LolSummary
   matches: LolMatch[]
+  /** Highest solo/duo rank seen this season; null without one, missing from older servers */
+  seasonPeak?: LolRankPoint | null
+  flexSeasonPeak?: LolRankPoint | null
 }
 
 export interface LolGroupMember {
@@ -686,6 +695,8 @@ export interface LolMatchParticipant {
   secondaryStyle: number | null
   win: boolean
   tracked: boolean
+  /** LP this game moved for a followed player, when it could be estimated; missing from older servers */
+  lpChange?: number | null
 }
 
 export interface LolMatchDetail {
@@ -719,6 +730,74 @@ export interface LolTimeline {
     /** Per minute */
     gold: number[]
   }[]
+}
+
+// ---------- Mastery and live games ----------
+
+export interface LolChampionMastery {
+  /** Data Dragon's numeric champion key */
+  championId: number
+  level: number
+  points: number
+  lastPlayed: string | null
+}
+
+export interface LolMastery {
+  /** Sum of every champion's mastery level; null until a refresh fetched mastery */
+  score: number | null
+  totalPoints: number | null
+  refreshedAt: string | null
+  /** Top champions by points */
+  champions: LolChampionMastery[]
+}
+
+export interface LolLiveParticipant {
+  puuid: string | null
+  riotName: string | null
+  riotTag: string | null
+  teamId: number
+  championId: number
+  spells: number[]
+  keystone: number | null
+  primaryStyle: number | null
+  secondaryStyle: number | null
+  /** Solo/duo rank when the server already knew the player; null for the others */
+  rank: LolRank | null
+  /** The viewer can open this player's page */
+  tracked: boolean
+  bot: boolean
+}
+
+export interface LolLiveGame {
+  gameId: number
+  gameMode: string | null
+  queueId: number | null
+  /** Epoch milliseconds; 0 while the game is loading */
+  gameStartTime: number
+  /** Seconds since the start when Riot was asked */
+  gameLengthS: number
+  /** Epoch milliseconds when Riot was asked */
+  fetchedAt: number
+  participants: LolLiveParticipant[]
+  /** championId -1 is a skipped ban */
+  bans: { championId: number; teamId: number }[]
+}
+
+export interface LolGroupLiveMember {
+  userId: number
+  puuid: string
+  /** null: not asked this time (the shared Riot budget ran low) */
+  inGame: boolean | null
+  queueId: number | null
+  gameMode: string | null
+  gameStartTime: number | null
+  gameLengthS: number | null
+  fetchedAt: number | null
+  championId: number | null
+}
+
+export interface LolGroupLive {
+  members: LolGroupLiveMember[]
 }
 
 /** Two group members who played in the same match on the same team. */

@@ -511,6 +511,40 @@ zamanlayıcı/kaydırma/şablon eksik; release APK'yı canlı API adresiyle derl
 1. PR aç; canlıda V22'yi kontrol et.
 2. Android'de yemek eklerken `grams` gönder (alan isteğe bağlı, eski istemciler etkilenmez).
 
+## 2026-10-21 — LoL mastery, canlı maç, Flex ve LP değişimi (`feature/lol-mastery-live`)
+
+Tasarım: [docs/design/lol-live.md](docs/design/lol-live.md). Riot kişisel anahtarı (20/sn, 100/2 dk, herkes ortak)
+yüzünden her yeni istek limiter'dan geçiyor ve sonuçlar saklanıp tembelce yenileniyor.
+
+- **Migration `V24__lol_mastery_flex_lp.sql`:** `lol_players`'a flex rank ve mastery toplamları,
+  `lol_champion_mastery` tablosu (ilk 50 şampiyon), `lol_rank_history.queue` (eski satırlar SOLO; anahtar artık
+  `puuid, queue, recorded_at`), `lol_match_players.lp_change`.
+- **Mastery:** yenilemede champion-mastery-v5 (+1 istek, yalnızca yeni maç bulunduysa, hiç yoksa ya da bir günden
+  eskiyse). `REQUESTS_PER_REFRESH` = 4 + 10. `GET /players/{puuid}/mastery` Riot'a hiç gitmez.
+- **Canlı maç:** spectator-v5, `GET /players/{puuid}/live` (oyunda değilse 204) ve `GET /group/live`. Bellekte
+  önbellek: oyuncu sayfası 60 sn, grup 2 dk; bir maçın cevabı içindeki herkes için saklanıyor. Bütçe azalınca
+  istek atılmıyor (grup üyesi `inGame: null`). Katılımcıların rank'i sadece önbellekteki oyunculardan.
+- **Flex + LP değişimi + sezon zirvesi:** flex solo gibi saklanıyor ve geçmişi ayrı. İki snapshot arasında tam bir
+  maç varsa (W+L farkı 1, o kuyrukta tek kayıtlı maç, sonuç tutuyor, |fark| ≤ 100) LP farkı o maça yazılıyor
+  (`LolRanks`: tier×400 + division×100 + LP, Master+ = 2800 + LP). Sezon zirvesi `LOL_SEASON_START`
+  (varsayılan 2026-01-08) sonrası en yüksek snapshot.
+- **Web:** hero'da SOLO/FLEX rozetleri, sezon zirvesi, "Canlı 12:34" etiketi ve iki takımı gösteren canlı maç
+  sayfası; yeni **Mastery** sekmesi; maç satırında ve maç sayfasında `+18 LP` / `−21 LP`; grup tahtası ve
+  tablosunda "Şu an oyunda" ve Solo/Flex.
+- **Jargon (Behlül'ün isteği):** Türkçe arayüzde League terimleri oyuncuların bildiği İngilizce: W–L, WR, KP,
+  DMG/dk, Gold/dk, Vision/dk, Double/Triple/Quadra, First Blood/Tower/Dragon/Baron, Top/Jungle/Mid/ADC/Support,
+  Ranked Solo/Duo, Victory/Defeat, Bans... Cümleler Türkçe kaldı. Büyük harfe çevrilen İngilizce terimler `lang="en"`
+  alıyor ki "VİSİON" değil "VISION" yazsın.
+- **Fake (`RIOT_FAKE=true`):** adında `ingame` geçen Riot ID hep oyunda, `offline` geçen hiç; mastery 30 şampiyon;
+  ranked oyuncuların üçte ikisinde flex. LP çipleri fake'te kendiliğinden çıkmıyor (maç listesi büyümüyor).
+- Doğrulama: backend 324 test (`mvnw verify`), web 475 test, tsc, lint, build. Ayrıca ayrı bir geçici Postgres +
+  `RIOT_FAKE` ile uygulama açılıp canlı rozet/sayfa, Mastery sekmesi ve grup tablosu tarayıcıda denendi.
+
+**Sıradaki adımlar:**
+1. PR aç; canlıda V24'ü kontrol et (V23 başka branch'te, sırayla birleştir).
+2. Gerçek anahtarla bir maç sonrası LP çipinin geldiğini gör.
+3. İstenirse: LP grafiğinde Solo/Flex seçici (`rank-history?queue=FLEX` hazır), Android'de aynı ekranlar.
+
 ## 2026-10-21 — Daha fazla yemek (`feature/more-foods`)
 
 - **Backend:** `V23__more_foods.sql` katalog 315 → 1067 satır (+752). Gruplar: zincirler ve sokak lezzetleri 150

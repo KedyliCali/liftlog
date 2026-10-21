@@ -4,7 +4,12 @@ import com.behlul.liftlog.dto.LolDtos.LolPlayerDetailResponse;
 import com.behlul.liftlog.dto.LolDtos.LolPlayerResponse;
 import com.behlul.liftlog.dto.LolDtos.RankHistoryPoint;
 import com.behlul.liftlog.dto.LolDtos.TrackPlayerRequest;
+import com.behlul.liftlog.dto.LolDtos.LolMasteryResponse;
+import com.behlul.liftlog.dto.LolLiveDtos.LolLiveGame;
 import com.behlul.liftlog.dto.LolMatchDtos.LolDeepStats;
+import com.behlul.liftlog.service.LolLiveService;
+import com.behlul.liftlog.service.LolRankQueue;
+import org.springframework.http.ResponseEntity;
 import com.behlul.liftlog.service.LolMatchService;
 import com.behlul.liftlog.service.LolQueueFilter;
 import com.behlul.liftlog.service.LolService;
@@ -28,10 +33,12 @@ public class LolController {
 
     private final LolService lolService;
     private final LolMatchService matchService;
+    private final LolLiveService liveService;
 
-    public LolController(LolService lolService, LolMatchService matchService) {
+    public LolController(LolService lolService, LolMatchService matchService, LolLiveService liveService) {
         this.lolService = lolService;
         this.matchService = matchService;
+        this.liveService = liveService;
     }
 
     @GetMapping
@@ -50,10 +57,29 @@ public class LolController {
         return lolService.detail(puuid);
     }
 
-    /** Solo/duo rank points for the LP chart, oldest first; a 404 for players the detail page would hide. */
+    /**
+     * Rank points of one ranked queue (SOLO, the default, or FLEX) for the LP chart, oldest first; a 404 for players
+     * the detail page would hide.
+     */
     @GetMapping("/{puuid}/rank-history")
-    public List<RankHistoryPoint> rankHistory(@PathVariable String puuid) {
-        return lolService.rankHistory(puuid);
+    public List<RankHistoryPoint> rankHistory(@PathVariable String puuid,
+                                              @RequestParam(defaultValue = "SOLO") LolRankQueue queue) {
+        return lolService.rankHistory(puuid, queue);
+    }
+
+    /** Stored champion mastery (top champions and totals); never calls Riot. */
+    @GetMapping("/{puuid}/mastery")
+    public LolMasteryResponse mastery(@PathVariable String puuid) {
+        return lolService.mastery(puuid);
+    }
+
+    /**
+     * The game the player is in right now, or 204 when they are not in one. Cached for a minute, so polling it does
+     * not spend Riot requests; 503 when Riot cannot be asked (budget used up) and nothing is cached.
+     */
+    @GetMapping("/{puuid}/live")
+    public ResponseEntity<LolLiveGame> live(@PathVariable String puuid) {
+        return liveService.liveGame(puuid).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     /**

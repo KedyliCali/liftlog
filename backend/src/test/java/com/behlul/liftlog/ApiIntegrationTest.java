@@ -5,6 +5,7 @@ import com.behlul.liftlog.entity.LolRankHistory;
 import com.behlul.liftlog.repository.LolGroupRepository;
 import com.behlul.liftlog.repository.LolPlayerRepository;
 import com.behlul.liftlog.repository.LolRankHistoryRepository;
+import com.behlul.liftlog.service.LolRankQueue;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -1199,6 +1200,13 @@ class ApiIntegrationTest {
         mockMvc.perform(get("/api/v1/lol/players/" + puuid + "/rank-history").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(expectedPoints));
+        // Flex has its own history, recorded the same way
+        int expectedFlexPoints = read(detail).get("player").get("flexRank").isNull() ? 0 : 1;
+        mockMvc.perform(get("/api/v1/lol/players/" + puuid + "/rank-history?queue=FLEX").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(expectedFlexPoints));
+        mockMvc.perform(get("/api/v1/lol/players/" + puuid + "/rank-history?queue=ARAM").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isBadRequest());
 
         String stranger = register(randomEmail(), "s3cret-pass", null);
         mockMvc.perform(get("/api/v1/lol/players/" + puuid).header(HttpHeaders.AUTHORIZATION, "Bearer " + stranger))
@@ -1222,18 +1230,23 @@ class ApiIntegrationTest {
         tx.executeWithoutResult(status -> {
             playerRepository.save(new LolPlayer(puuid, "TR1", "History", "TR1"));
             for (int i = 0; i < 4; i++) {
-                rankHistoryRepository.save(new LolRankHistory(puuid, start.plusHours(i), "GOLD", "II", 10 * i, i, 0));
+                rankHistoryRepository.save(new LolRankHistory(puuid, LolRankQueue.SOLO, start.plusHours(i), "GOLD", "II",
+                        10 * i, i, 0));
+                // Flex rows at the same moments: the queue is part of the key, and trimming one queue leaves the other
+                rankHistoryRepository.save(new LolRankHistory(puuid, LolRankQueue.FLEX, start.plusHours(i), "SILVER", "I",
+                        5 * i, i, 0));
             }
         });
 
         // Fewer rows than kept: nothing goes
-        tx.executeWithoutResult(status -> assertThat(rankHistoryRepository.deleteAllButNewest(puuid, 10)).isZero());
-        tx.executeWithoutResult(status -> assertThat(rankHistoryRepository.deleteAllButNewest(puuid, 2)).isEqualTo(2));
+        tx.executeWithoutResult(status -> assertThat(rankHistoryRepository.deleteAllButNewest(puuid, "SOLO", 10)).isZero());
+        tx.executeWithoutResult(status -> assertThat(rankHistoryRepository.deleteAllButNewest(puuid, "SOLO", 2)).isEqualTo(2));
 
-        assertThat(rankHistoryRepository.findByPuuidOrderByRecordedAtAsc(puuid))
+        assertThat(rankHistoryRepository.findByPuuidAndQueueOrderByRecordedAtAsc(puuid, LolRankQueue.SOLO))
                 .extracting(LolRankHistory::getLp).containsExactly(20, 30);
-        assertThat(rankHistoryRepository.findFirstByPuuidOrderByRecordedAtDesc(puuid))
+        assertThat(rankHistoryRepository.findFirstByPuuidAndQueueOrderByRecordedAtDesc(puuid, LolRankQueue.SOLO))
                 .hasValueSatisfying(h -> assertThat(h.getLp()).isEqualTo(30));
+        assertThat(rankHistoryRepository.findByPuuidAndQueueOrderByRecordedAtAsc(puuid, LolRankQueue.FLEX)).hasSize(4);
     }
 
     @Test
