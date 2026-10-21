@@ -29,6 +29,12 @@ public interface RiotClient {
     /** Per-minute frames of a match; empty when Riot no longer has it. Asked for only when a match page opens. */
     Optional<Timeline> timeline(LolPlatform platform, String matchId);
 
+    /** Every champion the player has mastery on, most points first; empty for a player with none. */
+    List<ChampionMastery> championMasteries(LolPlatform platform, String puuid);
+
+    /** The game the player is in right now; empty when they are not in one (Riot answers 404). */
+    Optional<LiveGame> activeGame(LolPlatform platform, String puuid);
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Account(String puuid, String gameName, String tagLine) {
     }
@@ -126,5 +132,39 @@ public interface RiotClient {
     @JsonIgnoreProperties(ignoreUnknown = true)
     record ParticipantFrame(Integer totalGold, Integer xp, Integer minionsKilled, Integer jungleMinionsKilled,
                             Integer level) {
+    }
+
+    /** champion-mastery-v5. championId is Data Dragon's numeric champion "key"; lastPlayTime is epoch milliseconds. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record ChampionMastery(long championId, int championLevel, long championPoints, long lastPlayTime) {
+    }
+
+    /**
+     * spectator-v5. gameStartTime is epoch milliseconds (0 while the game is still loading), gameLength seconds since
+     * the start; gameQueueConfigId is the queue id (420 solo, 440 flex), missing in custom games.
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record LiveGame(long gameId, String gameMode, Integer gameQueueConfigId, long gameStartTime, long gameLength,
+                    List<LiveParticipant> participants, List<LiveBan> bannedChampions) {
+    }
+
+    /** @param riotId "Name#TAG"; spectator-v5 sends the Riot ID in one piece */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record LiveParticipant(String puuid, String riotId, int teamId, long championId, Integer spell1Id, Integer spell2Id,
+                           Boolean bot, LivePerks perks) {
+
+        /** The keystone is the first of the chosen runes. */
+        public Integer keystone() {
+            return perks == null || perks.perkIds() == null || perks.perkIds().isEmpty() ? null : perks.perkIds().getFirst();
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record LivePerks(List<Integer> perkIds, Integer perkStyle, Integer perkSubStyle) {
+    }
+
+    /** championId -1 is a skipped ban. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record LiveBan(int championId, int teamId, int pickTurn) {
     }
 }

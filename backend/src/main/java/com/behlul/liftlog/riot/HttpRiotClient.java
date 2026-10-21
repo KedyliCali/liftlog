@@ -93,6 +93,28 @@ public class HttpRiotClient implements RiotClient {
         return Optional.of(new Timeline(matchId, dto.info().frames()));
     }
 
+    @Override
+    public List<ChampionMastery> championMasteries(LolPlatform platform, String puuid) {
+        // A puuid Riot does not know on this server is a 404: no mastery to show, not a failure
+        Optional<ChampionMastery[]> found = find(() -> restClient.get()
+                .uri("https://{host}.api.riotgames.com/lol/champion-mastery/v5/champion-masteries/by-puuid/{puuid}",
+                        platform.host(), puuid)
+                .retrieve().body(ChampionMastery[].class));
+        return found.map(List::of).orElse(List.of());
+    }
+
+    @Override
+    public Optional<LiveGame> activeGame(LolPlatform platform, String puuid) {
+        // A 404 is the everyday answer here: "not in a game right now"
+        return find(() -> restClient.get()
+                .uri("https://{host}.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/{puuid}",
+                        platform.host(), puuid)
+                .retrieve().body(LiveGame.class))
+                .map(game -> new LiveGame(game.gameId(), game.gameMode(), game.gameQueueConfigId(), game.gameStartTime(),
+                        game.gameLength(), game.participants() == null ? List.of() : game.participants(),
+                        game.bannedChampions() == null ? List.of() : game.bannedChampions()));
+    }
+
     /** Riot nests the match id under "metadata" and everything else under "info". */
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record MatchDto(Metadata metadata, Info info) {

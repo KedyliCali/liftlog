@@ -23,6 +23,20 @@ public class FakeRiotClient implements RiotClient {
 
     /** A Riot ID with this name is reported as not found; a match id containing it has no timeline. */
     public static final String MISSING_NAME = "notfound";
+    /** A Riot ID containing this is always in a live game; one containing {@link #OFFLINE_NAME} never is. */
+    public static final String LIVE_NAME = "ingame";
+    public static final String OFFLINE_NAME = "offline";
+    private static final long LIVE_WINDOW_MS = 20 * 60_000L;
+    /** Data Dragon champion keys of {@link #OTHER_CHAMPIONS}, for mastery and live games (which use keys, not names). */
+    private static final Map<String, Integer> CHAMPION_KEYS = Map.ofEntries(Map.entry("Ahri", 103), Map.entry("Jinx", 222),
+            Map.entry("LeeSin", 64), Map.entry("Thresh", 412), Map.entry("Yasuo", 157), Map.entry("Lux", 99),
+            Map.entry("Darius", 122), Map.entry("Ezreal", 81), Map.entry("Kaisa", 145), Map.entry("Garen", 86),
+            Map.entry("Viego", 234), Map.entry("Leona", 89), Map.entry("Teemo", 17), Map.entry("Zed", 238),
+            Map.entry("Morgana", 25), Map.entry("Vayne", 67), Map.entry("Caitlyn", 51), Map.entry("Malphite", 54),
+            Map.entry("Annie", 1), Map.entry("Sona", 37), Map.entry("Graves", 104), Map.entry("Amumu", 32),
+            Map.entry("Katarina", 55), Map.entry("Nautilus", 111));
+    /** Further champions only mastery lists show: Aatrox, Akali, Alistar, ... */
+    private static final int[] MORE_CHAMPION_KEYS = {266, 84, 12, 53, 63, 164, 119, 114, 39, 24};
 
     private static final String[] CHAMPIONS = {"Ahri", "Jinx", "LeeSin", "Thresh", "Yasuo", "Lux", "Darius", "Ezreal",
             "Kaisa", "Garen", "Viego", "Leona"};
@@ -80,8 +94,96 @@ public class FakeRiotClient implements RiotClient {
         random.nextInt(100); // the old fixed LP, still drawn so wins and losses stay what they were
         // LP moves once an hour, so the rank history chart gets points while developing locally
         int lp = seeded(puuid + "lp" + System.currentTimeMillis() / 3_600_000L).nextInt(100);
-        return List.of(new LeagueEntry("RANKED_SOLO_5x5", tier, division, lp, 20 + random.nextInt(120),
-                20 + random.nextInt(120)));
+        LeagueEntry solo = new LeagueEntry("RANKED_SOLO_5x5", tier, division, lp, 20 + random.nextInt(120),
+                20 + random.nextInt(120));
+        // Flex from its own seed, so the solo numbers above stay what they were; two of three ranked players play it
+        Random flexRandom = seeded(puuid + "flex");
+        if (flexRandom.nextInt(3) == 0) {
+            return List.of(solo);
+        }
+        // Flex sits a division or two around solo, as it does for most players
+        int flexTier = Math.max(0, Math.min(TIERS.length - 1, indexOf(TIERS, tier) + flexRandom.nextInt(3) - 1));
+        int flexLp = seeded(puuid + "flexlp" + System.currentTimeMillis() / 3_600_000L).nextInt(100);
+        return List.of(solo, new LeagueEntry("RANKED_FLEX_SR", TIERS[flexTier], DIVISIONS[flexRandom.nextInt(DIVISIONS.length)],
+                flexLp, 5 + flexRandom.nextInt(60), 5 + flexRandom.nextInt(60)));
+    }
+
+    /**
+     * Thirty champions with points falling off from a main of up to a million, levels following the points like
+     * Riot's uncapped levels (roughly one per 12 000 points early on, slower later), last played over the past months.
+     */
+    @Override
+    public List<ChampionMastery> championMasteries(LolPlatform platform, String puuid) {
+        Random random = seeded(puuid + "mastery");
+        List<Integer> keys = sortedChampionKeys();
+        for (int key : MORE_CHAMPION_KEYS) {
+            keys.add(key);
+        }
+        Collections.shuffle(keys, random);
+        long points = 150_000 + random.nextInt(850_000);
+        long now = System.currentTimeMillis();
+        List<ChampionMastery> masteries = new ArrayList<>();
+        for (int i = 0; i < Math.min(30, keys.size()); i++) {
+            int level = (int) Math.max(1, Math.min(60, Math.round(Math.sqrt(points / 1_800.0))));
+            long lastPlayed = now - (long) i * (6 + random.nextInt(48)) * 3_600_000L - random.nextInt(3_600_000);
+            masteries.add(new ChampionMastery(keys.get(i), level, points, lastPlayed));
+            points = Math.max(600, (long) (points * (0.55 + random.nextDouble() * 0.35)));
+        }
+        return masteries;
+    }
+
+    /**
+     * About one player in three is in a game at any time, changing every 20 minutes. A Riot ID containing
+     * {@link #LIVE_NAME} is always in one and one containing {@link #OFFLINE_NAME} never is, for tests. The game has
+     * the player, their duo on the same team and eight made-up players, with start time stable within the window.
+     */
+    @Override
+    public Optional<LiveGame> activeGame(LolPlatform platform, String puuid) {
+        long window = System.currentTimeMillis() / LIVE_WINDOW_MS;
+        Account account = accounts.get(puuid);
+        // ROOT: in a Turkish locale "I" lowers to a dotless "ı" and "Ingame" would not match
+        String name = account == null ? "" : account.gameName().toLowerCase(java.util.Locale.ROOT);
+        boolean inGame = name.contains(LIVE_NAME) || (!name.contains(OFFLINE_NAME)
+                && seeded(puuid + "live" + window).nextInt(3) == 0);
+        if (!inGame) {
+            return Optional.empty();
+        }
+        Random random = seeded(puuid + "game" + window);
+        long startedAt = window * LIVE_WINDOW_MS + 60_000L + random.nextInt(120_000);
+        long length = Math.max(0, (System.currentTimeMillis() - startedAt) / 1000);
+        int ownerTeam = random.nextBoolean() ? 100 : 200;
+        List<Integer> keys = sortedChampionKeys();
+        Collections.shuffle(keys, random);
+        List<LiveParticipant> participants = new ArrayList<>();
+        for (int slot = 0; slot < 10; slot++) {
+            int teamId = slot < 5 ? 100 : 200;
+            String participantPuuid;
+            String riotId;
+            if (teamId == ownerTeam && slot % 5 == 0) {
+                participantPuuid = puuid;
+                riotId = account == null ? "Player#TR1" : account.gameName() + "#" + account.tagLine();
+            } else if (teamId == ownerTeam && slot % 5 == 1) {
+                participantPuuid = duoOf(puuid);
+                riotId = "Duo" + participantPuuid.substring(participantPuuid.length() - 4) + "#TR1";
+            } else {
+                participantPuuid = "fake-live-" + Integer.toHexString((puuid + window).hashCode()) + "-" + slot;
+                riotId = NAMES[random.nextInt(NAMES.length)] + slot + "#TR1";
+            }
+            int[] keystone = KEYSTONES[random.nextInt(KEYSTONES.length)];
+            int sub;
+            do {
+                sub = STYLES[random.nextInt(STYLES.length)];
+            } while (sub == keystone[1]);
+            participants.add(new LiveParticipant(participantPuuid, riotId, teamId, keys.get(slot), 4,
+                    SECOND_SPELLS[random.nextInt(SECOND_SPELLS.length)], false,
+                    new LivePerks(List.of(keystone[0], 8000 + random.nextInt(400)), keystone[1], sub)));
+        }
+        List<LiveBan> bans = new ArrayList<>();
+        for (int turn = 0; turn < 10; turn++) {
+            bans.add(new LiveBan(BAN_KEYS[(turn + (int) (window % 7)) % BAN_KEYS.length], turn < 5 ? 100 : 200, turn + 1));
+        }
+        return Optional.of(new LiveGame(Math.abs((puuid + window).hashCode()), "CLASSIC", random.nextInt(4) == 0 ? 440 : 420,
+                startedAt, length, participants, bans));
     }
 
     @Override
@@ -372,6 +474,11 @@ public class FakeRiotClient implements RiotClient {
             }
         }
         throw new IllegalArgumentException(value);
+    }
+
+    /** Sorted: Map.of iterates in an order that changes between runs, and the fake has to give the same data each time. */
+    private static List<Integer> sortedChampionKeys() {
+        return new ArrayList<>(CHAMPION_KEYS.values().stream().sorted().toList());
     }
 
     private static Random seeded(String text) {
