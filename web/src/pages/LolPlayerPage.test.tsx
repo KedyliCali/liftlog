@@ -41,6 +41,8 @@ const runesJson = [
 interface ServerOptions {
   detail: unknown
   history?: LolRankPoint[] | null
+  /** What `?queue=FLEX` answers */
+  flexHistory?: LolRankPoint[] | null
   /** null: an older server without the stats endpoint (404) */
   stats?: LolDeepStats | null
   groupDuos?: LolGroupDuo[] | null
@@ -65,7 +67,7 @@ interface Call {
 }
 
 /** Answers the player, rank history, stats, group duos and follow; Data Dragon gets a version and its files. */
-function fakeServer({ detail, history = null, stats = null, groupDuos = null, live, mastery }: ServerOptions): Call[] {
+function fakeServer({ detail, history = null, flexHistory = null, stats = null, groupDuos = null, live, mastery }: ServerOptions): Call[] {
   const calls: Call[] = []
   vi.stubGlobal(
     'fetch',
@@ -80,7 +82,10 @@ function fakeServer({ detail, history = null, stats = null, groupDuos = null, li
       calls.push({ method, url, body: typeof init.body === 'string' ? JSON.parse(init.body) : undefined })
       const route = `${method} ${url.pathname}`
       if (route === 'GET /api/v1/lol/players/p1') return jsonResponse(200, detail)
-      if (route === 'GET /api/v1/lol/players/p1/rank-history') return history ? jsonResponse(200, history) : jsonResponse(404, { status: 404 })
+      if (route === 'GET /api/v1/lol/players/p1/rank-history') {
+        const answer = url.searchParams.get('queue') === 'FLEX' ? flexHistory : history
+        return answer ? jsonResponse(200, answer) : jsonResponse(404, { status: 404 })
+      }
       if (route === 'GET /api/v1/lol/players/p1/stats') {
         if (!stats) return jsonResponse(404, { status: 404 })
         // Echo the filter back, like the server does
@@ -402,6 +407,60 @@ describe('League player page, older server (no stats endpoint)', () => {
 
     expect(await screen.findByTestId('tile-winRate')).toBeInTheDocument()
     expect(screen.queryByTestId('lp-chart')).toBeNull()
+  })
+
+  it('switches the LP chart to flex, asking for the flex history only then', async () => {
+    const calls = fakeServer({
+      detail: { ...newDetail, player: { ...newDetail.player, flexRank: { tier: 'SILVER', division: 'I', lp: 12, wins: 8, losses: 9 } } },
+      history: [
+        { recordedAt: '2026-10-17T10:00:00', tier: 'GOLD', division: 'III', lp: 80, queue: 'SOLO' },
+        { recordedAt: '2026-10-18T10:00:00', tier: 'GOLD', division: 'II', lp: 45, queue: 'SOLO' },
+      ],
+      flexHistory: [
+        { recordedAt: '2026-10-16T10:00:00', tier: 'SILVER', division: 'II', lp: 70, queue: 'FLEX' },
+        { recordedAt: '2026-10-19T10:00:00', tier: 'SILVER', division: 'I', lp: 12, queue: 'FLEX' },
+      ],
+    })
+    const { user } = renderPlayer()
+
+    const chart = await screen.findByTestId('lp-chart')
+    expect(within(chart).getByText(t.lpChartSubtitle)).toBeInTheDocument()
+    const flexAsked = () => calls.some((call) => call.url.pathname.endsWith('/rank-history') && call.url.searchParams.get('queue') === 'FLEX')
+    expect(flexAsked()).toBe(false)
+
+    await user.click(within(chart).getByRole('button', { name: t.lpQueueFlex }))
+
+    expect(await within(chart).findByText(t.lpChartSubtitleFlex)).toBeInTheDocument()
+    expect(within(chart).getByRole('button', { name: t.lpQueueFlex })).toHaveAttribute('aria-pressed', 'true')
+    expect(flexAsked()).toBe(true)
+    expect(within(chart).queryByText(t.lpChartTooFew)).toBeNull()
+  })
+
+  it('says so when the picked queue has too few LP changes, and offers no picker without a flex rank', async () => {
+    fakeServer({
+      detail: { ...newDetail, player: { ...newDetail.player, flexRank: { tier: 'SILVER', division: 'I', lp: 12, wins: 8, losses: 9 } } },
+      history: [{ recordedAt: '2026-10-18T10:00:00', tier: 'GOLD', division: 'II', lp: 45, queue: 'SOLO' }],
+      flexHistory: [],
+    })
+    const { user } = renderPlayer()
+
+    // One solo snapshot: the card stays (it has the picker) and says there is not enough yet
+    const chart = await screen.findByTestId('lp-chart')
+    expect(within(chart).getByText(t.lpChartTooFew)).toBeInTheDocument()
+    await user.click(within(chart).getByRole('button', { name: t.lpQueueFlex }))
+    expect(await within(chart).findByText(t.lpChartTooFew)).toBeInTheDocument()
+    cleanup()
+
+    fakeServer({
+      detail: newDetail,
+      history: [
+        { recordedAt: '2026-10-17T10:00:00', tier: 'GOLD', division: 'III', lp: 80 },
+        { recordedAt: '2026-10-18T10:00:00', tier: 'GOLD', division: 'II', lp: 45 },
+      ],
+    })
+    renderPlayer()
+    const soloOnly = await screen.findByTestId('lp-chart')
+    expect(within(soloOnly).queryByRole('button', { name: t.lpQueueFlex })).toBeNull()
   })
 
   it('sorts the champions table by the tapped column, and reverses on a second tap', async () => {
