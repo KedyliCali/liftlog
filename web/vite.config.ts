@@ -62,6 +62,8 @@ export default defineConfig({
   server: {
     // Reachable from a phone on the same Wi-Fi for testing
     host: true,
+    // Tests read the backend's food seed (src/lib/foodCatalogSeed.test.ts); the dev server never needs it
+    ...(process.env.VITEST && { fs: { allow: ['.', '../backend/src/main/resources/db/migration'] } }),
   },
   test: {
     environment: 'jsdom',

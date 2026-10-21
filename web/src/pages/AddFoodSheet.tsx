@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { api } from '../api/endpoints'
 import { queryKeys } from '../api/queryKeys'
 import type { CatalogFood, FoodInput } from '../api/types'
 import { BarcodeScanner } from '../components/BarcodeScanner'
 import { Sheet } from '../components/Sheet'
 import { ErrorState } from '../components/StateViews'
-import { amountInGrams, entryName, nutritionFor, searchFoods, sortByCategory, stepServings, type Amount } from '../lib/foodCatalog'
+import { amountInGrams, categoriesOf, entryName, nutritionFor, searchFoods, sortByCategory, stepServings, type Amount } from '../lib/foodCatalog'
 import { formatKg } from '../lib/format'
 import { locale, t } from '../lib/i18n'
 import { validateFood, type FoodField, type FoodForm } from '../lib/nutrition'
@@ -35,6 +35,8 @@ type Step =
 export function AddFoodSheet({ onSave, onClose }: { onSave: (input: FoodDraft) => Promise<void>; onClose: () => void }) {
   const [step, setStep] = useState<Step>({ kind: 'search' })
   const [query, setQuery] = useState('')
+  // Kept here with the query, so coming back from the amount step shows the same list
+  const [category, setCategory] = useState<string | null>(null)
   // Bumped on every lookup and on leaving it, so a slow answer cannot replace a step the user moved on from
   const lookupRun = useRef(0)
 
@@ -62,6 +64,8 @@ export function AddFoodSheet({ onSave, onClose }: { onSave: (input: FoodDraft) =
         <FoodSearch
           query={query}
           onQuery={setQuery}
+          category={category}
+          onCategory={setCategory}
           onPick={(food) => setStep({ kind: 'amount', food })}
           onManual={() => setStep({ kind: 'manual', name: query.trim() })}
           onScan={() => setStep({ kind: 'scan' })}
@@ -97,19 +101,27 @@ export function AddFoodSheet({ onSave, onClose }: { onSave: (input: FoodDraft) =
 function FoodSearch({
   query,
   onQuery,
+  category,
+  onCategory,
   onPick,
   onManual,
   onScan,
 }: {
   query: string
   onQuery: (q: string) => void
+  category: string | null
+  onCategory: (category: string | null) => void
   onPick: (food: CatalogFood) => void
   onManual: () => void
   onScan: () => void
 }) {
   // The list only changes with a backend release
   const catalog = useQuery({ queryKey: queryKeys.foods, queryFn: api.foods, staleTime: 24 * 60 * 60_000 })
-  const results = catalog.data ? (query.trim() ? searchFoods(catalog.data, query) : sortByCategory(catalog.data)) : []
+  const categories = useMemo(() => (catalog.data ? categoriesOf(catalog.data) : []), [catalog.data])
+  const browsed = useMemo(() => (catalog.data ? sortByCategory(catalog.data) : []), [catalog.data])
+  // A chip narrows both the browsed list and the search results to one category
+  const inCategory = useMemo(() => (category ? browsed.filter((food) => food.category === category) : browsed), [browsed, category])
+  const results = query.trim() ? searchFoods(inCategory, query) : inCategory
 
   return (
     <div className="stack">
@@ -133,28 +145,51 @@ function FoodSearch({
       ) : catalog.isError ? (
         <ErrorState error={catalog.error} onRetry={() => catalog.refetch()} />
       ) : (
-        <div className="food-results">
-          {results.length === 0 && <p className="muted">{t.noFoodMatches(query.trim())}</p>}
-          {results.map((food, index) => {
-            const startsCategory = !query.trim() && food.category !== results[index - 1]?.category
-            const perServing = nutritionFor(food, { kind: 'servings', count: 1 })
-            return (
-              <div key={food.id}>
-                {startsCategory && (
-                  <h4 className="exercise-section-title" data-category={food.category}>
-                    {t.foodCategories[food.category] ?? food.category}
-                  </h4>
-                )}
-                <button className="food-result" onClick={() => onPick(food)}>
-                  <span className="food-result-name">{nameOf(food)}</span>
-                  <span className="food-result-meta num">
-                    {servingOf(food)} · {t.kcal(formatKg(perServing.caloriesKcal))} · {t.grams(formatKg(perServing.proteinG))}
-                  </span>
+        <>
+          {categories.length > 1 && (
+            // A sideways strip: .chip-row also tells the tab swipe to leave the drag to it
+            <div className="chip-row food-category-chips" role="group" aria-label={t.foodCategoryFilter}>
+              <button type="button" className={category === null ? 'filter-chip selected' : 'filter-chip'} aria-pressed={category === null} onClick={() => onCategory(null)}>
+                {t.allFoods}
+              </button>
+              {categories.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  data-category={c}
+                  className={c === category ? 'filter-chip selected' : 'filter-chip'}
+                  aria-pressed={c === category}
+                  onClick={() => onCategory(c === category ? null : c)}
+                >
+                  {t.foodCategoryChips[c] ?? t.foodCategories[c] ?? c}
                 </button>
-              </div>
-            )
-          })}
-        </div>
+              ))}
+            </div>
+          )}
+          {/* Keyed by the chip, so picking another category starts the list from its top */}
+          <div className="food-results" key={category ?? 'all'}>
+            {results.length === 0 && <p className="muted">{t.noFoodMatches(query.trim())}</p>}
+            {results.map((food, index) => {
+              const startsCategory = !query.trim() && food.category !== results[index - 1]?.category
+              const perServing = nutritionFor(food, { kind: 'servings', count: 1 })
+              return (
+                <div key={food.id}>
+                  {startsCategory && (
+                    <h4 className="exercise-section-title" data-category={food.category}>
+                      {t.foodCategories[food.category] ?? food.category}
+                    </h4>
+                  )}
+                  <button className="food-result" onClick={() => onPick(food)}>
+                    <span className="food-result-name">{nameOf(food)}</span>
+                    <span className="food-result-meta num">
+                      {servingOf(food)} · {t.kcal(formatKg(perServing.caloriesKcal))} · {t.grams(formatKg(perServing.proteinG))}
+                    </span>
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </>
       )}
       <p className="muted catalog-note">{t.catalogApproximate}</p>
     </div>

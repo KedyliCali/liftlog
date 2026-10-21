@@ -12,21 +12,40 @@ export function foldTurkish(text: string): string {
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/ı/g, 'i')
+    // Brands: "McDonald's" is typed "mcdonalds", "Coca-Cola" as "coca cola"
+    .replace(/['’`]/g, '')
+    .replace(/[-/&.,()+]/g, ' ')
+}
+
+/** Folded once per catalog row: the list is about a thousand rows and is searched on every keystroke. */
+type SearchKey = { names: string[]; compact: string[] }
+const searchKeys = new WeakMap<CatalogFood, SearchKey>()
+
+function searchKeyOf(food: CatalogFood): SearchKey {
+  let key = searchKeys.get(food)
+  if (!key) {
+    const names = [foldTurkish(food.nameTr), foldTurkish(food.nameEn)]
+    // Without spaces too, so "kitkat" finds "KitKat" and "cocacola" finds "Coca-Cola"
+    key = { names, compact: names.map((n) => n.replace(/\s+/g, '')) }
+    searchKeys.set(food, key)
+  }
+  return key
 }
 
 const MAX_RESULTS = 30
 
 /**
- * Every word typed must appear in the Turkish or English name. Names that start with the query come
- * first, then names with a word starting with it, then any other match; the catalog order breaks ties.
+ * Every word typed must appear in the Turkish or English name, or in it with the spaces squeezed out. Names
+ * that start with the query come first, then names with a word starting with it, then any other match; the
+ * catalog order breaks ties.
  */
 export function searchFoods(foods: CatalogFood[], query: string): CatalogFood[] {
   const words = foldTurkish(query).split(/\s+/).filter(Boolean)
   if (words.length === 0) return []
   const scored: { food: CatalogFood; score: number; index: number }[] = []
   foods.forEach((food, index) => {
-    const names = [foldTurkish(food.nameTr), foldTurkish(food.nameEn)]
-    if (!words.every((word) => names.some((name) => name.includes(word)))) return
+    const { names, compact } = searchKeyOf(food)
+    if (!words.every((word) => names.some((name) => name.includes(word)) || compact.some((name) => name.includes(word)))) return
     const first = words[0]
     const score = names.some((n) => n.startsWith(first)) ? 0 : names.some((n) => n.split(/[\s(]+/).some((w) => w.startsWith(first))) ? 1 : 2
     scored.push({ food, score, index })
@@ -56,7 +75,16 @@ export function nutritionFor(food: CatalogFood, amount: Amount): { caloriesKcal:
 }
 
 /** Order the catalog is browsed in: a day from breakfast on, then ingredients, then extras. */
-export const CATEGORY_ORDER = ['breakfast', 'dish', 'street', 'protein', 'dairy', 'grain', 'vegetable', 'fruit', 'nut', 'sweet', 'drink']
+export const CATEGORY_ORDER = ['breakfast', 'dish', 'street', 'fastfood', 'protein', 'supplement', 'dairy', 'grain', 'vegetable', 'fruit', 'nut', 'sweet', 'packaged', 'drink']
+
+/** Categories that have foods, in browsing order: the filter chips above the list. */
+export function categoriesOf(foods: CatalogFood[]): string[] {
+  const present = new Set(foods.map((food) => food.category))
+  const known = CATEGORY_ORDER.filter((category) => present.has(category))
+  // A category a newer backend added still gets a chip, after the known ones
+  const unknown = [...present].filter((category) => !CATEGORY_ORDER.includes(category)).sort()
+  return [...known, ...unknown]
+}
 
 export function sortByCategory(foods: CatalogFood[]): CatalogFood[] {
   const rank = (category: string) => {

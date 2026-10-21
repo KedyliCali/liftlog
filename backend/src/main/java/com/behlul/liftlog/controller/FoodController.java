@@ -12,7 +12,7 @@ import java.time.Duration;
 import java.util.List;
 
 /**
- * The whole catalog in one response (about a hundred rows, a few KB gzipped): the client searches it
+ * The whole catalog in one response (about a thousand rows, a few dozen KB gzipped): the client searches it
  * locally, so typing gives instant results even on a slow connection.
  */
 @RestController
