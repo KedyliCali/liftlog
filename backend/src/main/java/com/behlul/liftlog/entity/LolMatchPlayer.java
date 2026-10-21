@@ -80,6 +80,10 @@ public class LolMatchPlayer {
     @Column(name = "game_mode")
     private String gameMode;
 
+    /** LP won or lost, estimated from rank snapshots; null when it cannot be told (see LolRanks.lpChange). */
+    @Column(name = "lp_change")
+    private Integer lpChange;
+
     protected LolMatchPlayer() {
     }
 
@@ -227,5 +231,13 @@ public class LolMatchPlayer {
 
     public String getGameMode() {
         return gameMode;
+    }
+
+    public Integer getLpChange() {
+        return lpChange;
+    }
+
+    public void setLpChange(Integer lpChange) {
+        this.lpChange = lpChange;
     }
 }

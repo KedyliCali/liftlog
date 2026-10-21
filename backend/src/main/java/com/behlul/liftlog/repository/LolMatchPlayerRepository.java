@@ -14,6 +14,12 @@ public interface LolMatchPlayerRepository extends JpaRepository<LolMatchPlayer, 
 
     List<LolMatchPlayer> findByPuuidOrderByEndedAtDesc(String puuid, Pageable page);
 
+    /** The player's stored games of one queue that ended after a moment, to find the game between two rank snapshots. */
+    List<LolMatchPlayer> findByPuuidAndQueueIdAndEndedAtAfter(String puuid, int queueId, java.time.LocalDateTime after);
+
+    /** Every followed player's line in one match, for the LP chips on the match page. */
+    List<LolMatchPlayer> findByMatchId(String matchId);
+
     /** Which of these matches are already stored, so a refresh only downloads the new ones. */
     @Query("select m.matchId from LolMatchPlayer m where m.puuid = :puuid and m.matchId in :matchIds")
     Set<String> findStoredIds(@Param("puuid") String puuid, @Param("matchIds") Collection<String> matchIds);

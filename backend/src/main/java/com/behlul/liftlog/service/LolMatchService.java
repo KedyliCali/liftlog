@@ -122,8 +122,9 @@ public class LolMatchService {
                         t.getDragons(), t.getBarons(), t.getHeralds(), t.getGrubs(), t.getAtakhan(), t.isFirstBlood(),
                         t.isFirstTower(), t.isFirstDragon(), t.isFirstBaron(), orEmpty(LolDtos.ids(t.getBans()))))
                 .toList();
+        Map<String, Integer> lpChanges = lolService.lpChanges(matchId);
         List<MatchParticipant> participants = participantRepository.findByMatchIdOrderByParticipantIdAsc(matchId).stream()
-                .map(p -> toResponse(p, visible.contains(p.getPuuid())))
+                .map(p -> toResponse(p, visible.contains(p.getPuuid()), lpChanges.get(p.getPuuid())))
                 .toList();
         // Not fetched yet means it can still be asked for; fetched without frames means Riot no longer had it
         boolean timelineAvailable = !match.isTimelineFetched() || frameRepository.existsByMatchId(matchId);
@@ -220,7 +221,7 @@ public class LolMatchService {
         return playerRepository.findVisiblePuuids(currentUser.currentUserId());
     }
 
-    private static MatchParticipant toResponse(LolMatchParticipant p, boolean tracked) {
+    private static MatchParticipant toResponse(LolMatchParticipant p, boolean tracked, Integer lpChange) {
         return new MatchParticipant(p.getParticipantId(), p.getPuuid(), p.getRiotName(), p.getRiotTag(), p.getTeamId(),
                 p.getChampion(), p.getChampLevel(), p.getPosition(), p.getKills(), p.getDeaths(), p.getAssists(),
                 p.getCs(), p.getGold(), p.getDamage(), p.getDamageTaken(), p.getDamageObjectives(),
@@ -229,7 +230,7 @@ public class LolMatchService {
                 p.getTripleKills(), p.getQuadraKills(), p.getPentaKills(), p.isFirstBlood(), p.getSoloKills(),
                 p.getKillParticipation(), p.getDamageShare(), orEmpty(LolDtos.ids(p.getItems())),
                 orEmpty(LolDtos.ids(p.getSummonerSpells())), p.getKeystone(), p.getPrimaryStyle(),
-                p.getSecondaryStyle(), p.isWin(), tracked);
+                p.getSecondaryStyle(), p.isWin(), tracked, lpChange);
     }
 
     private static <T> Map<String, List<T>> byMatch(Collection<T> rows, Function<T, String> matchId) {

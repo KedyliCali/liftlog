@@ -43,6 +43,8 @@ liftlog:
     api-key: ${RIOT_API_KEY:}
     # Local development only: generated League data, no key needed
     fake: ${RIOT_FAKE:false}
+    # First day of the current ranked season; the season peak rank only counts snapshots from then on
+    season-start: ${LOL_SEASON_START:2026-01-08}
   rate-limit:
     auth:
       # Per client IP, shared by login, register and the passkey sign-in endpoints

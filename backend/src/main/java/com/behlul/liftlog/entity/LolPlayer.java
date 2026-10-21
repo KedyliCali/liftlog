@@ -61,6 +61,31 @@ public class LolPlayer implements Persistable<String> {
     @Column(name = "refreshed_at")
     private LocalDateTime refreshedAt;
 
+    @Column(name = "flex_tier")
+    private String flexTier;
+
+    @Column(name = "flex_division")
+    private String flexDivision;
+
+    @Column(name = "flex_lp")
+    private Integer flexLp;
+
+    @Column(name = "flex_wins")
+    private Integer flexWins;
+
+    @Column(name = "flex_losses")
+    private Integer flexLosses;
+
+    /** Sum of every champion's mastery level, Riot's "mastery score"; null until mastery was first fetched. */
+    @Column(name = "mastery_score")
+    private Integer masteryScore;
+
+    @Column(name = "mastery_points")
+    private Long masteryPoints;
+
+    @Column(name = "mastery_refreshed_at")
+    private LocalDateTime masteryRefreshedAt;
+
     @Transient
     private boolean isNew = true;
 
@@ -99,8 +124,54 @@ public class LolPlayer implements Persistable<String> {
         this.soloLosses = losses;
     }
 
+    public void updateFlexRank(String tier, String division, Integer lp, Integer wins, Integer losses) {
+        this.flexTier = tier;
+        this.flexDivision = division;
+        this.flexLp = lp;
+        this.flexWins = wins;
+        this.flexLosses = losses;
+    }
+
+    public void updateMastery(int score, long points, LocalDateTime at) {
+        this.masteryScore = score;
+        this.masteryPoints = points;
+        this.masteryRefreshedAt = at;
+    }
+
     public void markRefreshed(LocalDateTime at) {
         this.refreshedAt = at;
+    }
+
+    public String getFlexTier() {
+        return flexTier;
+    }
+
+    public String getFlexDivision() {
+        return flexDivision;
+    }
+
+    public Integer getFlexLp() {
+        return flexLp;
+    }
+
+    public Integer getFlexWins() {
+        return flexWins;
+    }
+
+    public Integer getFlexLosses() {
+        return flexLosses;
+    }
+
+    public Integer getMasteryScore() {
+        return masteryScore;
+    }
+
+    public Long getMasteryPoints() {
+        return masteryPoints;
+    }
+
+    public LocalDateTime getMasteryRefreshedAt() {
+        return masteryRefreshedAt;
     }
 
     @Override

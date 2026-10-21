@@ -5,7 +5,9 @@ import com.behlul.liftlog.dto.LolDtos.JoinGroupRequest;
 import com.behlul.liftlog.dto.LolDtos.LolGroupResponse;
 import com.behlul.liftlog.dto.LolDtos.TrackPlayerRequest;
 import com.behlul.liftlog.dto.LolMatchDtos.GroupDuo;
+import com.behlul.liftlog.dto.LolLiveDtos.LolGroupLive;
 import com.behlul.liftlog.service.LolGroupService;
+import com.behlul.liftlog.service.LolLiveService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,9 +32,11 @@ import java.util.List;
 public class LolGroupController {
 
     private final LolGroupService groupService;
+    private final LolLiveService liveService;
 
-    public LolGroupController(LolGroupService groupService) {
+    public LolGroupController(LolGroupService groupService, LolLiveService liveService) {
         this.groupService = groupService;
+        this.liveService = liveService;
     }
 
     /** 204 when the caller is in no group, which is a normal state rather than an error. */
@@ -45,6 +49,15 @@ public class LolGroupController {
     @GetMapping("/duos")
     public ResponseEntity<List<GroupDuo>> duos() {
         return groupService.duos().map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    /**
+     * Which linked members are in a game right now (cached about two minutes, looked up within the Riot budget);
+     * 204 outside a group.
+     */
+    @GetMapping("/live")
+    public ResponseEntity<LolGroupLive> live() {
+        return liveService.groupLive().map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @PostMapping

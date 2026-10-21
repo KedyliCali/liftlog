@@ -34,10 +34,11 @@ public final class LolDtos {
      * @param refreshedAt when Riot was last asked; older data is still shown when Riot is unavailable
      * @param recentWins  wins in the stored recent matches, for the list's quick form indicator
      * @param summary     averages over the same matches, for the group table; null when none are stored
+     * @param flexRank    ranked flex, shaped like the solo/duo {@code rank}; null while unranked in flex
      */
     public record LolPlayerResponse(String puuid, String gameName, String tagLine, String platform, Integer profileIconId,
                                     Integer summonerLevel, RankResponse rank, int recentGames, int recentWins,
-                                    LocalDateTime refreshedAt, LolPlayerSummary summary) {
+                                    LocalDateTime refreshedAt, LolPlayerSummary summary, RankResponse flexRank) {
     }
 
     /** The few averages the group table compares; see {@link LolSummary} for what each one means. */
@@ -60,14 +61,14 @@ public final class LolDtos {
                                    Integer gold, Integer vision, Integer champLevel, Integer damageTaken,
                                    BigDecimal killParticipation, BigDecimal damageShare, Integer largestMultiKill,
                                    Integer wardsPlaced, List<Integer> items, List<Integer> summonerSpells, String gameMode,
-                                   Integer teamId) {
+                                   Integer teamId, Integer lpChange) {
 
         public static LolMatchResponse from(LolMatchPlayer m, Integer teamId) {
             return new LolMatchResponse(m.getMatchId(), m.getQueueId(), m.getEndedAt(), m.getDurationS(), m.getChampion(),
                     m.getPosition(), m.getKills(), m.getDeaths(), m.getAssists(), m.getCs(), m.getDamage(), m.isWin(),
                     m.getGoldEarned(), m.getVisionScore(), m.getChampLevel(), m.getDamageTaken(), m.getKillParticipation(),
                     m.getDamageShare(), m.getLargestMultiKill(), m.getWardsPlaced(), ids(m.getItems()),
-                    ids(m.getSummonerSpells()), m.getGameMode(), teamId);
+                    ids(m.getSummonerSpells()), m.getGameMode(), teamId, m.getLpChange());
         }
     }
 
@@ -124,11 +125,31 @@ public final class LolDtos {
                              List<QueueStats> queues, Records records) {
     }
 
-    /** One point of the LP chart. */
-    public record RankHistoryPoint(LocalDateTime recordedAt, String tier, String division, int lp) {
+    /** One point of the LP chart; queue is SOLO or FLEX. */
+    public record RankHistoryPoint(LocalDateTime recordedAt, String tier, String division, int lp, String queue) {
     }
 
-    public record LolPlayerDetailResponse(LolPlayerResponse player, LolSummary summary, List<LolMatchResponse> matches) {
+    /**
+     * @param seasonPeak     highest solo/duo rank in the rank history since the season started; null without one
+     * @param flexSeasonPeak the same for flex
+     */
+    public record LolPlayerDetailResponse(LolPlayerResponse player, LolSummary summary, List<LolMatchResponse> matches,
+                                          RankHistoryPoint seasonPeak, RankHistoryPoint flexSeasonPeak) {
+    }
+
+    /**
+     * Champion mastery as stored at the last mastery fetch (a refresh asks for it when something was played).
+     *
+     * @param score       sum of every champion's mastery level; null until mastery was first fetched
+     * @param totalPoints sum of every champion's points
+     * @param champions   the top champions by points, at most {@code LolService.MASTERY_KEPT}
+     */
+    public record LolMasteryResponse(Integer score, Long totalPoints, LocalDateTime refreshedAt,
+                                     List<ChampionMasteryResponse> champions) {
+    }
+
+    /** @param championId Data Dragon's numeric champion key */
+    public record ChampionMasteryResponse(int championId, int level, long points, LocalDateTime lastPlayed) {
     }
 
     public record GroupNameRequest(@NotBlank @Size(max = 32) String name) {

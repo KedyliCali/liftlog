@@ -169,6 +169,7 @@ public final class LolMatchDtos {
      * @param items   seven item ids, 0 for an empty slot, the last being the trinket
      * @param spells  two summoner spell ids
      * @param tracked the viewer can open this player's page (follows them or has them in their group)
+     * @param lpChange LP this game moved for a followed player, when it could be estimated; null otherwise
      */
     public record MatchParticipant(int participantId, String puuid, String riotName, String riotTag, int teamId,
                                    String champion, int champLevel, String position, int kills, int deaths,
@@ -178,7 +179,8 @@ public final class LolMatchDtos {
                                    int doubleKills, int tripleKills, int quadraKills, int pentaKills,
                                    boolean firstBlood, Integer soloKills, BigDecimal killParticipation,
                                    BigDecimal damageShare, List<Integer> items, List<Integer> spells, Integer keystone,
-                                   Integer primaryStyle, Integer secondaryStyle, boolean win, boolean tracked) {
+                                   Integer primaryStyle, Integer secondaryStyle, boolean win, boolean tracked,
+                                   Integer lpChange) {
     }
 
     // ---- Timeline (GET /lol/matches/{matchId}/timeline) ----
