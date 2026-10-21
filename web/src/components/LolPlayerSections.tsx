@@ -1,7 +1,10 @@
-import type { ReactNode } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import type { LolChampionStats, LolMatch, LolRankPoint, LolRecord, LolRecords, LolStreak, LolSummary } from '../api/types'
+import { api } from '../api/endpoints'
+import { queryKeys } from '../api/queryKeys'
+import type { LolChampionStats, LolMatch, LolRankPoint, LolRankQueue, LolRecord, LolRecords, LolStreak, LolSummary } from '../api/types'
 import { formatKg } from '../lib/format'
 import { t, termLang } from '../lib/i18n'
 import { formatDuration, kdaRatio, ladderAxis, ladderLabel, queueKey, timeAgo } from '../lib/lol'
@@ -29,38 +32,68 @@ export function StreakChip({ streak }: { streak: LolStreak | null }) {
 
 const axisStyle = { fill: 'var(--text-muted)', fontSize: 11 }
 
-/** Solo/duo rank over time on one LP ladder; hidden until there are two snapshots to draw a line between. */
-export function RankChart({ history }: { history: LolRankPoint[] | undefined }) {
-  const points = rankChartPoints(history)
-  if (points.length < 2) return null
+/**
+ * Rank over time on one LP ladder. Without a flex rank it is the solo chart alone, hidden until there are two
+ * snapshots to draw a line between. With one, Solo/Duo and Flex chips switch queues; the flex history is only
+ * asked for once that chip is picked, and a queue without two snapshots says so instead of hiding the card.
+ */
+export function RankChart({ history, puuid, hasFlex = false }: { history: LolRankPoint[] | undefined; puuid?: string; hasFlex?: boolean }) {
+  const [queue, setQueue] = useState<LolRankQueue>('SOLO')
+  const showFlex = hasFlex && queue === 'FLEX' && !!puuid
+  const flexHistory = useQuery({
+    queryKey: queryKeys.lolRankHistory(puuid ?? '', 'FLEX'),
+    queryFn: () => api.lolRankHistory(puuid ?? '', 'FLEX'),
+    enabled: showFlex,
+    retry: false,
+  })
+  const points = rankChartPoints(showFlex ? flexHistory.data : history)
+  const canSwitch = hasFlex && !!puuid
+  if (points.length < 2 && !canSwitch) return null
   const axis = ladderAxis(points.map((point) => point.value))
   return (
     <section className="chart-card lol-lp-card" data-testid="lp-chart">
       <h2>{t.lpChartTitle}</h2>
-      <p className="muted">{t.lpChartSubtitle}</p>
-      <div style={{ height: 210 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={points} margin={{ top: 8, right: 10, bottom: 0, left: 0 }}>
-            <CartesianGrid stroke="var(--outline-variant)" strokeDasharray="4 4" vertical={false} />
-            <XAxis dataKey="recordedAt" tickFormatter={shortDate} tick={axisStyle} tickLine={false} axisLine={false} minTickGap={24} />
-            <YAxis domain={axis.domain} ticks={axis.ticks} tickFormatter={ladderLabel} tick={axisStyle} tickLine={false} axisLine={false} width={74} />
-            <Tooltip
-              cursor={{ stroke: 'var(--outline)' }}
-              content={({ active, payload }) => {
-                const point = active ? (payload?.[0]?.payload as (typeof points)[number] | undefined) : undefined
-                if (!point) return null
-                return (
-                  <div className="lp-tooltip">
-                    <strong>{point.label}</strong>
-                    <span className="muted">{shortDate(point.recordedAt)}</span>
-                  </div>
-                )
-              }}
-            />
-            <Line type="linear" dataKey="value" stroke="var(--primary)" strokeWidth={3} dot={{ r: 3, fill: 'var(--primary)' }} activeDot={{ r: 6 }} isAnimationActive={false} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      <p className="muted">{showFlex ? t.lpChartSubtitleFlex : t.lpChartSubtitle}</p>
+      {canSwitch && (
+        <div className="chip-row lol-metric-chips" role="group" aria-label={t.lpQueueLabel}>
+          {(['SOLO', 'FLEX'] as const).map((q) => (
+            <button key={q} type="button" className={q === queue ? 'filter-chip selected' : 'filter-chip'} aria-pressed={q === queue} lang="en" onClick={() => setQueue(q)}>
+              {q === 'SOLO' ? t.lpQueueSolo : t.lpQueueFlex}
+            </button>
+          ))}
+        </div>
+      )}
+      {points.length < 2 ? (
+        showFlex && flexHistory.isPending ? (
+          <div className="lol-lp-placeholder" aria-busy="true" />
+        ) : (
+          <p className="muted lol-lp-placeholder">{t.lpChartTooFew}</p>
+        )
+      ) : (
+        <div style={{ height: 210 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={points} margin={{ top: 8, right: 10, bottom: 0, left: 0 }}>
+              <CartesianGrid stroke="var(--outline-variant)" strokeDasharray="4 4" vertical={false} />
+              <XAxis dataKey="recordedAt" tickFormatter={shortDate} tick={axisStyle} tickLine={false} axisLine={false} minTickGap={24} />
+              <YAxis domain={axis.domain} ticks={axis.ticks} tickFormatter={ladderLabel} tick={axisStyle} tickLine={false} axisLine={false} width={74} />
+              <Tooltip
+                cursor={{ stroke: 'var(--outline)' }}
+                content={({ active, payload }) => {
+                  const point = active ? (payload?.[0]?.payload as (typeof points)[number] | undefined) : undefined
+                  if (!point) return null
+                  return (
+                    <div className="lp-tooltip">
+                      <strong>{point.label}</strong>
+                      <span className="muted">{shortDate(point.recordedAt)}</span>
+                    </div>
+                  )
+                }}
+              />
+              <Line type="linear" dataKey="value" stroke="var(--primary)" strokeWidth={3} dot={{ r: 3, fill: 'var(--primary)' }} activeDot={{ r: 6 }} isAnimationActive={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </section>
   )
 }

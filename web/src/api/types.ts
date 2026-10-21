@@ -411,14 +411,16 @@ export interface LolRecords {
   largestMultiKill?: LolRecord | null
 }
 
-/** One solo/duo rank snapshot, stored whenever tier, division or LP changed. */
+export type LolRankQueue = 'SOLO' | 'FLEX'
+
+/** One rank snapshot of a queue, stored whenever tier, division or LP changed. */
 export interface LolRankPoint {
   recordedAt: string
   tier: string
   division: string
   lp: number
   /** SOLO or FLEX; missing from older servers, which only had solo */
-  queue?: 'SOLO' | 'FLEX'
+  queue?: LolRankQueue
 }
 
 export interface LolSummary {

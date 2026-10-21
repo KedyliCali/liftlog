@@ -45,7 +45,7 @@ export function LolPlayerPage() {
   const [refreshing, setRefreshing] = useState(false)
   const query = useQuery({ queryKey: queryKeys.lolPlayer(puuid), queryFn: () => api.lolPlayer(puuid) })
   // Only the chart needs it; an older server answers 404 and the chart simply stays hidden
-  const rankHistory = useQuery({ queryKey: queryKeys.lolRankHistory(puuid), queryFn: () => api.lolRankHistory(puuid), retry: false })
+  const rankHistory = useQuery({ queryKey: queryKeys.lolRankHistory(puuid, 'SOLO'), queryFn: () => api.lolRankHistory(puuid), retry: false })
   const version = useDdragonVersion()
 
   const refresh = async () => {
@@ -186,7 +186,7 @@ function PlayerContent({ puuid, data, rankHistory, version }: {
 
       {summary.games === 0 ? (
         <>
-          <RankChart history={rankHistory} />
+          <RankChart history={rankHistory} puuid={puuid} hasFlex={!!data.player.flexRank} />
           <MessageState icon={<ControllerIcon size={32} />} title={t.lolNoMatches} />
         </>
       ) : (
@@ -273,7 +273,7 @@ function TabContent({ tab, puuid, data, stats, queue, games, rankHistory, versio
         <>
           <StatTiles summary={summary} />
           <FormStrip form={summary.form} />
-          <RankChart history={rankHistory} />
+          <RankChart history={rankHistory} puuid={puuid} hasFlex={!!data.player.flexRank} />
           <RoleBars roles={summary.roles} />
           <QueueBars queues={summary.queues} />
           <RecordList records={summary.records} matches={matches} version={version} onShowMatch={(id) => navigate(matchPath(id, puuid))} />
@@ -290,7 +290,7 @@ function TabContent({ tab, puuid, data, stats, queue, games, rankHistory, versio
   if (deep.gamesFound === 0) {
     return (
       <>
-        {tab === 'overview' && <RankChart history={rankHistory} />}
+        {tab === 'overview' && <RankChart history={rankHistory} puuid={puuid} hasFlex={!!data.player.flexRank} />}
         <MessageState icon={<ControllerIcon size={32} />} title={t.statsNoGames} body={t.statsNoGamesBody} />
       </>
     )
@@ -302,7 +302,7 @@ function TabContent({ tab, puuid, data, stats, queue, games, rankHistory, versio
         <>
           <StatGroups stats={deep} />
           <FormStrip form={summary.form} />
-          <RankChart history={rankHistory} />
+          <RankChart history={rankHistory} puuid={puuid} hasFlex={!!data.player.flexRank} />
           <TrendChart trend={deep.trend} />
           <RoleBars roles={deep.roles} />
           {queue === 'ALL' && <QueueBars queues={summary.queues} />}

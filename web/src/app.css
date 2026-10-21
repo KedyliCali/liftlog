@@ -3614,6 +3614,20 @@ body:has(.rest-timer) .set-groups {
   padding: 16px 12px 12px 16px;
 }
 
+/* Stands where the chart would be, so switching to a queue with too few points does not collapse the card */
+.lol-lp-placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  margin: 4px 4px 0 0;
+  padding: 16px;
+  border: 1px dashed var(--outline-variant);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-m);
+  background: var(--surface-low);
+  text-align: center;
+}
+
 .lp-tooltip {
   display: flex;
   flex-direction: column;
